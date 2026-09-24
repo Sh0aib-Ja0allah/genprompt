@@ -1,0 +1,35 @@
+name: Rule suggestion
+description: A lesson from real use that should become a rule for everyone (for example, one you saved with /genprompt:learn)
+labels: ["rule"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        `/genprompt:learn` can print this issue for you. **Anonymise it:** no repo names, paths or code.
+  - type: textarea
+    id: rule
+    attributes:
+      label: The rule
+      description: One transferable rule, stated generally.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: What went wrong without it
+      description: The failure it prevents, as an anonymised example pattern.
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where it belongs
+      options:
+        - "§4 Building blocks (guide/03-blocks.md)"
+        - "§7 Anti-patterns (guide/05-anti-patterns.md)"
+        - "§11 Environment facts (guide/07-environment.md)"
+        - "§5 An archetype (archetypes/)"
+        - "Stacks and gates (stacks/stack-matrix.md)"
+        - "Not sure"
+    validations:
+      required: true

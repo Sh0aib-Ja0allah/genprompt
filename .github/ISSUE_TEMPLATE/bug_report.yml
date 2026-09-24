@@ -1,0 +1,42 @@
+name: Bug report
+description: A command fails, emits a wrong gate, invents a path, or doctor reports an ERROR
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. **Do not paste private code, repo names, paths or secrets.** Replace them with placeholders.
+  - type: input
+    id: command
+    attributes:
+      label: Command
+      description: The exact command and flags you ran.
+      placeholder: /genprompt:slice Slice S3, scope ... --go
+    validations:
+      required: true
+  - type: input
+    id: stack
+    attributes:
+      label: Stack of the target repo
+      placeholder: e.g. Next.js 15 + pnpm monorepo / Laravel 11 / Flutter
+  - type: textarea
+    id: what
+    attributes:
+      label: What went wrong
+      description: What it did, and what it should have done. Quote the wrong line of the prompt or TARGET LOCK if you can.
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Doctor output (if relevant)
+      description: Output of /genprompt:doctor
+      render: text
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: genprompt version (from /plugin), Claude Code version (claude --version), and OS.
+      placeholder: genprompt 1.0.0 · Claude Code 2.1.x · Windows 11 / macOS 15 / Ubuntu 24.04
+    validations:
+      required: true

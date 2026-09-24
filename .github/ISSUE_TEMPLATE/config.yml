@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/Sh0aib-Ja0allah/genprompt/discussions
+    about: Ask how to do something, or share an idea or a prompt chain.
+  - name: Report a security issue privately
+    url: https://github.com/Sh0aib-Ja0allah/genprompt/security/advisories/new
+    about: Please do not open a public issue for security problems.
