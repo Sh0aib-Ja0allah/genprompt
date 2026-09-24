@@ -1,0 +1,33 @@
+{
+  "name": "genprompt",
+  "owner": {
+    "name": "Sh0aib-Ja0allah",
+    "url": "https://github.com/Sh0aib-Ja0allah"
+  },
+  "metadata": {
+    "description": "Marketplace for the genprompt Claude Code plugin",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "genprompt",
+      "source": "./",
+      "description": "Generates grounded, ready-to-paste Claude Code prompts for a separate worker chat: 23 archetypes, a target lock derived from the repo, literal quality gates, and a self-check on every prompt.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Sh0aib-Ja0allah",
+        "url": "https://github.com/Sh0aib-Ja0allah"
+      },
+      "homepage": "https://github.com/Sh0aib-Ja0allah/genprompt",
+      "license": "MIT",
+      "category": "productivity",
+      "keywords": [
+        "prompt-engineering",
+        "prompts",
+        "workflow",
+        "planning",
+        "code-review"
+      ]
+    }
+  ]
+}
