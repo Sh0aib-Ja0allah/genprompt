@@ -1,3 +1,5 @@
+<img src="assets/logo.png" alt="genprompt logo: a >_ prompt mark" width="96" align="right">
+
 # genprompt
 
 A Claude Code plugin that writes prompts for Claude Code.
@@ -23,6 +25,26 @@ Every prompt it writes:
 - ends with a stop-list, a definition of done and a report spec, so the worker's report can be
   checked
 - is followed by a 22-row self-check table with a verdict and a reason on every row
+
+## What it looks like
+
+A security prompt for a made-up sample repo, `shopfront`. Every repo detail in these screenshots is
+invented; the structure is the real output.
+
+**1. The TARGET LOCK.** genprompt reads the repo and shows what it found. Nothing is written until
+you reply `go`.
+
+![TARGET LOCK for the sample repo: repo, branch, stack, contract, gates and archetype](assets/screenshot-1-target-lock.png)
+
+**2. The prompt.** One fenced block to paste into the worker chat, with `file:line` citations and
+literal gates.
+
+![The generated security prompt for the sample repo](assets/screenshot-2-prompt.png)
+
+**3. Grounding and self-check.** The findings that shaped the prompt, then the 22-row self-check
+and the archive path.
+
+![Grounding notes and the 22-row self-check table](assets/screenshot-3-self-check.png)
 
 ## Install
 
@@ -149,6 +171,7 @@ rulebook, without the `/genprompt:` slash commands.
 | `tools/build_shims.py` | Generates `commands/` from one table |
 | `tools/doctor.py` | Integrity checker for the suite and your archive |
 | `.claude-plugin/` | The plugin and marketplace manifests |
+| `assets/` | The logo and the README screenshots |
 
 ## Contributing
 
