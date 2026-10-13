@@ -131,6 +131,10 @@ and your rules win over the suite's where they conflict. If the rule would help 
 [BOOTSTRAP.md](BOOTSTRAP.md) has a copy-paste block that turns any chat able to read local files
 into a generator, using a clone of this repository.
 
+**Also on Agensi.** genprompt is listed as a free skill on
+[Agensi](https://www.agensi.io/skills/genprompt), a SKILL.md marketplace. The skill runs the same
+rulebook, without the `/genprompt:` slash commands.
+
 ## Layout
 
 | Path | What |
