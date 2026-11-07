@@ -105,6 +105,33 @@ class Variants(unittest.TestCase):
         self.assertEqual(s.check_self_check("Self-check: 20 PASS · 3 N/A · 0 FAIL").status, s.PASS)
         self.assertEqual(s.check_self_check("Self-check: looks fine").status, s.FAIL)
 
+    def test_v2_unique_basename_resolves_and_bad_line_still_fails(self):
+        ok = self.GOOD.replace("docs/ROADMAP.md:6", "ROADMAP.md:6")
+        self.assertEqual(grade(ok)["cites-real"].status, s.PASS)
+        bad = self.GOOD.replace("docs/ROADMAP.md:6", "ROADMAP.md:60")
+        self.assertEqual(grade(bad)["cites-real"].status, s.FAIL)
+
+    def test_v2_path_pattern_quote_is_not_a_placeholder_but_bare_one_is(self):
+        quoted = self.GOOD.replace("Begin with the branch.",
+                                   'Branches are feat/<slug>; errors say "cannot read <file>".')
+        self.assertEqual(grade(quoted)["no-placeholders"].status, s.PASS)
+        bare = self.GOOD.replace("Begin with the branch.", "Begin with <branch>.")
+        self.assertEqual(grade(bare)["no-placeholders"].status, s.FAIL)
+
+    def test_v2_protocol_loaded_paths(self):
+        marker = s.PROTOCOL_MARKER
+        ctx = [{"type": "user", "message": {"content": f"x {marker} y"}}]
+        read = [{"type": "user", "message": {"content": [
+            {"type": "tool_result", "content": f"1\t# genprompt\n3\t`{marker}`"}]}}]
+        none = [{"type": "system", "subtype": "init", "slash_commands": ["genprompt:slice"]}]
+        self.assertIn("initial context", s.check_protocol_loaded(ctx).detail)
+        self.assertIn("Read", s.check_protocol_loaded(read).detail)
+        self.assertEqual(s.check_protocol_loaded(none).status, s.FAIL)
+        lock = "TARGET LOCK\nArchetype   D: Slice execution\n"
+        self.assertIn("inferred", s.check_protocol_loaded(none, lock).detail)
+        self.assertEqual(s.check_protocol_loaded(none, "no lock here").status, s.FAIL)
+        self.assertEqual(s.check_protocol_loaded(None).status, s.SKIPPED)
+
     def test_dry_run_archive_write_fails(self):
         with tempfile.TemporaryDirectory() as home:
             p = Path(home) / ".genprompt" / "generated-prompts" / "x.md"

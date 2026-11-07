@@ -59,11 +59,13 @@ def eval_cmd(args, out: Path, tag: str) -> list[str]:
 def read_trace(path: Path) -> dict:
     final, tools, model, result = "", [], None, {}
     last_text: list[str] = []
+    events: list[dict] = []
     for raw in path.read_text(encoding="utf-8", errors="replace").splitlines():
         try:
             ev = json.loads(raw)
         except json.JSONDecodeError:
             continue
+        events.append(ev)
         if ev.get("type") == "system" and ev.get("subtype") == "init":
             model = ev.get("model")
         if ev.get("type") == "assistant":
@@ -79,7 +81,7 @@ def read_trace(path: Path) -> dict:
             result = ev
     final = result.get("result") if isinstance(result.get("result"), str) else "\n".join(last_text)
     usage = result.get("usage", {})
-    return {"final": final, "tools": tools, "model": model,
+    return {"final": final, "tools": tools, "model": model, "events": events,
             "cost_usd": result.get("total_cost_usd"), "turns": result.get("num_turns"),
             "usage": {k: usage.get(k) for k in ("input_tokens", "cache_creation_input_tokens",
                                                 "cache_read_input_tokens", "output_tokens")},
@@ -121,10 +123,12 @@ def post_grade(agg: dict, out: Path, keep: bool) -> list[dict]:
                     if pkg.exists() else None
                 res = structural.grade(t["final"], cap=spec["cap"], cap_multi=spec.get("cap_multi"),
                                        scripts=scripts, files=workspace_files(ws),
-                                       tool_uses=t["tools"], home=home)
+                                       tool_uses=t["tools"], home=home,
+                                       trace_events=t["events"])
                 row.update({k: t[k] for k in ("model", "cost_usd", "turns", "usage",
                                               "model_usage")})
                 row["structural"] = [r.as_dict() for r in res]
+                row["grader_version"] = structural.GRADER_VERSION
                 dest = out / name / f"run{i + 1}"
                 dest.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(trace, dest / "trace.jsonl")
@@ -159,7 +163,16 @@ def summary(rows: list[dict], agg: dict) -> str:
         if r["control"]:
             passed = [g["name"] for g in r["eval_graders"] if g["passed"]] + \
                      [g["name"] for g in r["structural"] if g["status"] == structural.PASS]
-            out.append(f"\nCONTROL {'OK: every grader failed' if not passed else 'BROKEN: these passed on a bad emission: ' + ', '.join(passed)}")
+            # The control cannot exercise these two; each is shown failing elsewhere.
+            unexercised = {"no-edit": "same tool_used check as no-write, which fails here",
+                           "length-cap": "the sample is short; lint/test_structural.py "
+                                         "test_length_cap_fails_when_over shows it failing"}
+            broken = [n for n in passed if n not in unexercised]
+            notes = "; ".join(f"{n}: {why}" for n, why in unexercised.items() if n in passed)
+            out.append(f"\nCONTROL {'OK' if not broken else 'BROKEN'}: "
+                       + (f"these passed on a bad emission: {', '.join(broken)}"
+                          if broken else "every exercised grader failed")
+                       + (f" (not exercised: {notes})" if notes else ""))
         out.append("")
     return "\n".join(out)
 
@@ -204,8 +217,9 @@ def regrade(results: Path) -> int:
         res = structural.grade((d / "final.txt").read_text(encoding="utf-8"), cap=spec["cap"],
                                cap_multi=spec.get("cap_multi"), scripts=scripts,
                                files=build_cases.fixture_files(spec["variant"]),
-                               tool_uses=t["tools"], home=None)
+                               tool_uses=t["tools"], home=None, trace_events=t["events"])
         row["structural"] = [r.as_dict() for r in res]
+        row["grader_version"] = structural.GRADER_VERSION
     (results / "structural.json").write_text(json.dumps(rows, indent=2), encoding="utf-8")
     text = summary(rows, agg)
     (results / "summary.txt").write_text(text, encoding="utf-8")

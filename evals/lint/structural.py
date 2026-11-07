@@ -16,6 +16,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 PASS, FAIL, SKIPPED = "PASS", "FAIL", "SKIPPED"
+# v1: the Phase-1 baseline run as first graded. v2 (re-grade of the same stored runs, no model
+# spend): cites-real resolves a bare basename that is unique in the workspace; no-placeholders
+# ignores a <name> that is part of a quoted path pattern (feat/<slug>, docs/<TOPIC>.md) or sits in
+# a double-quoted string; adds protocol-loaded from the trace (marker in context OR a Read).
+GRADER_VERSION = 2
+PROTOCOL_MARKER = "GENPROMPT-PROTOCOL v3 LOADED"
 LINE_MAX = 100
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 NPM_BUILTINS = {"install", "i", "ci", "ls", "view", "init", "outdated", "audit", "pack"}
@@ -23,7 +29,8 @@ NPM_BUILTINS = {"install", "i", "ci", "ls", "view", "init", "outdated", "audit",
 FENCE_RE = re.compile(r"^(`{3,})(.*)$")
 LOCK_LINE_RE = re.compile(r"^(Repo|Gates|Archetype)\s{2,}\S")
 INLINE_CODE_RE = re.compile(r"`[^`\n]+`")
-PLACEHOLDER_RE = re.compile(r"(?<![\w`])<(?:…|[A-Za-z][A-Za-z0-9 ._|/:-]{0,60})>")
+QUOTED_RE = re.compile(r'"[^"\n]*"')
+PLACEHOLDER_RE = re.compile(r"(?<![\w`/])<(?:…|[A-Za-z][A-Za-z0-9 ._|/:-]{0,60})>")
 GATE_RE = re.compile(r"\b(npm|pnpm|yarn)\s+(run(?:-script)?\s+)?([A-Za-z0-9:_-]+)")
 CITE_RE = re.compile(r"(?<![\w/.~{-])((?:[\w.-]+/)*[\w.-]+\.(?:js|json|md|sh|txt|yml|yaml))"
                      r":(\d+)(?:\s*[-–]\s*(\d+))?")
@@ -82,7 +89,7 @@ def prose_lines(block: dict) -> list[str]:
             inside = not inside
             continue
         if not inside:
-            out.append(INLINE_CODE_RE.sub("", line))
+            out.append(QUOTED_RE.sub("", INLINE_CODE_RE.sub("", line)))
     return out
 
 
@@ -162,11 +169,16 @@ def check_prompt_text(text: str, cap: int, cap_multi: int | None = None,
         res.append(Result("cites-real", SKIPPED, "no workspace file list given"))
     else:
         bad, seen = [], 0
+        by_base: dict[str, list[str]] = {}
+        for f in files:
+            by_base.setdefault(f.rsplit("/", 1)[-1], []).append(f)
         for line in block["lines"]:
             for m in CITE_RE.finditer(line):
                 path, lo, hi = m.group(1).lstrip("./"), int(m.group(2)), m.group(3)
                 seen += 1
                 top = int(hi) if hi else lo
+                if path not in files and "/" not in path and len(by_base.get(path, [])) == 1:
+                    path = by_base[path][0]  # a bare basename that is unique in the workspace
                 if path not in files:
                     bad.append(f"{path}:{lo} (no such file)")
                 elif top > files[path] or lo < 1:
@@ -214,12 +226,47 @@ def check_writes(tool_uses: list[str] | None, home: Path | None) -> Result:
     return Result("no-writes", PASS, "no write tool calls, nothing under the temp ~/.genprompt")
 
 
+def check_protocol_loaded(trace_events: list[dict] | None, text: str = "") -> Result:
+    """PASS if the protocol was in context. The eval trace starts at system init and does not log
+    the expanded slash-command prompt, so @-include expansion is visible only if a later CLI logs
+    it (path 1). Path 2: the generator Read PROTOCOL.md (E-09b removes that double read).
+    Path 3, so E-09b does not false-fail: the init event registers genprompt commands and the
+    emission has the protocol's TARGET LOCK with an Archetype line (behavioural evidence)."""
+    if trace_events is None:
+        return Result("protocol-loaded", SKIPPED, "no trace given")
+    for ev in trace_events:
+        if ev.get("type") == "user":
+            content = ev.get("message", {}).get("content")
+            if isinstance(content, str) and PROTOCOL_MARKER in content:
+                return Result("protocol-loaded", PASS, "marker in the initial context (@-include)")
+            if isinstance(content, list):
+                for b in content:
+                    if isinstance(b, dict) and b.get("type") == "text" and                             PROTOCOL_MARKER in b.get("text", ""):
+                        return Result("protocol-loaded", PASS,
+                                      "marker in the initial context (@-include)")
+        if ev.get("type") == "system" and ev.get("subtype") != "init" and                 PROTOCOL_MARKER in str(ev):
+            return Result("protocol-loaded", PASS, "marker in a system event")
+    for ev in trace_events:
+        if ev.get("type") == "user" and PROTOCOL_MARKER in str(ev.get("message", {})):
+            return Result("protocol-loaded", PASS, "marker in a Read of PROTOCOL.md")
+    registered = any(ev.get("type") == "system" and ev.get("subtype") == "init" and
+                     any(str(c).startswith("genprompt:") for c in ev.get("slash_commands", []))
+                     for ev in trace_events)
+    if registered and "TARGET LOCK" in text and re.search(r"^Archetype\s{2,}\S", text, re.M):
+        return Result("protocol-loaded", PASS, "inferred: genprompt commands registered and the "
+                      "emission has a TARGET LOCK with an Archetype line (the trace does not log "
+                      "@-include expansion)")
+    return Result("protocol-loaded", FAIL, "no marker in the logged context or a Read, and no "
+                  "protocol-shaped lock in the emission")
+
+
 def check_archive() -> Result:
     return Result("archive-valid", SKIPPED, "skipped: needs tools/archive.py (E-04)")
 
 
 def grade(text: str, *, cap: int, cap_multi: int | None = None, scripts: set[str] | None = None,
           files: dict[str, int] | None = None, tool_uses: list[str] | None = None,
-          home: Path | None = None) -> list[Result]:
+          home: Path | None = None, trace_events: list[dict] | None = None) -> list[Result]:
     return (check_prompt_text(text, cap, cap_multi, scripts, files)
-            + [check_self_check(text), check_writes(tool_uses, home), check_archive()])
+            + [check_self_check(text), check_protocol_loaded(trace_events, text),
+               check_writes(tool_uses, home), check_archive()])
