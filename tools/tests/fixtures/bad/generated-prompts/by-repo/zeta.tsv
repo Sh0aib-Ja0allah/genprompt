@@ -1,0 +1,5 @@
+# genprompt shard: zeta  (path: <path>)
+# Fields: date | archetype | slug | file | task (<=200 chars)
+# schema: v3
+2026-10-06	none	s01-tab-a	-	status: first tab row
+2026-10-06	none	s02-stray-pipe	-	status: a stray | inside a tab row task

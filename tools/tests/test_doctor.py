@@ -5,6 +5,9 @@ never read the real ~/.genprompt archive.
 """
 from __future__ import annotations
 
+import importlib.util
+import json
+import shutil
 import sys
 import tempfile
 import unittest
@@ -56,10 +59,97 @@ class BadArchive(unittest.TestCase):
         self.assertTrue(any("archetype label 's01-shifted-row'" in e for e in errs), self.out)
         self.assertTrue(any("slug 'D' is not lowercase kebab-case" in e for e in errs), self.out)
 
+    def test_tab_shard_with_stray_pipe_keeps_its_fields(self):
+        errs = self.errors_for("zeta.tsv")
+        self.assertEqual(errs, ["ERROR  [archive] zeta.tsv:5: '|' inside the task text"], self.out)
+
     def test_truncated_prompt_is_flagged(self):
         errs = self.errors_for("epsilon/2026-10-05-slice-s01-truncated.md")
         self.assertTrue(any("the full prompt is missing" in e for e in errs), self.out)
         self.assertTrue(any("no self-check table" in e for e in errs), self.out)
+
+
+def load_doctor():
+    spec = importlib.util.spec_from_file_location("doctor_under_test", DOCTOR)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+class Separator(unittest.TestCase):
+    def test_separator_is_chosen_per_shard(self):
+        doc = load_doctor()
+        tab = ["# schema: v3", "2026-10-01\tD\ta\tf.md\tx", "2026-10-02\tD\tb\tf.md\ty | z"]
+        pipe = ["# schema: v3", "2026-10-01 | D | a | f.md | x"]
+        self.assertEqual(doc.shard_separator(tab), "\t")
+        self.assertEqual(doc.shard_separator(pipe), "|")
+        self.assertEqual(doc.shard_separator(["# only comments"]), "|")
+        self.assertEqual(len(doc.split_row(tab[2], "\t")), 5)
+
+
+class ReleaseSync(unittest.TestCase):
+    """check_release against a temporary copy of the manifests and CHANGELOG."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        shutil.copytree(ROOT / ".claude-plugin", self.root / ".claude-plugin")
+        shutil.copy2(ROOT / "CHANGELOG.md", self.root / "CHANGELOG.md")
+        self.doc = load_doctor()
+        self.count = len(self.doc.load_build_shims().ARCHETYPES)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def errors(self) -> list[str]:
+        self.doc.findings.clear()
+        self.doc.check_release(self.root, self.count)
+        return [msg for sev, _area, msg in self.doc.findings if sev == "ERROR"]
+
+    def edit_json(self, name: str, fn) -> None:
+        path = self.root / ".claude-plugin" / name
+        data = json.loads(path.read_text(encoding="utf-8"))
+        fn(data)
+        path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+    def test_repo_versions_agree(self):
+        self.assertEqual(self.errors(), [])
+
+    def test_unreleased_heading_is_skipped(self):
+        log = self.root / "CHANGELOG.md"
+        text = log.read_text(encoding="utf-8")
+        if "## Unreleased" not in text:
+            text = text.replace("\n## ", "\n## Unreleased\n\n- a pending change\n\n## ", 1)
+            log.write_text(text, encoding="utf-8")
+        self.assertEqual(self.errors(), [])
+
+    def test_plugin_version_mismatch_is_an_error(self):
+        self.edit_json("plugin.json", lambda d: d.update(version="9.9.9"))
+        errs = self.errors()
+        self.assertTrue(errs and all("version mismatch" in e for e in errs), errs)
+        self.assertTrue(any("marketplace.json metadata.version" in e for e in errs), errs)
+
+    def test_marketplace_entry_mismatch_names_both_places(self):
+        self.edit_json("marketplace.json", lambda d: d["plugins"][0].update(version="0.0.1"))
+        errs = self.errors()
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn(".claude-plugin/plugin.json version", errs[0])
+        self.assertIn("plugins[0].version is 0.0.1", errs[0])
+
+    def test_changelog_mismatch_is_an_error(self):
+        log = self.root / "CHANGELOG.md"
+        log.write_text(log.read_text(encoding="utf-8").replace("## 1.0.0", "## 1.0.1", 1),
+                       encoding="utf-8")
+        errs = self.errors()
+        self.assertTrue(any("CHANGELOG.md top released heading is 1.0.1" in e for e in errs), errs)
+
+    def test_archetype_count_claim_must_match_table(self):
+        self.edit_json("plugin.json",
+                       lambda d: d.update(description=d["description"].replace(
+                           f"{self.count} archetypes", f"{self.count + 1} archetypes")))
+        errs = self.errors()
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn(f"says {self.count + 1} archetypes", errs[0])
 
 
 class Suite(unittest.TestCase):

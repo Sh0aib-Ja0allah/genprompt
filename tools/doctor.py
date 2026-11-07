@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import datetime as dt
 import importlib.util
+import json
 import os
 import re
 import sys
@@ -210,11 +211,70 @@ def check_suite() -> None:
         scan_banned(text, where, "suite", (PERSONAL_PATH,))
 
 
-def split_row(raw: str) -> list[str]:
+def check_release(root: Path = HOME, archetype_count: int | None = None) -> None:
+    """Version sync: plugin.json, both marketplace.json versions and the top released CHANGELOG
+    heading must agree ("## Unreleased" is skipped), and any "<N> archetypes" claim in the manifest
+    descriptions must match the build_shims table."""
+    if archetype_count is None:
+        try:
+            archetype_count = len(load_build_shims().ARCHETYPES)
+        except Exception:  # noqa: BLE001 - check_suite already reports a broken build_shims
+            archetype_count = None
+    places: list[tuple[str, str]] = []           # (where, version)
+    descs: list[tuple[str, str]] = []            # (where, description)
+    for name in ("plugin.json", "marketplace.json"):
+        rel = f".claude-plugin/{name}"
+        text = read(root / ".claude-plugin" / name, "suite")
+        if text is None:
+            continue
+        try:
+            data = json.loads(text)
+        except ValueError as exc:
+            add("ERROR", "suite", f"{rel} is not valid JSON: {exc}")
+            continue
+        if name == "plugin.json":
+            places.append((f"{rel} version", str(data.get("version", ""))))
+            descs.append((f"{rel} description", str(data.get("description", ""))))
+            continue
+        places.append((f"{rel} metadata.version", str(data.get("metadata", {}).get("version", ""))))
+        for i, plug in enumerate(data.get("plugins", [])):
+            places.append((f"{rel} plugins[{i}].version", str(plug.get("version", ""))))
+            descs.append((f"{rel} plugins[{i}].description", str(plug.get("description", ""))))
+    changelog = read(root / "CHANGELOG.md", "suite")
+    if changelog is not None:
+        m = re.search(r"^## (\d+\.\d+\.\d+)\b", changelog, re.M)
+        places.append(("CHANGELOG.md top released heading", m.group(1) if m else ""))
+    if places:
+        ref_where, ref_ver = places[0]
+        for where, ver in places:
+            if not ver:
+                add("ERROR", "suite", f"no version found in {where}")
+            elif ver != ref_ver and ref_ver:
+                add("ERROR", "suite", f"version mismatch: {ref_where} is {ref_ver} but {where} is {ver}")
+    if archetype_count is not None:
+        for where, desc in descs:
+            for m in re.finditer(r"\b(\d+) archetypes\b", desc):
+                if int(m.group(1)) != archetype_count:
+                    add("ERROR", "suite", f"{where} says {m.group(1)} archetypes but "
+                                          f"tools/build_shims.py ARCHETYPES has {archetype_count}")
+
+
+def shard_separator(lines: list[str]) -> str:
+    """Pick one separator for a whole shard: tab when most data rows have 4+ tabs, else '|'.
+
+    Deciding per shard (not per row) keeps a stray '|' in a tab shard's task text from shifting
+    that row's fields; it then fails the specific "'|' inside the task text" check instead.
+    """
+    data = [ln for ln in lines if ln.strip() and not ln.strip().startswith("#")]
+    tabbed = sum(1 for ln in data if ln.count("\t") >= 4)
+    return "\t" if data and tabbed * 2 > len(data) else "|"
+
+
+def split_row(raw: str, sep: str = "|") -> list[str]:
     s = raw.strip()
-    if "|" in s:
-        return [f.strip() for f in re.split(r"\s*\|\s*", s, maxsplit=4)]
-    return [f.strip() for f in s.split("\t")]
+    if sep == "\t":
+        return [f.strip() for f in s.split("\t")]
+    return [f.strip() for f in re.split(r"\s*\|\s*", s, maxsplit=4)]
 
 
 def shard_rows(path: Path):
@@ -232,11 +292,12 @@ def shard_rows(path: Path):
         add("ERROR", "archive", f"{path.name}: legacy shard must contain exactly one '{V3_MARKER}' line "
                                 f"(found {len(markers)})")
     marker_at = markers[0] if markers else len(lines)
+    sep = shard_separator(lines)
     for i, raw in enumerate(lines):
         s = raw.strip()
         if not s or s.startswith("#"):
             continue
-        fields = split_row(raw)
+        fields = split_row(raw, sep)
         is_v3 = pure_v3 or i > marker_at or (bool(fields) and fields[0] >= V3_START
                                              and bool(DATE_RE.match(fields[0])))
         yield i + 1, fields, is_v3, raw
@@ -453,6 +514,7 @@ def main(argv: list[str]) -> int:
     letters_by_word: dict[str, str] = {}
     if run_suite:
         check_suite()
+        check_release()
     if run_archive:
         try:
             bs = load_build_shims()
