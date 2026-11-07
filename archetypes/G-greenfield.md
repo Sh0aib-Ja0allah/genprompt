@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Use when** | Build a new layer or app after studying a reference repo |
-| **Not when** | The repo is empty and has no reference → `:onboard`, then `:plan`. Most greenfield work is best done as `F+G+I` (plan, then drive the plan) |
+| **Not when** | The repo is empty and has no reference → `:onboard`, then `:plan`, because with nothing to study there is no reference to learn from; onboarding maps the repo and drafts its contract first. Most greenfield work is best done as `F+G+I` (plan, then drive the plan) |
 | **Autonomy** | Phases 1–3 write docs only. §4.19 gate before Phase 4 |
 | **Baseline delta** | Up from zero. The first gates may be `test: NONE`; say so |
 | **Length tier** | Program (350) |

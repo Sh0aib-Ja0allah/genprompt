@@ -19,6 +19,8 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 - 2026-11-07 · tools/archive.py, tools/doctor.py · Deterministic archive writer; doctor --prompt lint.
 - 2026-11-07 · PROTOCOL.md, guide/06-library.md, guide/04-checklist.md, tools/build_shims.py · Step 6
   archives only through tools/archive.py (hand-writing removed); archetype shims and :auto may run it.
+- 2026-11-07 · README.md, utilities/help.md, archetypes/C, G, M · First-run doctor step, core loop and
+  an I-want-to table; onboard/greenfield/kickoff cross-links with reasons; :help routes next/approve.
 
 ## 1.0.0 (2026-09-24): first public release
 

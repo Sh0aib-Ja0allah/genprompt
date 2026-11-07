@@ -65,6 +65,24 @@ Then restart Claude Code, or run `/reload-plugins`, and type `/genprompt:help`.
 
 ## Quick start
 
+**First run:** after installing, run `/genprompt:doctor --suite` once. It checks that the installed
+rules are complete and consistent, and it needs nothing but Python 3.
+
+**The core loop:** `:onboard` → `:slice` → `:next` → `:review` → `:commit`. Most work is these five.
+
+| I want to… | Command |
+|---|---|
+| understand a repo I haven't worked in | `/genprompt:onboard` |
+| build a feature or one change set | `/genprompt:slice` |
+| continue from a worker's stop-report | `/genprompt:next` (or just paste the report) |
+| rule on findings or change a prompt already sent | `/genprompt:approve` |
+| review what the worker just committed | `/genprompt:review` |
+| fix bugs that are already confirmed | `/genprompt:fix` |
+| deal with something broken in production now | `/genprompt:hotfix` |
+| plan work before any code | `/genprompt:plan` |
+| commit and push finished work | `/genprompt:commit` |
+| not sure | `/genprompt:help <your goal>` |
+
 Open Claude Code **in the repo you want to work on** (or pass `--repo <path>`):
 
 ```text

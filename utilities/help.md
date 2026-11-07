@@ -14,4 +14,12 @@ Emits no worker prompt. Writes nothing. Needs no TARGET LOCK.
 2. show the exact invocation to type, with the flags that fit (`--repo`, `--unattended`, …)
 3. if two archetypes are close, name the runner-up and the deciding question
 
+**The continue path** (route these without asking, because they are the most common follow-ups):
+- a worker's stop-report arrived → `/genprompt:next` with the report pasted (pasting the report
+  alone, with no command, means the same)
+- the report has findings or open questions that need your decision first → `/genprompt:approve`
+  with the rulings, or `:next` and say so (it becomes `J+E`)
+- a prompt already sent to the worker needs a change → `/genprompt:approve amend <prior prompt>`
+- the worker lost its context mid-slice → `/genprompt:resume`
+
 Never start generating a prompt from `:help`. The user runs the recommended command.

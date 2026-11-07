@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Use when** | A repo is unfamiliar, has no (or a thin) conventions contract, or is empty. Map it before any other prompt |
-| **Not when** | The contract is solid and you want a gap analysis → `:audit` |
+| **Not when** | The contract is solid and you want a gap analysis → `:audit`. You will build a new layer or app from a reference repo → `:greenfield`, because it studies the reference first and maps only what the build needs. Partial uncommitted WIP is already in the tree → `:kickoff`, because it audits the dirty tree file by file before any code |
 | **Autonomy** | N/A: read-only, plus exactly the enumerated docs |
 | **Baseline delta** | N/A. The deliverable *records* the gates and baseline counts; the worker may run the non-⚠ gates **once** to record them, but not if the contract forbids it |
 | **Length tier** | Focused (200) |

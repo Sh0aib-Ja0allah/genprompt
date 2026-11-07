@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Use when** | Starting a unit whose partial, uncommitted WIP is already in the tree, and whose state is unclear |
-| **Not when** | The WIP is clearly a slice or a fix → `:slice` / `:fix`, with a WIP-disposition paragraph. That is usually the better fit |
+| **Not when** | The WIP is clearly a slice or a fix → `:slice` / `:fix`, with a WIP-disposition paragraph. That is usually the better fit. The repo itself is unfamiliar, or has no conventions contract → `:onboard` first, because a WIP audit needs the contract and gates to judge each file against |
 | **Autonomy** | Phases 1–2 are read-only, plus one gap-audit doc. The §4.19 approval gate comes before any code |
 | **Baseline delta** | N/A until implementation starts |
 | **Length tier** | Focused (200) |
