@@ -10,6 +10,8 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
   fixed; :auto filed as Entry; read-only archetypes drop autonomy flags.
 - 2026-11-07 · tools/build_shims.py · doctor, learn, history, profile get disable-model-invocation:
   still typeable, but out of the model's skill listing (frees listing budget; help stays visible).
+- 2026-11-07 · guide/03-blocks.md, guide/04-checklist.md, PROTOCOL.md, archetypes/ · Every report
+  starts with a GENPROMPT-REPORT header line; Step 1 and :next parse it as claims verified by git.
 
 ## 1.0.0 (2026-09-24): first public release
 

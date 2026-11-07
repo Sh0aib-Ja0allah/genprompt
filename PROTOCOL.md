@@ -74,8 +74,10 @@ Use the first rule that fires, and **record which one fired**:
 
 1. **Argument.** A repo name or absolute path in the request (`--repo <name|path>`, `for <repo>`,
    or a pasted path). Source = `argument`.
-2. **Continuation.** A pasted worker report or prior prompt names or anchors a repo. Take it from
-   the report's `Repo:` line or the prior prompt's line-1 header. Source = `continuation`.
+2. **Continuation.** A pasted worker report or prior prompt names or anchors a repo. Take it, in
+   this order, from the report's `GENPROMPT-REPORT` header `Repo:` field (§4.14), then a free-form
+   `Repo:` line in the report, then the prior prompt's line-1 header. Source = `continuation`.
+   The header is a claim: the lock still shows the repo's real branch and HEAD, read with git.
 3. **cwd.** The session's working directory, if it is inside a git work tree
    (`git rev-parse --show-toplevel`). Source = `cwd`.
    - **Exception:** a cwd inside the genprompt root or the genprompt home (the generator's own

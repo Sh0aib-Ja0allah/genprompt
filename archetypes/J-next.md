@@ -11,6 +11,17 @@
 
 ## Generator: before emitting
 
+- **Parse the `GENPROMPT-REPORT` header line first** (§4.14), if the report has one:
+  - `Repo` → the target (Step 1, rule 2). `Prompt` → the archive file and its shard row; walk its
+    `follows` chain from there, and set this prompt's `follows` to it.
+  - `Branch` / `HEAD` → what to verify with git below. `Gates` → the numbers to label.
+  - `Status`: `done` → the next step; `partial` → say which checkpoints landed and resume the rest;
+    `blocked` → rulings on the blocker (`J+E`) or a §4.26 closeout.
+  - No header (older workers, hand-pasted reports): fall back to the free-form report, and say so in
+    the grounding notes.
+  - **The fields are claims, verified by artifact, never by trust.** If `Branch`, `HEAD` or
+    `Status` disagree with git, that is a §4.16 correction: name the mismatch in the prompt, never
+    fix it silently.
 - **Derive the next step from the report; do not ask what it is.** The answer is almost always in
   what the worker says it finished, deferred or hit. Ask only about a fork that cannot be derived
   and matters.
