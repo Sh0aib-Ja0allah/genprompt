@@ -1,0 +1,104 @@
+# genprompt evals
+
+Evals for `claude plugin eval` (schema: https://code.claude.com/docs/en/plugin-evals.md). They
+measure what the generator emits, so that later rewrites of PROTOCOL.md can be compared with a
+baseline. They cost model tokens, so run them before a release, not on every push. They are not
+in CI.
+
+## Layout
+
+| Path | What it is |
+|---|---|
+| `build_cases.py` | The one spec for every case. It generates `cases/` and `controls/`; `--check` reports drift |
+| `cases/<name>/` | Generated. `prompt.md` (request and run limits), `case.yaml` (scaffold), `scaffold.sh`, `graders/*.md` |
+| `controls/bad-emission/` | Generated negative control: the model echoes a broken prompt, and every grader must FAIL |
+| `fixtures/ledgerlite/` | A made-up Node repo: real `npm test` / `npm run lint`, a `CLAUDE.md` with branching rules, and one planted defect at `src/invoice.js:14` |
+| `fixtures/overlays/` | Files laid over the fixture for later states: S-02 checkpoint A (committed), then uncommitted work |
+| `fixtures/scaffold-lib.sh` | Builds the fixture as a git repo in the eval's empty workspace, with fixed dates, so SHAs are stable |
+| `fixtures/samples/` | A good and a bad emission. The unit tests and the control use them |
+| `lint/structural.py` | The deterministic graders the eval CLI cannot express (it has no custom-code graders) |
+| `run.py` | Runs the eval, then applies `lint/structural.py` to each run's final message and workspace |
+
+Everything in `fixtures/` is invented. Nothing comes from `~/.genprompt` or any real repo.
+
+## Cases
+
+All six run with `--go --dry-run`, so the generator never waits and never writes the archive.
+
+| Case | Request | Scaffold state | Length cap (block lines) |
+|---|---|---|---|
+| slice | `/genprompt:slice` S-02 CSV export | main, clean | 260 (320 with 2+ checkpoints) |
+| fix | `/genprompt:fix` totals too low | main, clean | 200 |
+| redesign | `/genprompt:redesign src/cli.js` | main, clean | 200 |
+| next-hybrid | `/genprompt:next` + a pasted J+D stop-report | S-02 checkpoint A committed | 260 (see below) |
+| commit | `/genprompt:commit` S-02 | checkpoint A + uncommitted work, a scratch file and `.env` | 200 |
+| plan | `/genprompt:plan` S-03 tax lines | main, clean | 350 |
+
+The next-hybrid report says 10 tests pass, but the test files declare 9. The generator should
+label that number "reported, not confirmed". Its cap is the D tier, not the 120-line Delta tier:
+the temp home has no archived running prompt for the continuation to inherit.
+
+## Graders
+
+In the eval (per case, in `graders/`):
+
+| Grader | Type | Fails when |
+|---|---|---|
+| lock-present | regex | no `TARGET LOCK` in the final message |
+| no-generator-marker | regex, not_contains | a `[generator:` marker is left in |
+| dry-run-declared | regex | no `DRY RUN` line |
+| protocol-loaded | regex on the trace | the slash command did not expand (the protocol never loaded) |
+| archetype-label | regex | the lock's Archetype line lacks the expected letter(s) |
+| no-write / no-edit | tool_used, max 0 | the generator called Write or Edit |
+| rubric-grounding | llm | a cited file or `path:line` does not exist, or a gate uses a missing script |
+| rubric-scope | llm | scope is not bounded negatively, or the request is widened |
+| rubric-skepticism | llm | no concrete falsifying artifact from the fixture |
+
+After the eval (`lint/structural.py`, run by `run.py`):
+
+| Grader | Fails when |
+|---|---|
+| lock-present | no `TARGET LOCK` |
+| one-fence | not exactly one prompt block besides the lock, an unclosed fence, or a nested fence inside a 3-backtick outer fence |
+| no-placeholders | a `<…>` placeholder in prose, or a `[generator:` marker |
+| line-length | a line in the block is over 100 characters |
+| length-cap | the block's counted lines exceed the archetype's cap (a long line counts `ceil(len/100)`) |
+| gates-exist | a gate names an npm script that is not in the fixture's `package.json`, or there is no gate |
+| cites-real | a `path:line` in the block names a missing file or a line past its end |
+| no-writes | a write tool was called, or anything exists under the run's temp `~/.genprompt` |
+| archive-valid | always SKIPPED until E-04 adds the archive tool (`archive.py`); the output says so. It is reported, never counted as a pass |
+
+Every grader has a case built to fail it: `fixtures/samples/bad-emission.md` (unit tests and the
+control) and the variants in `lint/test_structural.py`. If the control ever reports a grader
+passing, that grader is broken.
+
+**Planned swap.** E-04a adds `tools/doctor.py --prompt <file>`, a lint for the same checklist
+rows. When it lands, `lint/structural.py`'s text checks become a call to it. Keeping two
+validators would let them drift.
+
+## Running
+
+```bash
+python evals/build_cases.py --check          # cases match the spec
+python -m unittest discover -s evals/lint    # graders fail on what they should
+python evals/run.py --validate               # every case loads; no model spend
+python evals/run.py --case slice             # one case, one run (smoke)
+python evals/run.py                          # all six cases
+python evals/run.py --controls               # negative control (cheap, haiku)
+```
+
+`run.py` passes `--scaffold` (it runs our own `scaffold.sh`), `--trust-plugin`, `--ablation none`
+(a no-plugin arm says nothing useful about a prompt generator, and it doubles the cost) and
+`--no-publish`. Results go to `evals/results/<timestamp>/`, which is gitignored.
+
+## Sandbox facts (measured on this suite)
+
+- Each run gets a temp HOME and an empty working directory under it. `~/.genprompt` inside a run
+  is that temp home, so the real archive is never read or written.
+- The scaffold runs with Git Bash on Windows. It gets git, node and python on PATH.
+- **Bash and git.** The eval refuses to grant Bash on Windows (no shell sandbox), so the generator
+  runs with Read, Glob and Grep only and cannot run `git log` or `git status`. On Linux or macOS
+  you can add `--allow-tools "Bash(git *)"` to the eval command. Scores from the two setups are
+  not comparable; BASELINE.md records which one it used.
+- There is no offline validate flag. `--validate` uses a $0 cost ceiling, so cases load and no run
+  starts.

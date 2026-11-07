@@ -1,0 +1,15 @@
+{
+  "name": "ledgerlite",
+  "version": "0.3.0",
+  "description": "Tiny invoice calculator (made-up eval fixture for genprompt)",
+  "private": true,
+  "type": "commonjs",
+  "main": "src/index.js",
+  "bin": { "ledgerlite": "src/cli.js" },
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "test": "node --test",
+    "lint": "node scripts/lint.js",
+    "start": "node src/cli.js"
+  }
+}
