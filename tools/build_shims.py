@@ -48,6 +48,11 @@ ALLOWED_TOOLS = ", ".join(
 )
 DOCTOR = ", ".join(f"Bash({py} {q}{PLUGIN_ROOT}/tools/doctor.py{q}:*)"
                    for py in ("python3", "python") for q in ("", '"'))
+# Every command that emits a prompt archives it through tools/archive.py (PROTOCOL Step 6), so the
+# archetype shims and the entry point may run that one script. archive.py writes only under
+# ~/.genprompt and runs doctor's per-file lint itself, so no separate doctor --prompt grant.
+ARCHIVE = ", ".join(f"Bash({py} {q}{PLUGIN_ROOT}/tools/archive.py{q}:*)"
+                    for py in ("python3", "python") for q in ("", '"'))
 EXTRA_TOOLS = {
     "doctor": f", {DOCTOR}",
     "learn": "",
@@ -250,7 +255,7 @@ def includes(files: list[str], protocol: bool = True) -> str:
 
 
 def archetype_shim(letter, cmd, stem, name, desc, hint, flags: str = FLAGS) -> str:
-    return (frontmatter(desc, f"{hint}   {flags}", cmd=cmd) + "\n" +
+    return (frontmatter(desc, f"{hint}   {flags}", f", {ARCHIVE}", cmd=cmd) + "\n" +
             includes([f"archetypes/{stem}.md"]) +
             f"\nCommand `/genprompt:{cmd}` → archetype **{letter}: {name}** (§5.{letter}). "
             f"Follow PROTOCOL Steps 1–7 with this archetype. If the request is really a different "
@@ -272,7 +277,7 @@ ENTRY_TAGLINE = "pick the archetype from the request and emit its prompt, or off
 
 
 def root_shim() -> str:
-    return (frontmatter(ENTRY_DESC, f"{ENTRY_HINT}   {FLAGS}")
+    return (frontmatter(ENTRY_DESC, f"{ENTRY_HINT}   {FLAGS}", f", {ARCHIVE}")
             + "\n" + includes(["archetypes/README.md"]) +
             f"\nEntry point `/genprompt:{ENTRY}`. Pick the archetype from the request using the picker "
             "in `archetypes/README.md`, then Read that archetype's file and follow PROTOCOL Steps 1–7. "

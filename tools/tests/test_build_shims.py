@@ -71,6 +71,21 @@ class BuildShims(unittest.TestCase):
                         if "\ndisable-model-invocation: true\n" in p.read_text(encoding="utf-8").split("\n---\n", 1)[0] + "\n")
         self.assertEqual(hidden, ["doctor", "history", "learn", "profile"])
 
+    def test_archive_grant_on_every_prompt_emitting_command_only(self):
+        # E-04b: Step 6 archives through tools/archive.py, so every archetype shim and :auto may
+        # run it (python3 and python, quoted and unquoted); the utilities emit no prompt.
+        bs = load_build_shims()
+        expected = sorted([a[1] for a in bs.ARCHETYPES] + [bs.ENTRY])
+        granted = []
+        for p in (ROOT / "commands").glob("*.md"):
+            fm = p.read_text(encoding="utf-8").split("\n---\n", 1)[0]
+            if "tools/archive.py" in fm:
+                granted.append(p.stem)
+                for py in ("python3", "python"):
+                    self.assertIn(f"Bash({py} ${{CLAUDE_PLUGIN_ROOT}}/tools/archive.py:*)", fm, p.name)
+                    self.assertIn(f'Bash({py} "${{CLAUDE_PLUGIN_ROOT}}/tools/archive.py":*)', fm, p.name)
+        self.assertEqual(sorted(granted), expected)
+
     def test_tables_have_no_duplicates(self):
         self.assertEqual(load_build_shims().table_errors(), [])
 
