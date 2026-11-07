@@ -32,6 +32,8 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
   for archive ERRORs (derivable vs manual, nothing invented) plus legacy label drift; writes nothing.
 - 2026-11-07 · tools/build_shims.py · Step 0 no longer re-reads the @-included PROTOCOL and
   archetype (probe showed they are already in context); saves ~20 KB per emission.
+- 2026-11-07 · tools/build_shims.py, guide/blocks/, PROTOCOL.md · Each archetype shim @-includes a
+  generated excerpt of the 03-blocks sections it needs, instead of the generator reading 03-blocks.
 
 ## 1.0.0 (2026-09-24): first public release
 

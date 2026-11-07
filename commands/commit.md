@@ -6,10 +6,11 @@ allowed-tools: Read, Glob, Grep, Write(~/.genprompt/**), Edit(~/.genprompt/**), 
 
 @${CLAUDE_PLUGIN_ROOT}/PROTOCOL.md
 @${CLAUDE_PLUGIN_ROOT}/archetypes/H-commit.md
+@${CLAUDE_PLUGIN_ROOT}/guide/blocks/H-commit.md
 
 Paths for this run: the genprompt root (these rules, read-only) is `${CLAUDE_PLUGIN_ROOT}`. The genprompt home (the archive and your personal rules) is `~/.genprompt/`.
 
-Step 0: the files listed above are already in your context: their text follows the `@` lines, and PROTOCOL.md's third line contains `GENPROMPT-PROTOCOL v3 LOADED`. Do not Read them again. Read one only if its text is truly absent from your context (for example, the marker is nowhere above): `${CLAUDE_PLUGIN_ROOT}/PROTOCOL.md`, `${CLAUDE_PLUGIN_ROOT}/archetypes/H-commit.md`. Then run `ls -d ~ ~/.genprompt/local-rules.md` once: it prints your absolute home directory (use it for every Write), and if `local-rules.md` exists, Read it (personal rules, see PROTOCOL). Everything below assumes they are loaded.
+Step 0: the files listed above are already in your context: their text follows the `@` lines, and PROTOCOL.md's third line contains `GENPROMPT-PROTOCOL v3 LOADED`. Do not Read them again. Read one only if its text is truly absent from your context (for example, the marker is nowhere above): `${CLAUDE_PLUGIN_ROOT}/PROTOCOL.md`, `${CLAUDE_PLUGIN_ROOT}/archetypes/H-commit.md`, `${CLAUDE_PLUGIN_ROOT}/guide/blocks/H-commit.md`. Then run `ls -d ~ ~/.genprompt/local-rules.md` once: it prints your absolute home directory (use it for every Write), and if `local-rules.md` exists, Read it (personal rules, see PROTOCOL). Everything below assumes they are loaded.
 
 Command `/genprompt:commit` → archetype **H: Commit & push (incl. verify+commit)** (§5.H). Follow PROTOCOL Steps 1–7 with this archetype. If the request is really a different archetype, say so in the TARGET LOCK and use the right one (hybrids are fine).
 
