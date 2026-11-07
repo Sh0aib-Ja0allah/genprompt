@@ -53,6 +53,13 @@ EXTRA_TOOLS = {
     "learn": "",
     "profile": "",
 }
+# Extra frontmatter lines per command (cmd -> lines, each "key: value"), emitted after allowed-tools.
+# disable-model-invocation keeps a command typeable as /genprompt:<cmd> but takes it out of the
+# model's skill listing, which saves listing budget for the commands the model should offer.
+# help stays visible: "which command fits" is exactly when the model should offer it.
+EXTRA_FM: dict[str, list[str]] = {
+    cmd: ["disable-model-invocation: true"] for cmd in ("doctor", "learn", "history", "profile")
+}
 FLAGS = ("[--repo <name|path>] [--go] [--attended|--unattended] [--dry-run] [--brief] "
          "[--follows <file>]")
 # Read-only archetypes (Autonomy "N/A") omit --attended/--unattended: the flag does nothing there.
@@ -214,9 +221,10 @@ def yaml_str(value: str) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
-def frontmatter(desc: str, hint: str, extra: str = "") -> str:
+def frontmatter(desc: str, hint: str, extra: str = "", cmd: str = "") -> str:
+    fm = "".join(f"{line}\n" for line in EXTRA_FM.get(cmd, []))
     return (f"---\ndescription: {yaml_str(desc)}\nargument-hint: {yaml_str(hint)}\n"
-            f"allowed-tools: {ALLOWED_TOOLS}{extra}\n---\n")
+            f"allowed-tools: {ALLOWED_TOOLS}{extra}\n{fm}---\n")
 
 
 def includes(files: list[str], protocol: bool = True) -> str:
@@ -242,7 +250,8 @@ def includes(files: list[str], protocol: bool = True) -> str:
 
 
 def archetype_shim(letter, cmd, stem, name, desc, hint, flags: str = FLAGS) -> str:
-    return (frontmatter(desc, f"{hint}   {flags}") + "\n" + includes([f"archetypes/{stem}.md"]) +
+    return (frontmatter(desc, f"{hint}   {flags}", cmd=cmd) + "\n" +
+            includes([f"archetypes/{stem}.md"]) +
             f"\nCommand `/genprompt:{cmd}` → archetype **{letter}: {name}** (§5.{letter}). "
             f"Follow PROTOCOL Steps 1–7 with this archetype. If the request is really a different "
             f"archetype, say so in the TARGET LOCK and use the right one (hybrids are fine).\n\n"
@@ -251,7 +260,7 @@ def archetype_shim(letter, cmd, stem, name, desc, hint, flags: str = FLAGS) -> s
 
 def utility_shim(cmd, files, desc, hint) -> str:
     extra = EXTRA_TOOLS.get(cmd, "")
-    return (frontmatter(desc, hint, extra) + "\n" +
+    return (frontmatter(desc, hint, extra, cmd=cmd) + "\n" +
             includes(files, protocol=cmd not in PROTOCOL_FREE) +
             f"\nUtility `/genprompt:{cmd}`: follow `utilities/{cmd}.md`. It emits no worker prompt.\n\n"
             f"Request: $ARGUMENTS\n")

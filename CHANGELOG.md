@@ -8,6 +8,8 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 - 2026-11-07 · tools/doctor.py, tools/tests/, .github/workflows/ · CI, unit tests, version-sync check.
 - 2026-11-07 · tools/build_shims.py, guide/08-grammar.md · Grammar table generated; 5 hint drifts
   fixed; :auto filed as Entry; read-only archetypes drop autonomy flags.
+- 2026-11-07 · tools/build_shims.py · doctor, learn, history, profile get disable-model-invocation:
+  still typeable, but out of the model's skill listing (frees listing budget; help stays visible).
 
 ## 1.0.0 (2026-09-24): first public release
 

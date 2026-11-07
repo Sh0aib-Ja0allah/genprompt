@@ -24,6 +24,8 @@ Emits no worker prompt. Writes nothing.
 - **Suite:**
   - every archetype has a command file in `commands/`, and every command file has an archetype
   - the command files match `tools/build_shims.py`, so the `allowed-tools` baseline is identical
+    and the extra frontmatter (`EXTRA_FM`: `disable-model-invocation` on doctor, learn, history and
+    profile, which stay typeable but leave the model's skill listing) is exactly as generated
   - § references resolve
   - the help table lists every command
   - letters are unique
