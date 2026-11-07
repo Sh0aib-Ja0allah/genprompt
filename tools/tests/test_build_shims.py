@@ -64,6 +64,13 @@ class BuildShims(unittest.TestCase):
         self.assertIn("EXTRA commands/handmade.md", out)
         self.assertNotIn("ERROR", out)
 
+    def test_only_the_four_utilities_hide_from_model_invocation(self):
+        # E-02b: doctor, learn, history and profile stay typeable but leave the model's listing;
+        # every other command (help and all archetypes included) must stay visible.
+        hidden = sorted(p.stem for p in (ROOT / "commands").glob("*.md")
+                        if "\ndisable-model-invocation: true\n" in p.read_text(encoding="utf-8").split("\n---\n", 1)[0] + "\n")
+        self.assertEqual(hidden, ["doctor", "history", "learn", "profile"])
+
     def test_tables_have_no_duplicates(self):
         self.assertEqual(load_build_shims().table_errors(), [])
 

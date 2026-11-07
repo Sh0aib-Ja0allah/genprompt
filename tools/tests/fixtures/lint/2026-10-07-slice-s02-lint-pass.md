@@ -27,7 +27,8 @@ git show {sha}:{path}
 COMMIT: stage by path.
 
 WHAT YOU CANNOT DO: push, or edit files outside src/settings/.
-REPORT: gates with real numbers, git status, negative confirmations.
+REPORT: start with a GENPROMPT-REPORT line, then gates with real numbers, git status and
+negative confirmations.
 
 Start with CHECKPOINT A now.
 ````

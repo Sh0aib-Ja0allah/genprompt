@@ -85,13 +85,13 @@ class ArchiveWriter(unittest.TestCase):
         self.assertEqual(lines[-2], "# --- v3 ---")
         self.assertTrue(lines[-1].startswith("2026-10-07 | D | s02-lint-pass"))
 
-    def test_existing_file_is_refused(self):
+    def test_existing_file_is_refused_without_replace(self):
         self.assertEqual(self.run_archive(parts())[0], 0)
-        before = self.shard.read_text(encoding="utf-8")
+        before = (self.shard.read_text(encoding="utf-8"), self.file.read_text(encoding="utf-8"))
         code, out = self.run_archive(parts(task="a second try"))
         self.assertEqual(code, 3, out)
         self.assertIn("REFUSED", out)
-        self.assertEqual(self.shard.read_text(encoding="utf-8"), before)
+        self.assertEqual((self.shard.read_text(encoding="utf-8"), self.file.read_text(encoding="utf-8")), before)
 
     def test_dry_run_writes_nothing(self):
         code, out = self.run_archive(parts(), "--dry-run")
@@ -100,20 +100,72 @@ class ArchiveWriter(unittest.TestCase):
         self.assertIn("row          2026-10-07 | D | s02-lint-pass", out)
         self.assertEqual(list(self.home.iterdir()), [])
 
-    def test_lint_failure_exits_1_and_writes_nothing(self):
-        bad = BODY.replace("Start with CHECKPOINT A now.", "Thanks.")
+    def test_lint_failure_still_writes_then_exits_1(self):
+        # write first, then validate: a printed prompt must never be missing from the archive
+        bad = BODY.split("| # | Item |")[0]                    # no self-check table
         code, out = self.run_archive(parts(body=bad))
         self.assertEqual(code, 1, out)
-        self.assertIn("FAIL  terminal-imperative", out)
-        self.assertIn("NOT ARCHIVED", out)
-        self.assertNotIn("ARCHIVED  ", out)
+        self.assertIn("FAIL  self-check", out)
+        self.assertIn("ARCHIVED WITH ERRORS", out)
+        self.assertTrue(self.file.exists())
+        self.assertEqual(len(self.data_rows()), 1)
+
+    def test_warnings_alone_archive_with_exit_0(self):
+        code, out = self.run_archive(parts(body=BODY.replace("Start with CHECKPOINT A now.", "Thanks.")))
+        self.assertEqual(code, 0, out)
+        self.assertIn("WARN  terminal-imperative", out)
+        self.assertIn("(1 warning(s))", out)
+
+    def test_replace_fixes_a_flagged_file_in_place(self):
+        bad = BODY.split("| # | Item |")[0]
+        self.assertEqual(self.run_archive(parts(body=bad))[0], 1)
+        code, out = self.run_archive(parts(task="Slice S02, fixed"), "--replace")
+        self.assertEqual(code, 0, out)
+        self.assertIn("(replaced)", out)
+        self.assertEqual(self.file.read_text(encoding="utf-8"), PASS_FILE.read_text(encoding="utf-8"))
+        self.assertEqual(self.data_rows(), ["2026-10-07 | D | s02-lint-pass | 2026-10-07-slice-s02-lint-pass.md | "
+                                            "Slice S02, fixed"])
+
+    def test_replace_never_duplicates_the_row(self):
+        self.assertEqual(self.run_archive(parts(slug="s01-first", task="first"))[0], 0)
+        self.assertEqual(self.run_archive(parts())[0], 0)
+        self.assertEqual(self.run_archive(parts(slug="s03-third", task="third"))[0], 0)
+        for _ in range(2):
+            self.assertEqual(self.run_archive(parts(task="again"), "--replace")[0], 0)
+        rows = self.data_rows()
+        self.assertEqual(len(rows), 3, rows)
+        self.assertEqual(sum(1 for r in rows if "2026-10-07-slice-s02-lint-pass.md" in r), 1)
+        self.assertTrue(rows[1].endswith("| again"), rows)        # rewritten in place, order kept
+
+    def test_replace_on_a_new_file_just_archives_it(self):
+        code, out = self.run_archive(parts(), "--replace")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(len(self.data_rows()), 1)
+
+    def test_task_is_normalised_not_refused(self):
+        code, out = self.run_archive(parts(task="has a | pipe and an em—dash " + "x" * 220))
+        self.assertEqual(code, 0, out)
+        self.assertIn("WARN  task  replaced '|'", out)
+        task = self.data_rows()[0].split(" | ", 4)[4]
+        self.assertLessEqual(len(task), 200)
+        self.assertNotIn("|", task)
+
+    def test_bad_structural_field_exits_2_and_writes_nothing(self):
+        code, out = self.run_archive(parts(slug="Not A Slug"))
+        self.assertEqual(code, 2, out)
         self.assertEqual(list(self.home.iterdir()), [])
 
-    def test_bad_task_field_exits_1(self):
-        code, out = self.run_archive(parts(task="has a | pipe"))
-        self.assertEqual(code, 1, out)
-        self.assertIn("task contains '|'", out)
-        self.assertEqual(list(self.home.iterdir()), [])
+    def test_22_and_23_row_self_checks_are_accepted_by_archive_and_doctor(self):
+        # E-08 appends row 23; every prompt archived before it has 22 rows. Both stay valid.
+        head = BODY.split("| # | Item |")[0]
+        for rows in (22, 23):
+            table = "| # | Item | Verdict | Reason |\n|---|---|---|---|\n" + "".join(
+                f"| {n} | item {n} | PASS | reason {n} |\n" for n in range(1, rows + 1))
+            code, out = self.run_archive(parts(body=head + table, slug=f"s02-rows-{rows}"))
+            self.assertEqual(code, 0, out)
+            self.assertIn("PASS  self-check", out)
+        code, out = run_tool(DOCTOR, "--archive", home=self.home)
+        self.assertEqual(error_lines(out), [], out)
 
     def test_status_row_writes_only_the_shard(self):
         code, out = self.run_archive({"key": "lint-demo", "path": "/srv/repos/lint-demo", "date": "2026-10-08",

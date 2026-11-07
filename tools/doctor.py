@@ -343,13 +343,22 @@ def fences(text: str) -> list[tuple[int, int, int, list[str]]]:
 
 
 # ---------------------------------------------------------------------------------------------
-# Per-file lint (doctor --prompt, and tools/archive.py before it writes). The mechanical rows of
+# Per-file lint (doctor --prompt, and tools/archive.py after it writes). The mechanical rows of
 # the self-check (§6 rows 8, 15, 16, 21, 22) are checked here so the generator does not grade
 # itself. --archive does not run these: most of the existing archive predates them.
+#
+# Severity, calibrated on the real v3 archive (2026-10-05 onward):
+#   FAIL  the record is broken: invalid line-1 header, no/unclosed/split fence or a stub block,
+#         no self-check table (§10.2, §4.21 "exactly one fenced block", row 22). Exit 1.
+#   WARN  advisory: the rule allows the case, or the check is a heuristic (line width: §4.21
+#         counts a long line as ceil(len/100) lines; length: §4.21 allows an overrun with a reason;
+#         placeholders, terminal imperative, gate labels, filename words). Never blocks.
 # ---------------------------------------------------------------------------------------------
+PASS, WARN, FAIL = "PASS", "WARN", "FAIL"
 HEADER_KEYS = ("key", "repo", "path", "date", "archetype", "follows")
 HEADER_OPTIONAL = ("flags", "via", "lock")           # E-05 fields: optional, trailing, in this order
 LINE_WIDTH = 100
+MIN_BLOCK_LINES = 5      # counted lines (ceil(len/100) each) below which the block is a stub
 # §4.21 tier caps (guide/03-blocks.md); check_tiers() keeps this map equal to the table.
 TIER_CAPS = {"Delta": 120, "Focused": 200, "Slice": 260, "Program": 350}
 TIER_OF = {**dict.fromkeys("EJ", "Delta"), **dict.fromkeys("ABCHKLMOPUVW", "Focused"),
@@ -357,20 +366,43 @@ TIER_OF = {**dict.fromkeys("EJ", "Delta"), **dict.fromkeys("ABCHKLMOPUVW", "Focu
 SLICE_MULTI_CAP = 320                                 # D with several checkpoints
 MEASURED_LARGE = 1.2                                  # +20% when self-check row 21 names it
 PLACEHOLDER_RE = re.compile(r"<(?![/!=\-])([^<>\n]{1,80})>")
-IMPERATIVE_RE = re.compile(r"^\W*(start|begin|continue|proceed|resume|go|stop|report|read|run|"
-                           r"work|do not|don't|then|now)\b|\bnow\b", re.I)
-GATE_LABEL_RE = re.compile(r"\((script|contract|derived)[),;]|test: NONE|no gates?\b", re.I)
+HTML_TAGS = {"a", "abbr", "article", "aside", "b", "body", "br", "button", "code", "div", "em",
+             "footer", "form", "h1", "h2", "h3", "h4", "head", "header", "html", "i", "img", "input",
+             "label", "li", "link", "main", "meta", "nav", "ol", "option", "p", "pre", "script",
+             "section", "select", "small", "span", "strong", "style", "svg", "table", "td",
+             "template", "textarea", "th", "title", "tr", "ul", "video"}
+IMPERATIVE_VERBS = ("start", "begin", "continue", "proceed", "resume", "go", "stop", "report",
+                    "read", "run", "work", "reply", "return", "wait", "send", "do", "don't", "then",
+                    "now", "confirm", "finish", "open", "fix", "implement", "write", "commit")
+GATE_LABEL_RE = re.compile(r"\((?:script|contract|derived)\b|test: NONE|no gates?\b", re.I)
 
 
 def is_placeholder(inner: str) -> bool:
     """A leftover generator placeholder such as <area to assess> or <script|contract>, as opposed
-    to code (<div class="x">, Map<String, Int>, a <= b) or an e-mail/URL in angle brackets."""
+    to code (<div class="x">, <html lang>, Map<String, Int>, a regex like <A|Bc>, a <= b) or an
+    e-mail/URL in angle brackets."""
     s = inner.strip()
-    if not s or not s[0].isalpha() or "=" in s or "@" in s or "://" in s:
+    if not s or not s[0].isalpha() or "=" in s or "@" in s or "://" in s or "\\" in s:
+        return False
+    if s.split()[0].lower() in HTML_TAGS:                       # an HTML tag with attributes
         return False
     if re.fullmatch(r"[A-Z]\w*(\s*,\s*[A-Z]\w*)+", s):        # generic type arguments
         return False
+    if "|" in s and " " not in s and not s.islower():          # a regex alternation such as A|Bc
+        return False
     return bool(re.search(r"[ |…]|\.\.\.", s))
+
+
+def has_imperative(line: str) -> bool:
+    """Principle 12: the block ends with a terminal imperative. True when any sentence of the last
+    line starts with an imperative verb, or the line says 'now'."""
+    if re.search(r"\bnow\b", line, re.I):
+        return True
+    for sentence in re.split(r"(?<=[.;:!?])\s+|\s+[–-]\s+", line):
+        words = re.findall(r"[A-Za-z']+", sentence)
+        if words and words[0].lower() in IMPERATIVE_VERBS:
+            return True
+    return False
 
 
 def parse_header(line: str) -> tuple[dict[str, str] | None, list[str]]:
@@ -419,77 +451,99 @@ def tier_cap(letters: list[str], body: list[str], self_check: str) -> tuple[int,
 
 
 def lint_prompt(text: str, filename: str | None = None,
-                cmd_by_letter: dict[str, str] | None = None) -> list[tuple[str, bool, str]]:
-    """Run the per-file checks. Returns [(check, passed, detail)], one entry per check."""
-    res: list[tuple[str, bool, str]] = []
+                cmd_by_letter: dict[str, str] | None = None) -> list[tuple[str, str, str]]:
+    """Run the per-file checks. Returns [(check, PASS|WARN|FAIL, detail)], one entry per check."""
+    res: list[tuple[str, str, str]] = []
     lines = text.splitlines()
 
-    # header
+    # header (FAIL): line 1 must be a valid v3 header whose date matches the filename
     meta, problems = parse_header(lines[0] if lines else "")
-    if meta is not None and filename:
-        name = Path(filename).name
+    name = Path(filename).name if filename else ""
+    if meta is not None and name:
         if not name.startswith(f"{meta.get('date', '')}-"):
             problems.append(f"filename {name} does not start with date={meta.get('date')}")
-        if cmd_by_letter:
-            cmds = "+".join(cmd_by_letter.get(x, "?") for x in meta.get("archetype", "").split("+"))
-            if not name.startswith(f"{meta.get('date', '')}-{cmds}-"):
-                problems.append(f"filename {name} does not match <date>-{cmds}-<slug>.md")
         if not FILE_RE.match(name):
             problems.append(f"filename {name} is not <date>-<cmd>[+<cmd>]-<slug>.md")
-    res.append(("header", not problems, "; ".join(problems) or "valid v3 line-1 header"))
+    res.append(("header", FAIL if problems else PASS, "; ".join(problems) or "valid v3 line-1 header"))
 
-    # exactly one outer fence, closed, 4 backticks when it nests fences
+    # filename words (WARN): §10.1 names every archetype's command word, dominant first
+    if meta is not None and name and cmd_by_letter and not problems:
+        cmds = "+".join(cmd_by_letter.get(x, "?") for x in meta.get("archetype", "").split("+"))
+        ok = name.startswith(f"{meta['date']}-{cmds}-")
+        res.append(("filename-words", PASS if ok else WARN,
+                    f"<date>-{cmds}-<slug>.md" if ok else
+                    f"archetype={meta['archetype']} implies <date>-{cmds}-<slug>.md (§10.1)"))
+
+    # one fence (FAIL when the record is broken; WARN for an extra snippet outside the prompt)
     blocks = fences(text)
-    fence_problems = []
-    if len(blocks) != 1:
-        fence_problems.append(f"{len(blocks)} top-level fenced blocks (need exactly 1)")
     body: list[str] = []
     end = len(lines)
-    if blocks:
+    fence_fail, fence_warn = [], []
+    if not blocks:
+        fence_fail.append("no fenced prompt")
+    else:
         ticks, _start, end, body = max(blocks, key=lambda b: len(b[3]))
         if end >= len(lines):
-            fence_problems.append("the fence is never closed (truncated prompt)")
-        if any(re.match(r"^\s*`{3,}", ln) for ln in body) and ticks < 4:
-            fence_problems.append("the prompt nests a fence, so the outer fence needs 4 backticks")
-        if len(body) < MIN_PROMPT_LINES:
-            fence_problems.append(f"the block has {len(body)} lines (< {MIN_PROMPT_LINES}): the full prompt is missing")
-    res.append(("one-fence", not fence_problems, "; ".join(fence_problems) or f"1 block, {len(body)} lines"))
+            fence_fail.append("the fence is never closed (truncated prompt)")
+        if any(t == 3 and any(re.match(r"^\s*`{3,}\S", ln) for ln in b) for t, _s, _e, b in blocks):
+            fence_fail.append("a 3-backtick outer fence nests a fence, so the pasted prompt is cut off "
+                              "(use 4 backticks)")
+        counted_body = sum(max(1, -(-len(ln) // LINE_WIDTH)) for ln in body)
+        if counted_body < MIN_BLOCK_LINES:     # width-aware: a short prompt written in long lines is fine
+            fence_fail.append(f"the block has {counted_body} counted lines: a stub, not the full prompt")
+        if len(blocks) > 1 and not fence_fail:
+            fence_warn.append(f"{len(blocks)} top-level fenced blocks; §4.21 wants exactly one")
+    status = FAIL if fence_fail else WARN if fence_warn else PASS
+    res.append(("one-fence", status, "; ".join(fence_fail + fence_warn) or f"1 block, {len(body)} lines"))
 
-    # leftover generator placeholders
+    # leftover generator placeholders (WARN: heuristic; §4.0 wants worker-side variables as {…})
     found = []
     for n, ln in enumerate(body, 1):
         found += [f"block line {n}: <{m.group(1)}>" for m in PLACEHOLDER_RE.finditer(ln) if is_placeholder(m.group(1))]
     found += [f"line {n}: [generator:" for n, ln in enumerate(lines, 1) if "[generator:" in ln]
-    res.append(("placeholders", not found, "; ".join(found[:5]) + (f" (+{len(found) - 5} more)" if len(found) > 5 else "")
+    res.append(("placeholders", WARN if found else PASS,
+                ("; ".join(found[:5]) + (f" (+{len(found) - 5} more)" if len(found) > 5 else "")
+                 + " (§4.0: fill it, or write a worker-side variable as {…})")
                 if found else "no <…> generator placeholder or [generator: left"))
 
-    # line width inside the block
+    # line width (WARN: §4.21 counts a long line as ceil(len/100) lines, it does not forbid it)
     wide = [(n, len(ln)) for n, ln in enumerate(body, 1) if len(ln) > LINE_WIDTH]
-    res.append(("line-width", not wide,
-                f"{len(wide)} block line(s) over {LINE_WIDTH} chars, e.g. line {wide[0][0]} ({wide[0][1]})"
-                if wide else f"all block lines <= {LINE_WIDTH} chars"))
+    res.append(("line-width", WARN if wide else PASS,
+                f"{len(wide)} block line(s) over {LINE_WIDTH} chars, e.g. line {wide[0][0]} ({wide[0][1]}); "
+                f"counted in length" if wide else f"all block lines <= {LINE_WIDTH} chars"))
 
-    # length within the tier cap (a long line counts as ceil(len/100) lines)
+    # length (WARN: §4.21 allows an overrun with a reason in self-check row 21)
     tail = "\n".join(lines[end + 1:])
     letters = (meta or {}).get("archetype", "").split("+")
     counted = sum(max(1, -(-len(ln) // LINE_WIDTH)) for ln in body)
     cap, why = tier_cap(letters, body, tail)
-    res.append(("length", counted <= cap, f"{counted} counted lines, cap {cap} ({why})"))
+    res.append(("length", PASS if counted <= cap else WARN, f"{counted} counted lines, cap {cap} ({why})"))
 
-    # terminal imperative
+    # terminal imperative (WARN: principle 12; the verb test is a heuristic)
     last = next((ln.strip() for ln in reversed(body) if ln.strip()), "")
-    res.append(("terminal-imperative", bool(IMPERATIVE_RE.search(last)),
-                f"last line: {last[:60]!r}" if last else "the block is empty"))
+    if body:
+        res.append(("terminal-imperative", PASS if has_imperative(last) else WARN,
+                    "the block ends with an imperative" if has_imperative(last) else
+                    "the last block line is not an imperative (principle 12: 'Start with Part A now.')"))
 
-    # gates labelled
-    res.append(("gates-labelled", bool(GATE_LABEL_RE.search("\n".join(body))),
-                "gates carry (script|contract|derived), or test: NONE is stated"
-                if GATE_LABEL_RE.search("\n".join(body)) else
-                "no gate labelled (script), (contract) or (derived), and no 'test: NONE'"))
+    # gates labelled (WARN: row 8; read-only prompts may legitimately carry none)
+    labelled = bool(GATE_LABEL_RE.search("\n".join(body)))
+    res.append(("gates-labelled", PASS if labelled else WARN,
+                "gates carry (script|contract|derived), or test: NONE is stated" if labelled else
+                "no gate labelled (script), (contract) or (derived), and no 'test: NONE' (row 8)"))
 
-    # self-check table after the block
-    res.append(("self-check", bool(SELF_CHECK_RE.search(tail)),
-                "table present after the block" if SELF_CHECK_RE.search(tail) else
+    # report line (WARN, new convention: a prompt that asks for a report names GENPROMPT-REPORT)
+    joined = "\n".join(body)
+    if re.search(r"\bREPORT\b", joined):
+        has = "GENPROMPT-REPORT" in joined
+        res.append(("report-line", PASS if has else WARN,
+                    "the report spec names a GENPROMPT-REPORT line" if has else
+                    "the prompt asks for a report but has no GENPROMPT-REPORT line"))
+
+    # self-check table after the block (FAIL: row 22, §10.2)
+    has_table = bool(SELF_CHECK_RE.search(tail))
+    res.append(("self-check", PASS if has_table else FAIL,
+                "table present after the block" if has_table else
                 "no | # | Item | Verdict | Reason | table after the block"))
     return res
 
@@ -527,12 +581,12 @@ def run_prompt_lint(path_arg: str) -> int:
         say(f"FAIL  read  cannot read {p}: {exc}")
         return 1
     results = lint_prompt(text, p.name, cmd_map())
-    for check, ok, detail in results:
-        say(f"{'PASS' if ok else 'FAIL'}  {check:20} {detail}")
-    fails = sum(1 for _c, ok, _d in results if not ok)
+    for check, status, detail in results:
+        say(f"{status}  {check:20} {detail}")
+    n = Counter(status for _c, status, _d in results)
     say()
-    say(f"Prompt lint: {len(results) - fails} PASS, {fails} FAIL  ({p.name})")
-    return 1 if fails else 0
+    say(f"Prompt lint: {n[PASS]} PASS, {n[WARN]} WARN, {n[FAIL]} FAIL  ({p.name})")
+    return 1 if n[FAIL] else 0
 
 
 def check_prompt_file(p: Path, rel: str, header: re.Match[str] | None, row_label: str | None,
