@@ -30,6 +30,8 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
   the lock's landed check, the GENPROMPT-REPORT line, the compact self-check.
 - 2026-11-08 · tools/doctor.py, utilities/doctor.md · doctor --suggest-fixes: a print-only repair plan
   for archive ERRORs (derivable vs manual, nothing invented) plus legacy label drift; writes nothing.
+- 2026-11-07 · tools/build_shims.py · Step 0 no longer re-reads the @-included PROTOCOL and
+  archetype (probe showed they are already in context); saves ~20 KB per emission.
 
 ## 1.0.0 (2026-09-24): first public release
 

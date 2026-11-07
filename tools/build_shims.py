@@ -246,9 +246,14 @@ def includes(files: list[str], protocol: bool = True) -> str:
                 f"This utility does not need `PROTOCOL.md`; do not Read it. If "
                 f"`{USER_HOME}/local-rules.md` exists, Read it (personal rules). Everything below "
                 f"assumes they are loaded.\n")
+    # The @-lines above expand into the files' text when the command loads (verified for plugin
+    # commands in E-09b). Re-reading them "to be safe" doubled the rule load, so Step 0 reads a
+    # file only when its text is genuinely absent.
     return (f"{inc}\n\n{paths}"
-            f"Step 0: if the line `GENPROMPT-PROTOCOL v3 LOADED` is not visible above, or any "
-            f"file listed here is missing from context, Read it now: {reads}. Then run "
+            f"Step 0: the files listed above are already in your context: their text follows the "
+            f"`@` lines, and PROTOCOL.md's third line contains `GENPROMPT-PROTOCOL v3 LOADED`. Do "
+            f"not Read them again. Read one only if its text is truly absent from your context (for "
+            f"example, the marker is nowhere above): {reads}. Then run "
             f"`ls -d ~ {USER_HOME}/local-rules.md` once: it prints your absolute home directory "
             f"(use it for every Write), and if `local-rules.md` exists, Read it (personal rules, see "
             f"PROTOCOL). Everything below assumes they are loaded.\n")
