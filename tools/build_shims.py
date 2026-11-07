@@ -282,8 +282,16 @@ def root_shim() -> str:
             f"\nEntry point `/genprompt:{ENTRY}`. Pick the archetype from the request using the picker "
             "in `archetypes/README.md`, then Read that archetype's file and follow PROTOCOL Steps 1–7. "
             "A pasted worker stop-report with no instruction means archetype J (`:next`). An empty "
-            "request: resolve the target anyway, then offer the picker in one message, instead of "
-            "asking twice.\n\nRequest: $ARGUMENTS\n")
+            "request: resolve the target anyway, then, in one message and without asking twice, "
+            "show the target and these six commands, each with its purpose: "
+            "`:onboard` (understand a repo you haven't worked in), "
+            "`:slice` (build one feature or change set), "
+            "`:next` (continue from a worker's stop-report), "
+            "`:review` (review what the worker committed), "
+            "`:fix` (fix confirmed bugs), "
+            "`:commit` (commit and push finished work). "
+            "End with: for anything else, `/genprompt:help <your goal>`."
+            "\n\nRequest: $ARGUMENTS\n")
 
 
 def table_errors() -> list[str]:

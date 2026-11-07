@@ -21,6 +21,8 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
   archives only through tools/archive.py (hand-writing removed); archetype shims and :auto may run it.
 - 2026-11-07 · README.md, utilities/help.md, archetypes/C, G, M · First-run doctor step, core loop and
   an I-want-to table; onboard/greenfield/kickoff cross-links with reasons; :help routes next/approve.
+- 2026-11-07 · tools/build_shims.py · An empty :auto shows the target plus six core commands with
+  their purpose, and points to :help for the rest, in one message.
 
 ## 1.0.0 (2026-09-24): first public release
 
