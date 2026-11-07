@@ -179,10 +179,22 @@ DON'T: <the forbidden moves: dependencies, flipping live, weakening tests, touch
 DEFINITION OF DONE: <gates green with the baseline moved as stated> + <the observable behaviour,
 with the assertion that proves it> + <negative conditions: nothing added, flipped or touched outside scope>.
 
-REPORT: per checkpoint: what you built; the decisions this prompt did not cover; the file list
+REPORT: start with this one line, filled in, before anything else:
+GENPROMPT-REPORT · Repo: {abs path} · Branch: {branch} · HEAD: {short sha} · Prompt: <archive file name> · Gates: {cmd → numbers; …} · Status: done|partial|blocked
+Then, per checkpoint: what you built; the decisions this prompt did not cover; the file list
 reconciled against `git status`; the gate numbers; any existing test you touched and why; and
 explicit confirmation of each DON'T.
 ```
+
+**The report header line** (`GENPROMPT-REPORT · …`) is required in every emitted prompt that asks
+for a report, including templates whose own REPORT text replaces the rest of this block, and
+delta prompts (E, J) that continue a running one.
+- The generator fills `Prompt:` with the archive file name at emission (the name it would have
+  under `--dry-run`). Every other field is a worker-side `{…}` variable (§4.0).
+- One line, the fields in this order, separated by ` · `. The worker keeps `Status:` to one of the
+  three words: `partial` means some checkpoints landed, `blocked` means it stopped on the stop-list.
+- The fields are **claims**, not facts. The generator verifies `Branch`, `HEAD` and the gate
+  numbers by artifact (Step 4) before building on them (§5.J).
 
 ### 4.15 Falsifiability standard
 

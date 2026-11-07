@@ -108,6 +108,7 @@ VERDICT: ship / fix first (list the ids) / rethink (why).
 HAND-OFF: the FIX-NOW ids, ordered, each with file:line, ready for a `:fix` prompt. Flag any that touch
 a file with uncommitted changes.
 
+[INSERT §4.14 report header line: GENPROMPT-REPORT · Repo · Branch · HEAD · Prompt · Gates · Status]
 REPORT: the range (SHAs); the files read in full, as diff only, or skipped, with reasons; the lenses
 applied and dropped; the register and FALSE POSITIVES; the gate numbers or "not run" and why; every
 numeric claim in the messages, labelled verified by artifact / reported, not confirmed / contradicted

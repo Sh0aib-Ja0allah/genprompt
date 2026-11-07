@@ -54,6 +54,7 @@ STEP 5: write the repo map doc: the STEP 1–3 findings, the gate list with the 
         recorded, and the open questions for me, ranked.
 
 [INSERT §4.13: what only I can supply: <credentials, branch policy, deploy rules>]
+[INSERT §4.14 report header line: GENPROMPT-REPORT · Repo · Branch · HEAD · Prompt · Gates · Status]
 REPORT: the files written, the gate baselines, and the [DECIDE] items. Confirm that no code
 changed and nothing was committed.
 Start with STEP 1 now.

@@ -56,6 +56,7 @@ STEP 4: write the doc in the <ADR | API contract | schema/ERD | mapping | spike>
         <the format sections from above>
 STEP 5: list the [DECIDE] items, each with your recommendation.
 
+[INSERT §4.14 report header line: GENPROMPT-REPORT · Repo · Branch · HEAD · Prompt · Gates · Status]
 REPORT: the doc path, the recommendation in one line, the [DECIDE] list. Confirm that no
 production file changed (`git status`).
 Start with STEP 1 now.

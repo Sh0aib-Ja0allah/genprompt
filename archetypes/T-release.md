@@ -55,6 +55,7 @@ PART B: EXECUTE: one approved action at a time, then its verification, then the 
 PART C: SMOKE + REPORT: run the smoke plan and report the results; state the rollback trigger if it fails.
 
 [INSERT §4.13 WHAT YOU CANNOT DO: credentials, DNS, store accounts: list what I must do]
+[INSERT §4.14 report header line: GENPROMPT-REPORT · Repo · Branch · HEAD · Prompt · Gates · Status]
 REPORT: each action with its approval, its command, its output summary and its verification. Final state.
 Start with Part A now. Do not take any action from the approval list until I say yes to that action.
 ```

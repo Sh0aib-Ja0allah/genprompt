@@ -43,6 +43,7 @@ CONTENT (each fact verified in code, with its source path noted in your report, 
 Style: <audience-appropriate; the contract's language/terminology rules; RTL/bidi rules if Arabic>.
 <Contractual wording: quote verbatim from <doc>; never rewrite it.>
 
+[INSERT §4.14 report header line: GENPROMPT-REPORT · Repo · Branch · HEAD · Prompt · Gates · Status]
 REPORT: the files written; a drift list (claim before → truth → source); anything you could not
 verify ([UNVERIFIED]); placeholders left for me. Confirm that no code changed.
 Start with section 1.

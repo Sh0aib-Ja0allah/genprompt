@@ -25,7 +25,7 @@ Run it before archiving. It is written into the archive file and printed under t
 | 11 | Autonomy is resolved: for a code-writing archetype, an approval gate **xor** a MODE block; otherwise `N/A: read-only / commit-only`, with the writes enumerated (including contract-mandated tools and gate side effects) |
 | 12 | Git posture is explicit and matches the contract, or the deviation is declared. Code-writing: branch, commit cadence, staging by path, push or not. Read-only: "no git writes" with the forbidden verbs listed |
 | 13 | The stop-list covers what must not be faked, each item with what it blocks and what would unblock it |
-| 14 | The report spec has negative confirmations and a `git status` reconciliation (for an occupied tree: "differs only in the live session's paths") |
+| 14 | The report spec starts with the §4.14 `GENPROMPT-REPORT` header line (`Prompt:` filled with the archive file name), and has negative confirmations and a `git status` reconciliation (for an occupied tree: "differs only in the live session's paths") |
 | 15 | A terminal imperative is present |
 | 16 | Exactly one fenced block (a 4-backtick outer fence if the prompt nests fences). Every `<…>` generator placeholder is filled and every `[generator: …]` is stripped. Worker-side variables use `{…}`. The user has nothing to edit |
 | 17 | Doc paths match the derived convention (§2.7), or the report is chat-only with the reason. No artifact is renamed or renumbered |
