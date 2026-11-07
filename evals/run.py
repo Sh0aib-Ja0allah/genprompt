@@ -8,7 +8,7 @@
     python evals/run.py --print-shas            # the fixture's deterministic commit SHAs
 
 Results go to evals/results/<timestamp>/ (gitignored): aggregate.json from the eval CLI, and
-structural.json + summary.md from this script, plus each run's trace and final message. The eval's
+structural.json + summary.txt from this script (not .md: doctor scans every .md in the repo, and a run quotes temp paths), plus each run's trace and final message. The eval's
 temp dirs are kept only long enough to read them, then removed.
 """
 from __future__ import annotations
@@ -128,7 +128,7 @@ def post_grade(agg: dict, out: Path, keep: bool) -> list[dict]:
                 dest = out / name / f"run{i + 1}"
                 dest.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(trace, dest / "trace.jsonl")
-                (dest / "final.md").write_text(t["final"], encoding="utf-8")
+                (dest / "final.txt").write_text(t["final"], encoding="utf-8")
                 if not keep:
                     shutil.rmtree(tmp, ignore_errors=True)
             else:
@@ -196,19 +196,19 @@ def regrade(results: Path) -> int:
     for row in rows:
         spec = build_cases.SPEC.get(row["case"]) or build_cases.SPEC["slice"]
         d = results / row["case"] / f"run{row['run']}"
-        if not (d / "final.md").exists():
+        if not (d / "final.txt").exists():
             continue
         t = read_trace(d / "trace.jsonl")
         scripts = set(json.loads((build_cases.FIXTURE / "package.json").read_text(
             encoding="utf-8"))["scripts"])
-        res = structural.grade((d / "final.md").read_text(encoding="utf-8"), cap=spec["cap"],
+        res = structural.grade((d / "final.txt").read_text(encoding="utf-8"), cap=spec["cap"],
                                cap_multi=spec.get("cap_multi"), scripts=scripts,
                                files=build_cases.fixture_files(spec["variant"]),
                                tool_uses=t["tools"], home=None)
         row["structural"] = [r.as_dict() for r in res]
     (results / "structural.json").write_text(json.dumps(rows, indent=2), encoding="utf-8")
     text = summary(rows, agg)
-    (results / "summary.md").write_text(text, encoding="utf-8")
+    (results / "summary.txt").write_text(text, encoding="utf-8")
     print(text)
     return 0
 
@@ -260,7 +260,7 @@ def main() -> int:
     rows = post_grade(agg, out, args.keep)
     (out / "structural.json").write_text(json.dumps(rows, indent=2), encoding="utf-8")
     text = summary(rows, agg)
-    (out / "summary.md").write_text(text, encoding="utf-8")
+    (out / "summary.txt").write_text(text, encoding="utf-8")
     print(text)
     print(f"results: {out}")
     return 0
