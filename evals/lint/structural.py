@@ -176,6 +176,31 @@ def check_prompt_text(text: str, cap: int, cap_multi: int | None = None,
     return res
 
 
+SELF_CHECK_HEAD_RE = re.compile(r"^\|\s*#\s*\|\s*Item\s*\|\s*Verdict\s*\|\s*Reason\s*\|", re.M)
+SELF_CHECK_ROW_RE = re.compile(r"^\|\s*(\d+)\s*\|", re.M)
+# E-08's compact chat form: "Self-check: 20 PASS · 2 N/A · 0 FAIL" (separators vary a little).
+COMPACT_RE = re.compile(r"Self-check:\s*\**\s*(\d+)\s*PASS\s*[·,;|/-]\s*(\d+)\s*N/A\s*[·,;|/-]"
+                        r"\s*(\d+)\s*FAIL", re.I)
+REQUIRED_ROWS = 22
+
+
+def check_self_check(text: str) -> Result:
+    """Either the full §6 table (count-agnostic: rows 1-22 present, more allowed) or E-08's compact
+    one-line verdict. The baseline sees the full table; the end-of-Phase-1 re-run sees compact."""
+    m = COMPACT_RE.search(text)
+    if m:
+        return Result("self-check", PASS, f"compact verdict: {m.group(1)} PASS, {m.group(2)} N/A, "
+                                          f"{m.group(3)} FAIL")
+    head = SELF_CHECK_HEAD_RE.search(text)
+    if not head:
+        return Result("self-check", FAIL, "no self-check table and no compact verdict")
+    rows = {int(n) for n in SELF_CHECK_ROW_RE.findall(text[head.end():])}
+    missing = [n for n in range(1, REQUIRED_ROWS + 1) if n not in rows]
+    if missing:
+        return Result("self-check", FAIL, f"table lacks rows {missing[:10]}")
+    return Result("self-check", PASS, f"full table, {len(rows)} rows (≥{REQUIRED_ROWS})")
+
+
 def check_writes(tool_uses: list[str] | None, home: Path | None) -> Result:
     if tool_uses is None:
         return Result("no-writes", SKIPPED, "no trace given")
@@ -197,4 +222,4 @@ def grade(text: str, *, cap: int, cap_multi: int | None = None, scripts: set[str
           files: dict[str, int] | None = None, tool_uses: list[str] | None = None,
           home: Path | None = None) -> list[Result]:
     return (check_prompt_text(text, cap, cap_multi, scripts, files)
-            + [check_writes(tool_uses, home), check_archive()])
+            + [check_self_check(text), check_writes(tool_uses, home), check_archive()])

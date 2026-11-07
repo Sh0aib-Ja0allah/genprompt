@@ -36,8 +36,11 @@ REPORT: the gate numbers, the SHAs, and `git status --porcelain` (must be clean)
 Begin with the branch.
 ````
 
+Self-check: 21 PASS · 2 N/A · 0 FAIL
+
 | # | Item | Verdict | Reason |
 |---|---|---|---|
+| 6 | Skepticism | N/A | example row only |
 | 22 | Archived | N/A | dry run |
 
 DRY RUN: nothing archived

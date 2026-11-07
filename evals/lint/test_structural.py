@@ -35,7 +35,7 @@ class GoodSample(unittest.TestCase):
     def test_good_sample_passes_every_text_grader(self):
         r = grade((SAMPLES / "good-emission.md").read_text(encoding="utf-8"), tool_uses=[])
         for name in ("lock-present", "one-fence", "no-placeholders", "line-length",
-                     "length-cap", "gates-exist", "cites-real", "no-writes"):
+                     "length-cap", "gates-exist", "cites-real", "self-check", "no-writes"):
             self.assertEqual(r[name].status, s.PASS, f"{name}: {r[name].detail}")
 
     def test_archive_grader_is_skipped_not_passed(self):
@@ -54,7 +54,7 @@ class BadSample(unittest.TestCase):
 
     def test_each_grader_fails(self):
         for name in ("lock-present", "one-fence", "no-placeholders", "line-length",
-                     "gates-exist", "cites-real", "no-writes"):
+                     "gates-exist", "cites-real", "self-check", "no-writes"):
             self.assertEqual(self.r[name].status, s.FAIL, f"{name}: {self.r[name].detail}")
 
     def test_details_name_the_defect(self):
@@ -86,6 +86,24 @@ class Variants(unittest.TestCase):
         text = self.GOOD.replace("Begin with the branch.",
                                  "Keep `usage: ledgerlite <invoice.json>` as is. Begin.")
         self.assertEqual(grade(text)["no-placeholders"].status, s.PASS)
+
+    @staticmethod
+    def table(rows):
+        return "| # | Item | Verdict | Reason |\n|---|---|---|---|\n" + "".join(
+            f"| {n} | item {n} | PASS | ok |\n" for n in rows)
+
+    def test_full_table_22_or_more_rows_passes(self):
+        for rows in (range(1, 23), range(1, 24)):  # 22 rows today, 23 after E-08
+            self.assertEqual(s.check_self_check(self.table(rows)).status, s.PASS)
+
+    def test_table_missing_a_row_fails(self):
+        r = s.check_self_check(self.table([n for n in range(1, 23) if n != 16]))
+        self.assertEqual(r.status, s.FAIL)
+        self.assertIn("16", r.detail)
+
+    def test_compact_verdict_passes_and_none_fails(self):
+        self.assertEqual(s.check_self_check("Self-check: 20 PASS · 3 N/A · 0 FAIL").status, s.PASS)
+        self.assertEqual(s.check_self_check("Self-check: looks fine").status, s.FAIL)
 
     def test_dry_run_archive_write_fails(self):
         with tempfile.TemporaryDirectory() as home:

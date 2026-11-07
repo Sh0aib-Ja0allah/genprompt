@@ -65,6 +65,7 @@ After the eval (`lint/structural.py`, run by `run.py`):
 | length-cap | the block's counted lines exceed the archetype's cap (a long line counts `ceil(len/100)`) |
 | gates-exist | a gate names an npm script that is not in the fixture's `package.json`, or there is no gate |
 | cites-real | a `path:line` in the block names a missing file or a line past its end |
+| self-check | neither the full checklist table (rows 1-22 present; more rows are fine, E-08 adds a 23rd) nor E-08's compact `Self-check: N PASS · N N/A · N FAIL` line is in chat |
 | no-writes | a write tool was called, or anything exists under the run's temp `~/.genprompt` |
 | archive-valid | always SKIPPED until E-04 adds the archive tool (`archive.py`); the output says so. It is reported, never counted as a pass |
 

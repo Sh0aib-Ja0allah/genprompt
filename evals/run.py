@@ -187,6 +187,32 @@ def print_shas() -> int:
     return 0
 
 
+def regrade(results: Path) -> int:
+    """Re-apply lint/structural.py to a finished run's saved final.md and trace. The workspace is
+    gone by then, so the file list comes from the spec (the scaffold is deterministic) and the
+    temp-home archive check is not repeated (the trace's tool calls still are)."""
+    agg = json.loads((results / "aggregate.json").read_text(encoding="utf-8"))
+    rows = json.loads((results / "structural.json").read_text(encoding="utf-8"))
+    for row in rows:
+        spec = build_cases.SPEC.get(row["case"]) or build_cases.SPEC["slice"]
+        d = results / row["case"] / f"run{row['run']}"
+        if not (d / "final.md").exists():
+            continue
+        t = read_trace(d / "trace.jsonl")
+        scripts = set(json.loads((build_cases.FIXTURE / "package.json").read_text(
+            encoding="utf-8"))["scripts"])
+        res = structural.grade((d / "final.md").read_text(encoding="utf-8"), cap=spec["cap"],
+                               cap_multi=spec.get("cap_multi"), scripts=scripts,
+                               files=build_cases.fixture_files(spec["variant"]),
+                               tool_uses=t["tools"], home=None)
+        row["structural"] = [r.as_dict() for r in res]
+    (results / "structural.json").write_text(json.dumps(rows, indent=2), encoding="utf-8")
+    text = summary(rows, agg)
+    (results / "summary.md").write_text(text, encoding="utf-8")
+    print(text)
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--case", help="case name glob, e.g. slice")
@@ -197,11 +223,14 @@ def main() -> int:
     ap.add_argument("--validate", action="store_true", help="load the suite, run nothing")
     ap.add_argument("--keep", action="store_true", help="keep the eval temp dirs")
     ap.add_argument("--print-shas", action="store_true")
+    ap.add_argument("--regrade", type=Path, help="re-grade a finished results dir")
     args = ap.parse_args()
     for stream in (sys.stdout, sys.stderr):
         stream.reconfigure(encoding="utf-8", errors="replace")
     if args.print_shas:
         return print_shas()
+    if args.regrade:
+        return regrade(args.regrade)
     if subprocess.run([sys.executable, str(EVALS / "build_cases.py"), "--check"]).returncode:
         sys.exit("evals/cases is stale: run python evals/build_cases.py")
     if args.validate:
