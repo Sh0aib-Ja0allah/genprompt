@@ -55,6 +55,8 @@ EXTRA_TOOLS = {
 }
 FLAGS = ("[--repo <name|path>] [--go] [--attended|--unattended] [--dry-run] [--brief] "
          "[--follows <file>]")
+# Read-only archetypes (Autonomy "N/A") omit --attended/--unattended: the flag does nothing there.
+FLAGS_RO = FLAGS.replace("[--attended|--unattended] ", "")
 
 # Grammar groups (guide/08-grammar.md §8), in the order they are printed.
 ENTRY_GROUP = "Entry"
@@ -92,7 +94,7 @@ ARCHETYPES = [
     Arch("B", "audit", "B-audit", "Audit / read-only assessment",
          "Audit an area read-only: one doc with a ranked backlog, no code (worker prompt)",
          "<area to assess>",
-         UNDERSTAND, "read-only assessment, one doc"),
+         UNDERSTAND, "read-only assessment, one doc", read_only=True),
     Arch("C", "kickoff", "C-kickoff", "Kickoff with dirty WIP",
          "Kick off a unit over uncommitted WIP already in the tree (worker prompt)",
          "<unit to start>",
@@ -108,7 +110,7 @@ ARCHETYPES = [
     Arch("F", "plan", "F-plan", "Planning-only",
          "Plan a unit or cross-repo work: one plan doc with stable ids, no code (worker prompt)",
          "<unit> <backend|frontend|cross-repo>",
-         UNDERSTAND, "plan doc, no code"),
+         UNDERSTAND, "plan doc, no code", read_only=True),
     Arch("G", "greenfield", "G-greenfield", "Greenfield from a reference repo",
          "Build a new layer from scratch, studying a reference repo first (worker prompt)",
          "<layer> studying <reference repo>",
@@ -116,7 +118,7 @@ ARCHETYPES = [
     Arch("H", "commit", "H-commit", "Commit & push (incl. verify+commit)",
          "Commit and push a scoped body of finished work, or verify then commit (worker prompt)",
          "<work to commit> [verify+]",
-         SHIP, "commit & push, staged by path"),
+         SHIP, "commit & push, staged by path", read_only=True),
     Arch("I", "roadmap", "I-roadmap", "Roadmap / backlog execution",
          "Execute a whole backlog or roadmap doc to done, part by part (worker prompt)",
          "drive <doc> to done",
@@ -136,11 +138,11 @@ ARCHETYPES = [
     Arch("M", "onboard", "M-onboard", "Onboard / discovery",
          "Onboard an unfamiliar or empty repo: map it, draft its CLAUDE.md contract (worker prompt)",
          "[repo]",
-         UNDERSTAND, "map a repo, draft its contract + profile"),
+         UNDERSTAND, "map a repo, draft its contract + profile", read_only=True),
     Arch("N", "design", "N-design", "Design / spike / ADR",
          "Design before building: ADR, API contract, schema/ERD, design map, spike (worker prompt)",
          "<ADR | API contract | schema | design system | spike>: <decision>",
-         UNDERSTAND, "design docs, no production code"),
+         UNDERSTAND, "design docs, no production code", read_only=True),
     Arch("O", "test", "O-test", "Test engineering",
          "Write missing tests, fix flaky or vacuous tests, or build a test harness (worker prompt)",
          "<area | coverage target | flaky or vacuous tests>",
@@ -148,7 +150,7 @@ ARCHETYPES = [
     Arch("P", "review", "P-review", "Code review",
          "Review a diff, branch, PR or recent commits: findings only, no edits (worker prompt)",
          "<base..head | branch | PR number | last N commits>",
-         UNDERSTAND, "code review, findings only"),
+         UNDERSTAND, "code review, findings only", read_only=True),
     Arch("Q", "security", "Q-security", "Security review and hardening",
          "Security: threat model, review authz/uploads/secrets/headers, safe fixes (worker prompt)",
          "<area | whole app>",
@@ -176,7 +178,7 @@ ARCHETYPES = [
     Arch("W", "docs", "W-docs", "Documentation",
          "Write or repair docs (README, API, runbook, handover) checked vs code (worker prompt)",
          "<doc> for <audience>",
-         UNDERSTAND, "docs checked against the code"),
+         UNDERSTAND, "docs checked against the code", read_only=True),
 ]
 
 UTILITIES = [
@@ -239,8 +241,8 @@ def includes(files: list[str], protocol: bool = True) -> str:
             f"PROTOCOL). Everything below assumes they are loaded.\n")
 
 
-def archetype_shim(letter, cmd, stem, name, desc, hint) -> str:
-    return (frontmatter(desc, f"{hint}   {FLAGS}") + "\n" + includes([f"archetypes/{stem}.md"]) +
+def archetype_shim(letter, cmd, stem, name, desc, hint, flags: str = FLAGS) -> str:
+    return (frontmatter(desc, f"{hint}   {flags}") + "\n" + includes([f"archetypes/{stem}.md"]) +
             f"\nCommand `/genprompt:{cmd}` → archetype **{letter}: {name}** (§5.{letter}). "
             f"Follow PROTOCOL Steps 1–7 with this archetype. If the request is really a different "
             f"archetype, say so in the TARGET LOCK and use the right one (hybrids are fine).\n\n"
@@ -288,7 +290,7 @@ def expected() -> dict[Path, str]:
     out = {COMMANDS / f"{ENTRY}.md": root_shim()}
     for r in ARCHETYPES:
         out[COMMANDS / f"{r.cmd}.md"] = archetype_shim(r.letter, r.cmd, r.stem, r.name, r.desc,
-                                                       r.hint)
+                                                       r.hint, FLAGS_RO if r.read_only else FLAGS)
     for u in UTILITIES:
         out[COMMANDS / f"{u.cmd}.md"] = utility_shim(u.cmd, u.files, u.desc, u.hint)
     return out

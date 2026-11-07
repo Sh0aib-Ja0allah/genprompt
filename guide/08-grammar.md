@@ -67,7 +67,7 @@ it in the TARGET LOCK.
 |---|---|
 | `--repo <name\|path>` | Target this repo, whatever the cwd or continuation says |
 | `--go` | Skip the TARGET LOCK wait (the lock facts are still printed at the top) |
-| `--attended` / `--unattended` | Force an approval gate (§4.19) or a MODE block (§4.8) |
+| `--attended` / `--unattended` | Force an approval gate (§4.19) or a MODE block (§4.8). Code-writing archetypes only: read-only ones (audit, plan, commit, onboard, design, review, docs) do not offer it |
 | `--dry-run` | Compose and print, but write nothing: no archive file, no shard row, no profile card (for testing) |
 | `--brief` | Aim for about 60% of the archetype's length budget |
 | `--follows <file>` | Set the chain link explicitly, when it cannot be inferred |
