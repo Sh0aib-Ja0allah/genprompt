@@ -161,7 +161,7 @@ rulebook, without the `/genprompt:` slash commands.
 
 | Path | What |
 |---|---|
-| `PROTOCOL.md` | The runtime steps, loaded by every command |
+| `PROTOCOL.md` | The runtime steps, loaded by every command except help and doctor |
 | `guide/` | The rulebook, split by section (§0–§12). Start at `guide/00-index.md` |
 | `archetypes/` | One template per archetype, A–W, plus the picker |
 | `stacks/stack-matrix.md` | Stack detection, role labels and gate ladders per ecosystem |
