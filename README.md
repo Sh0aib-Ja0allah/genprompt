@@ -102,7 +102,8 @@ Each command is `/genprompt:<name>`. The "I want to… → use…" picker is in
 [guide/08-grammar.md](guide/08-grammar.md).
 
 **Modifiers** (on any prompt command): `--repo <name|path>`, `--go` (skip the lock wait),
-`--attended` / `--unattended`, `--dry-run` (archive nothing), `--brief`, `--follows <file>`.
+`--attended` / `--unattended`, `--dry-run` (archive nothing), `--brief`, `--follows <file>`,
+`--verbose` (full self-check table in chat).
 
 ## Where your files go
 

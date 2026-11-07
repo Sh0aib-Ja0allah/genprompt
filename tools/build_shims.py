@@ -61,7 +61,7 @@ EXTRA_FM: dict[str, list[str]] = {
     cmd: ["disable-model-invocation: true"] for cmd in ("doctor", "learn", "history", "profile")
 }
 FLAGS = ("[--repo <name|path>] [--go] [--attended|--unattended] [--dry-run] [--brief] "
-         "[--follows <file>]")
+         "[--follows <file>] [--verbose]")
 # Read-only archetypes (Autonomy "N/A") omit --attended/--unattended: the flag does nothing there.
 FLAGS_RO = FLAGS.replace("[--attended|--unattended] ", "")
 

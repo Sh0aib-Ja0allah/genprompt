@@ -12,6 +12,8 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
   still typeable, but out of the model's skill listing (frees listing budget; help stays visible).
 - 2026-11-07 · guide/03-blocks.md, guide/04-checklist.md, PROTOCOL.md, archetypes/ · Every report
   starts with a GENPROMPT-REPORT header line; Step 1 and :next parse it as claims verified by git.
+- 2026-11-07 · PROTOCOL.md, guide/04-checklist.md, tools/build_shims.py · Prompt first in chat; the
+  self-check prints as a verdict line plus FAIL/N/A rows (full table in the archive, or --verbose).
 
 ## 1.0.0 (2026-09-24): first public release
 

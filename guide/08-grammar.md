@@ -71,5 +71,6 @@ it in the TARGET LOCK.
 | `--dry-run` | Compose and print, but write nothing: no archive file, no shard row, no profile card (for testing) |
 | `--brief` | Aim for about 60% of the archetype's length budget |
 | `--follows <file>` | Set the chain link explicitly, when it cannot be inferred |
+| `--verbose` | Print the full self-check table in chat, not just the verdict line and the FAIL/N/A rows (the archive file always has the full table) |
 
 ---

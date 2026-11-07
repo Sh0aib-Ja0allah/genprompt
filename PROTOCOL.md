@@ -235,13 +235,19 @@ Reply "go" to accept, or correct any line.
      (for a legacy shard, that last line is the `# --- v3 ---` marker):
      `<YYYY-MM-DD> | <letters> | <slug> | <filename> | <task, 200 chars max, no "|", no "·", no em-dash>`
      If the shard is new, write the three header lines from §10 first.
-3. **Print** in chat, in this order:
+3. **Print** in chat, prompt first, in this order:
    1. the lock block, if `--go` skipped the wait
-   2. the §4.1 header table
-   3. the preamble: grounding notes and `Interpretations locked in (overridable)`
-   4. the fenced prompt, in full
-   5. the self-check table
-   6. the saved path, or `DRY RUN: nothing archived`
+   2. `Interpretations locked in (overridable)`, if there are any, because the user must see an
+      interpretation before pasting
+   3. the fenced prompt, in full
+   4. one verdict line: `Self-check: <n> PASS · <n> N/A · <n> FAIL (full table in the archive file)`
+   5. the FAIL and N/A rows only, each with its reason (nothing, if every row passed)
+   6. the §4.1 header table and the grounding notes
+   7. the saved path, or `DRY RUN: nothing archived`
+
+   `--verbose` prints the full self-check table in place of items 4–5. The archive file always
+   holds the full table (§6), whatever the chat shows. Under `--dry-run` there is no archive file,
+   so the verdict line says `(full table: --verbose)` instead.
 
    If a write failed, say so and mark the archive row FAIL.
 

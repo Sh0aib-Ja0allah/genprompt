@@ -1,10 +1,14 @@
 ## 6. Emission checklist
 
-Run it before archiving. It is written into the archive file and printed under the prompt.
+Run it before archiving. The archive file always holds the **full** table. In chat, under the
+prompt, it prints in the compact form of PROTOCOL Step 6.3 (a verdict line plus the FAIL and N/A
+rows), or as the full table with `--verbose`.
 
 **Format:** `| # | Item | Verdict | Reason |`.
 - Verdict is `PASS`, `FAIL` or `N/A`.
 - **Every** row carries a reason: short for PASS, and mandatory for N/A and FAIL.
+- **Judgement rows** (5, 6, 7, 10, 13) cite their evidence on PASS: the `file:line` or the
+  artifact read. Restating the row ("skepticism is present") is not a reason.
 - Never write a bare `✓ passed`, and never bulk-pass rows ("2,3,5 carried from r2").
 - A FAIL is fixed before emitting. Otherwise the reason says why the prompt ships anyway.
 - **Read-only and commit-only archetypes** (B, F, H, M, N, P, W) meet the code-writing rows in their
