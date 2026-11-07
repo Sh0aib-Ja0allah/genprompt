@@ -16,6 +16,7 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
   self-check prints as a verdict line plus FAIL/N/A rows (full table in the archive, or --verbose).
 - 2026-11-07 · guide/03-blocks.md, guide/04-checklist.md, archetypes/, README.md · Traps, decisions,
   stop-list and out-of-scope items carry a "because" clause; checklist row 23 appended.
+- 2026-11-07 · tools/archive.py, tools/doctor.py · Deterministic archive writer; doctor --prompt lint.
 
 ## 1.0.0 (2026-09-24): first public release
 
