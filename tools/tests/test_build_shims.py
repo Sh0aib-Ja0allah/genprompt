@@ -31,6 +31,7 @@ class BuildShims(unittest.TestCase):
         (self.copy / "tools").mkdir(parents=True)
         shutil.copy2(BUILD, self.copy / "tools" / "build_shims.py")
         shutil.copytree(ROOT / "commands", self.copy / "commands")
+        shutil.copytree(ROOT / "guide", self.copy / "guide")     # --check also covers 08-grammar.md
         self.script = self.copy / "tools" / "build_shims.py"
 
     def tearDown(self):
@@ -41,18 +42,27 @@ class BuildShims(unittest.TestCase):
         self.assertEqual(code, 0, out)
         self.assertIn(", 0 differ/extra", out)
 
+    def test_check_passes_on_unaltered_copy(self):
+        # The control for the failure tests below: the copy itself is clean, so they fail for
+        # the reason they name.
+        code, out = run_tool(self.script, "--check", cwd=self.copy)
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("ERROR", out)
+
     def test_check_fails_on_altered_shim(self):
         shim = self.copy / "commands" / "slice.md"
         shim.write_text(shim.read_text(encoding="utf-8") + "hand edit\n", encoding="utf-8", newline="\n")
         code, out = run_tool(self.script, "--check", cwd=self.copy)
         self.assertEqual(code, 1, out)
         self.assertIn("DIFF  commands/slice.md", out)
+        self.assertNotIn("ERROR", out)
 
     def test_check_fails_on_extra_command(self):
         (self.copy / "commands" / "handmade.md").write_text("---\n---\n", encoding="utf-8")
         code, out = run_tool(self.script, "--check", cwd=self.copy)
         self.assertEqual(code, 1, out)
         self.assertIn("EXTRA commands/handmade.md", out)
+        self.assertNotIn("ERROR", out)
 
     def test_tables_have_no_duplicates(self):
         self.assertEqual(load_build_shims().table_errors(), [])
