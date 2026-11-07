@@ -31,7 +31,7 @@ DOC = load_doctor()
 CMDS = DOC.cmd_map()
 BASE = PASS_FILE.read_text(encoding="utf-8")
 ALL_CHECKS = {"header", "filename-words", "one-fence", "placeholders", "line-width", "length",
-              "terminal-imperative", "gates-labelled", "report-line", "self-check"}
+              "terminal-imperative", "gates-labelled", "header-vocab", "report-line", "self-check"}
 
 
 def lint(text: str, name: str = PASS_FILE.name) -> dict[str, tuple[str, str]]:
@@ -61,9 +61,15 @@ class PassingFile(Base):
         self.assertEqual({c: s for c, (s, _d) in res.items() if s != "PASS"}, {}, res)
         self.assertEqual(set(res), ALL_CHECKS)
 
-    def test_optional_header_fields_are_accepted(self):
-        self.assertStatus(BASE.replace("follows=- -->", "follows=- | flags=--go | via=cwd | lock=go -->", 1),
-                          "header", "PASS")
+    def test_header_without_the_e05_fields_is_still_valid(self):
+        # files archived before E-05 lack flags/via/lock: the header stays PASS, the vocab only WARNs
+        old = BASE.replace(" | flags=- | via=cwd | lock=accepted", "", 1)
+        self.assertStatus(old, "header", "PASS")
+        self.assertStatus(old, "header-vocab", "WARN")
+
+    def test_full_vocabulary_passes(self):
+        text = BASE.replace("flags=- | via=cwd | lock=accepted", "flags=--go --brief | via=argument | lock=go", 1)
+        self.assertStatus(text, "header-vocab", "PASS")
 
     def test_22_row_self_check_table_passes(self):
         text = BASE.split("| # | Item |")[0] + self_check_table(22)
@@ -81,7 +87,8 @@ class Failures(Base):
         self.assertStatus(BASE.replace("archetype=D", "archetype=slice", 1), "header", "FAIL")
 
     def test_header_optional_fields_out_of_order(self):
-        self.assertStatus(BASE.replace("follows=- -->", "follows=- | lock=go | flags=--go -->", 1), "header", "FAIL")
+        self.assertStatus(BASE.replace("flags=- | via=cwd | lock=accepted", "lock=accepted | flags=- | via=cwd", 1),
+                          "header", "FAIL")
 
     def test_header_date_does_not_match_filename(self):
         self.assertStatus(BASE, "header", "FAIL", name="2026-10-08-slice-s02-lint-pass.md")
@@ -137,6 +144,15 @@ class Warnings(Base):
 
     def test_gates_unlabelled(self):
         self.assertStatus(BASE.replace("(script)", ""), "gates-labelled", "WARN")
+
+    def test_unknown_via_value(self):
+        self.assertStatus(BASE.replace("via=cwd", "via=guess", 1), "header-vocab", "WARN")
+
+    def test_unknown_lock_value(self):
+        self.assertStatus(BASE.replace("lock=accepted", "lock=maybe", 1), "header-vocab", "WARN")
+
+    def test_unknown_flag(self):
+        self.assertStatus(BASE.replace("flags=-", "flags=--go --turbo", 1), "header-vocab", "WARN")
 
     def test_report_without_genprompt_report_line(self):
         self.assertStatus(BASE.replace("GENPROMPT-REPORT", "status"), "report-line", "WARN")
@@ -216,7 +232,7 @@ class Cli(unittest.TestCase):
     def test_prompt_mode_passes_on_fixture(self):
         code, out = run_tool(DOCTOR, "--prompt", str(PASS_FILE))
         self.assertEqual(code, 0, out)
-        self.assertIn("Prompt lint: 10 PASS, 0 WARN, 0 FAIL", out)
+        self.assertIn("Prompt lint: 11 PASS, 0 WARN, 0 FAIL", out)
 
     def test_warnings_alone_exit_0(self):
         code, out = self.run_on(BASE.replace("Start with CHECKPOINT A now.", "Thanks."))

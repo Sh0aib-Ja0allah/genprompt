@@ -10,7 +10,9 @@ Input: one JSON object.
   prompt    repo, path, follows (default "-"), and the body: either "body" (everything after
             line 1) or the parts "header_table", "grounding", "prompt" (the fenced block, fences
             included), "self_check", and optional "rule" (the transferable rule)
-  optional  flags, via, lock (written as trailing header fields when given)
+  vocab     flags, via, lock: required for every new prompt (values pinned in PROTOCOL Step 6
+            item 2), written as trailing header fields; a missing or unknown value is a WARN from
+            the lint (header-vocab), never a block
   status    archetype "none" writes only a status row (file "-"); task must start "status:"
 
 Order: WRITE FIRST, THEN VALIDATE. The prompt is already printed in chat and may already be pasted

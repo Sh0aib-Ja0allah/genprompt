@@ -149,7 +149,7 @@ Truth       <source-of-truth docs, in order>
 Gates       <literal commands, in order, each (script|contract|derived); ⚠ destructive; test: NONE if true>
 New docs    <the naming convention and the default name a new doc would get here>
 Archetype   <letters: name> (+ hybrids) · autonomy <MODE | approval gate | N/A: read-only | N/A: commit-only>
-Last prompt <latest shard DATA row by date (skip # lines), or "none">
+Last prompt <latest shard DATA row by date (skip # lines), or "none"> · landed: <yes | partial: <which parts> | no> (<evidence: the commit SHA or file that proves it>)
 
 Unknown: I need these before emitting:
 1. <only questions the repo genuinely cannot answer; drop this section if there are none>
@@ -177,7 +177,10 @@ Reply "go" to accept, or correct any line.
   gate commands themselves always go to the worker.
 - **Confirm the previous instruction landed.** Look for its commits or file changes on the branch
   before building on it. An amendment that was never pasted has already made a worker build on a
-  false register. A partially landed prompt is its own state: say which parts landed.
+  false register. A partially landed prompt is its own state: say which parts landed. The result
+  goes on the lock's `Last prompt` line as `landed: yes|partial|no` with its evidence (a SHA from
+  `git log`, or a file read at HEAD). In an occupied tree (§4.27) judge by committed SHAs only: the
+  live session's uncommitted files do not count as landed. With no prior prompt, omit `landed:`.
 - **Check occupancy.** Is another session working in this repo right now? The signals are:
   - dirty or untracked files modified in the last ~30 minutes (`ls -lt` on a few of them)
   - untracked files that match the plan of the latest archived prompt
@@ -228,7 +231,14 @@ Reply "go" to accept, or correct any line.
      `archetype` (letters), `follows` (`-` if none; `--follows <file>` sets it, otherwise infer it
      from the chain), `slug`, `task`, then `header_table`, `grounding`, `prompt` (the whole fenced
      block, fences included) and `self_check`, plus `rule` if there is a transferable rule.
-     Add `flags`, `via` and `lock` when known. `tmp/` is scratch: the file is not deleted, because
+     Every new prompt also carries these three, with exactly these values (they make lock
+     outcomes and flag use measurable; `archive.py` warns on a missing or unknown value):
+     - `flags`: the request's modifiers as flag names only, space-separated, in the order given
+       (`--go --brief`; `--repo` and `--follows` without their values), or `-` for none.
+     - `via`: the Step 1 rule that resolved the target: `argument`, `continuation`, `cwd` or `ask`.
+     - `lock`: `go` (`--go` skipped the wait), `accepted` (the user said go and changed nothing)
+       or `corrected` (the user changed at least one lock line before go).
+     `tmp/` is scratch: the file is not deleted, because
      a `--replace` re-run needs it and the generator has no delete permission; the next run with
      the same slug overwrites it.
    - **Run it** (`python3`, or `python` if `python3` fails, as on Windows where `python3` can be a
@@ -241,7 +251,7 @@ Reply "go" to accept, or correct any line.
      directory's basename, lowercased, `_` and spaces turned into `-`; `<cmd>`: the command word of
      each archetype, dominant first; `<slug>`: kebab-case, 60 characters at most), whose line 1 is
      `<!-- genprompt v3: key=… | repo=… | path=… | date=… | archetype=… | follows=… -->` (then
-     `flags`, `via`, `lock` when given), followed by the §4.1 header table, the grounding notes,
+     `flags`, `via`, `lock`; files archived before 2026-11-07 lack them), followed by the §4.1 header table, the grounding notes,
      **the complete fenced prompt** and the self-check table. And one 5-field row
      `<date> | <letters> | <slug> | <filename> | <task>` below the last line of
      `by-repo/<key>.tsv` (a new shard first gets the three §10 header lines).

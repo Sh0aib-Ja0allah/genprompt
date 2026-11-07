@@ -391,4 +391,5 @@ out of scope: do not touch it, stage it, stash it or review it.
 ```
 
 It pairs with §4.22 verify-at-start: HEAD moving and the dirty count growing are **expected drift**
-in an occupied tree, not a stop.
+in an occupied tree, not a stop. On the generator side, the lock's `landed:` verdict (PROTOCOL
+Step 4) counts only committed SHAs in an occupied tree, never the live session's dirty files.

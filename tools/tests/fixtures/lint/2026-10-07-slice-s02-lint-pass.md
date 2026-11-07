@@ -1,4 +1,4 @@
-<!-- genprompt v3: key=lint-demo | repo=lint-demo | path=/srv/repos/lint-demo | date=2026-10-07 | archetype=D | follows=- -->
+<!-- genprompt v3: key=lint-demo | repo=lint-demo | path=/srv/repos/lint-demo | date=2026-10-07 | archetype=D | follows=- | flags=- | via=cwd | lock=accepted -->
 
 | Field | Value |
 |---|---|

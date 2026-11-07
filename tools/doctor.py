@@ -357,6 +357,42 @@ def fences(text: str) -> list[tuple[int, int, int, list[str]]]:
 PASS, WARN, FAIL = "PASS", "WARN", "FAIL"
 HEADER_KEYS = ("key", "repo", "path", "date", "archetype", "follows")
 HEADER_OPTIONAL = ("flags", "via", "lock")           # E-05 fields: optional, trailing, in this order
+# The E-05 vocabulary (PROTOCOL Step 6 item 2). Required for new prompts (a WARN from the lint when
+# missing or unknown); files archived before it lack the fields and stay valid in --archive.
+VIA_VALUES = ("argument", "continuation", "cwd", "ask")
+LOCK_VALUES = ("go", "accepted", "corrected")
+STAT_FLAGS = ("--go", "--brief", "--dry-run", "--verbose", "--unattended")
+
+
+def known_flags() -> set[str]:
+    try:
+        return set(re.findall(r"--[a-z-]+", load_build_shims().FLAGS))
+    except Exception:  # noqa: BLE001 - fall back to the flags the stats know
+        return set(STAT_FLAGS) | {"--repo", "--attended", "--follows"}
+
+
+def vocab_problems(meta: dict[str, str], flags_known: set[str] | None = None) -> list[str]:
+    """Missing or unknown flags/via/lock values in a parsed header (empty list = all good)."""
+    out = []
+    flags = meta.get("flags")
+    if not flags:
+        out.append("flags missing (flag names space-separated, or -)")
+    elif flags != "-":
+        known = flags_known if flags_known is not None else known_flags()
+        bad = [f for f in flags.split() if f not in known]
+        if bad:
+            out.append(f"unknown flag(s) {' '.join(bad)}")
+    via = meta.get("via")
+    if not via:
+        out.append(f"via missing ({'|'.join(VIA_VALUES)})")
+    elif via not in VIA_VALUES:
+        out.append(f"via={via} is not {'|'.join(VIA_VALUES)}")
+    lock = meta.get("lock")
+    if not lock:
+        out.append(f"lock missing ({'|'.join(LOCK_VALUES)})")
+    elif lock not in LOCK_VALUES:
+        out.append(f"lock={lock} is not {'|'.join(LOCK_VALUES)}")
+    return out
 LINE_WIDTH = 100
 MIN_BLOCK_LINES = 5      # counted lines (ceil(len/100) each) below which the block is a stub
 # §4.21 tier caps (guide/03-blocks.md); check_tiers() keeps this map equal to the table.
@@ -531,6 +567,12 @@ def lint_prompt(text: str, filename: str | None = None,
     res.append(("gates-labelled", PASS if labelled else WARN,
                 "gates carry (script|contract|derived), or test: NONE is stated" if labelled else
                 "no gate labelled (script), (contract) or (derived), and no 'test: NONE' (row 8)"))
+
+    # header vocabulary (WARN: required for new prompts, PROTOCOL Step 6 item 2; never blocks)
+    if meta is not None:
+        vp = vocab_problems(meta)
+        res.append(("header-vocab", WARN if vp else PASS,
+                    "; ".join(vp) if vp else f"flags={meta['flags']} via={meta['via']} lock={meta['lock']}"))
 
     # report line (WARN, new convention: a prompt that asks for a report names GENPROMPT-REPORT)
     joined = "\n".join(body)

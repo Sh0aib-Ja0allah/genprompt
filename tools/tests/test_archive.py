@@ -22,7 +22,8 @@ BODY = PASS_FILE.read_text(encoding="utf-8").split("\n", 1)[1]
 def parts(**over) -> dict:
     p = {"key": "lint-demo", "repo": "lint-demo", "path": "/srv/repos/lint-demo",
          "date": "2026-10-07", "archetype": "D", "follows": "-", "slug": "s02-lint-pass",
-         "task": "Slice S02: add the settings page", "body": BODY}
+         "task": "Slice S02: add the settings page", "flags": "-", "via": "cwd", "lock": "accepted",
+         "body": BODY}
     p.update(over)
     return p
 
@@ -175,6 +176,16 @@ class ArchiveWriter(unittest.TestCase):
         self.assertEqual(self.data_rows(), ["2026-10-08 | none | s02-closeout | - | "
                                             "status: verified, no prompt emitted; abc1234"])
         self.assertFalse((self.arch / "lint-demo").exists())
+
+    def test_missing_or_unknown_vocabulary_warns_but_archives(self):
+        data = parts(via="guess")
+        data.pop("lock")
+        code, out = self.run_archive(data)
+        self.assertEqual(code, 0, out)
+        self.assertIn("WARN  header-vocab", out)
+        self.assertIn("lock missing", out)
+        self.assertIn("via=guess is not argument|continuation|cwd|ask", out)
+        self.assertTrue(self.file.exists())
 
     def test_optional_header_fields_are_written_in_order(self):
         code, out = self.run_archive(parts(lock="go", flags="--go", via="cwd"))
