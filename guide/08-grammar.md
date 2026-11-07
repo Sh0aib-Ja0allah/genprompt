@@ -3,54 +3,63 @@
 If no target is named, the protocol resolves one (argument ▸ continuation ▸ cwd ▸ ask) and shows
 it in the TARGET LOCK.
 
+<!-- BEGIN GENERATED: tools/build_shims.py (edit the tables there, then run it) -->
+
+### Entry
+
+```text
+/genprompt:auto       [task, or a pasted worker report, or empty for the picker]  pick the archetype from the request and emit its prompt, or offer the picker
+```
+
 ### Build and change
 
 ```text
+/genprompt:redesign   <file path> (<screen|dialog|component|module|controller>)  A  one artifact, senior-level rebuild
+/genprompt:kickoff    <unit to start>                                 C  start work over uncommitted WIP
 /genprompt:slice      Slice <ID>, scope: <bullets>                    D  one vertical slice, checkpoints
-/genprompt:fix        <defect list | the audit/report that found them> L  confirmed defects, repro + acceptance each
-/genprompt:roadmap    drive <doc> to done                             I  whole backlog, in parts
-/genprompt:redesign   <file> (<screen|dialog|section|component|module>) A one artifact, senior-level rebuild
 /genprompt:greenfield <layer> studying <reference repo>               G  new layer, reference studied first
-/genprompt:kickoff    <unit>, dirty WIP present                       C  start work over uncommitted WIP
-/genprompt:test       <area | coverage target | flaky/vacuous tests>  O  test engineering
+/genprompt:roadmap    drive <doc> to done                             I  whole backlog, in parts
+/genprompt:fix        <defect list, or the audit/report that found them>  L  confirmed defects, repro + acceptance each
+/genprompt:test       <area | coverage target | flaky or vacuous tests>  O  test engineering
 /genprompt:perf       <symptom or target metric>                      R  measure, then optimise
-/genprompt:upgrade    <package/framework> <from> -> <to> | <migration> S majors, ORM/data/platform migrations
-/genprompt:hotfix     <incident: symptom, since when, blast radius>   U  triage → mitigate → root cause
-/genprompt:cleanup    <dead code | removal | restore-green | refactor> V no behaviour change
+/genprompt:upgrade    <package> <from> -> <to>  |  <migration>        S  majors, ORM/data/platform migrations
+/genprompt:hotfix     <symptom, since when, who is affected>          U  triage → mitigate → root cause
+/genprompt:cleanup    <dead code | removal | restore-green | refactor target>  V  no behaviour change
 ```
 
 ### Understand, decide, document
 
 ```text
-/genprompt:onboard    [repo]                                          M  map a repo, draft its contract + profile
-/genprompt:audit      <area>                                          B  read-only assessment, one doc
+/genprompt:audit      <area to assess>                                B  read-only assessment, one doc
 /genprompt:plan       <unit> <backend|frontend|cross-repo>            F  plan doc, no code
-/genprompt:design     <ADR | API contract | schema/ERD | design system | spike> N  design docs, no production code
-/genprompt:review     <diff | branch | PR # | last N commits>         P  code review, findings only
+/genprompt:onboard    [repo]                                          M  map a repo, draft its contract + profile
+/genprompt:design     <ADR | API contract | schema | design system | spike>: <decision>  N  design docs, no production code
+/genprompt:review     <base..head | branch | PR number | last N commits>  P  code review, findings only
 /genprompt:security   <area | whole app>                              Q  threat model + hardening
-/genprompt:docs       <README | API docs | runbook | admin/handover guide> W docs checked against the code
+/genprompt:docs       <doc> for <audience>                            W  docs checked against the code
 ```
 
 ### Ship and continue
 
 ```text
-/genprompt:commit     <work to commit>   (also: verify+commit)         H  commit & push, staged by path
-/genprompt:release    <version | environment>                         T  release/deploy, approval per action
-/genprompt:approve    decisions: <list>; order: <…> | amend <prior prompt>  E  rulings / amendment
-/genprompt:next       <paste the worker's stop-report, or just paste it>    J  the next prompt
-/genprompt:resume     <unit>, worker compacted mid-slice              K  re-anchor after compaction
+/genprompt:approve    decisions: <list>; order: <...>  |  amend <prior prompt>  E  rulings / amendment
+/genprompt:commit     <work to commit> [verify+]                      H  commit & push, staged by path
+/genprompt:next       <paste the worker's report, or nothing if it is already in the chat>  J  the next prompt
+/genprompt:resume     <unit/slice the worker was mid-way through>     K  re-anchor after compaction
+/genprompt:release    <version | environment | handover>              T  release/deploy, approval per action
 ```
 
 ### Utilities (they emit no worker prompt)
 
 ```text
-/genprompt:auto       [task]      pick the archetype from the request, or offer the picker
-/genprompt:help       [goal]      "I want to X" → which command, with flags and examples
-/genprompt:history    [repo] [n]  the latest n shard rows (default 10) and the follows chain
-/genprompt:doctor     [--suite|--archive]  integrity check of the rules and the archive
-/genprompt:profile    [repo]      derive or refresh the profile card; no prompt
-/genprompt:learn      <rule or lesson>     save a lesson as a personal rule in ~/.genprompt/local-rules.md (shows the diff first)
+/genprompt:help       [goal, e.g. 'I need to upgrade Laravel']  "I want to X" → which command, with flags and examples
+/genprompt:history    [repo] [n]             the latest n shard rows (default 10) and the follows chain
+/genprompt:doctor     [--suite | --archive]  integrity check of the rules and the archive
+/genprompt:learn      <rule or lesson>       save a lesson as a personal rule in ~/.genprompt/local-rules.md (shows the diff first)
+/genprompt:profile    [repo] [--dry-run]     derive or refresh the profile card; no prompt
 ```
+
+<!-- END GENERATED -->
 
 ### Modifiers (any archetype command)
 
