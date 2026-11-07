@@ -24,7 +24,8 @@ Every prompt it writes:
   or from tools it can prove are installed, never invented ones
 - ends with a stop-list, a definition of done and a report spec, so the worker's report can be
   checked
-- is followed by a 22-row self-check table with a verdict and a reason on every row
+- is followed by a 23-row self-check with a verdict and a reason on every row: in chat, a verdict
+  line plus the rows that need attention; in the archive, the full table
 
 ## What it looks like
 
@@ -41,10 +42,10 @@ literal gates.
 
 ![The generated security prompt for the sample repo](assets/screenshot-2-prompt.png)
 
-**3. Grounding and self-check.** The findings that shaped the prompt, then the 22-row self-check
+**3. Grounding and self-check.** The findings that shaped the prompt, then the 23-row self-check
 and the archive path.
 
-![Grounding notes and the 22-row self-check table](assets/screenshot-3-self-check.png)
+![Grounding notes and the self-check table](assets/screenshot-3-self-check.png)
 
 ## Install
 

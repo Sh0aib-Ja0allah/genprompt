@@ -70,7 +70,7 @@ A numeric baseline is what lets the next prompt *require movement*, or require *
 ### 4.5 Repo anchor and contract precedence (the first lines inside the block)
 
 ```text
-Repo: <PROFILE.path>  (branch `<PROFILE.branch>`<; monorepo: <IN root> IN scope, <siblings> OUT; do not touch them>)
+Repo: <PROFILE.path>  (branch `<PROFILE.branch>`<; monorepo: <IN root> IN scope, <siblings> OUT, because <reason>; do not touch them>)
 
 Read `<PROFILE.contract>` FIRST. It is the binding conventions contract. Where this prompt and it
 disagree, follow the contract and tell me.<If the prompt deliberately deviates from a contract rule:
@@ -131,19 +131,23 @@ point.
 
 ```text
 DECISIONS ALREADY MADE: implement exactly these, do not re-litigate:
-- <AREA>: <decision> (<source: doc:line or ruling>).
+- <AREA>: <decision>, because <reason> (<source: doc:line or ruling>).
 - <AREA>: do NOT <tempting alternative>, because <mechanism> (<file:line>).
 ```
 
-Include the **negative** decisions and the reason for each. An unattended worker meeting an open
+Include the **negative** decisions, and give every decision a one-clause reason ("…, because
+…"): a worker that knows why a decision holds applies it to the case the prompt did not foresee. An unattended worker meeting an open
 question either stalls or guesses.
 
 ### 4.11 ⚠ TRAPS: per-item landmines
 
 ```text
 TRAPS: each of these will break a naive implementation:
-• <trap> (<file:line>): <what breaks, and how to avoid it>
+• <trap> (<file:line>): <what breaks>, because <mechanism>. Avoid it by <how>.
 ```
+
+Every trap carries its "because" clause. A trap without the mechanism reads as a style rule, and
+the worker routes around it the first time it is inconvenient.
 
 ### 4.12 Copy the right pattern: choosing a pattern by what it avoids
 
@@ -160,8 +164,16 @@ thing>. Copying that reproduces the bug you are fixing. Copy instead <the correc
 ```text
 WHAT YOU CANNOT DO: do not attempt, do not fake, do not stub as if live.
 These need something only I can supply. Build to the boundary, label it, and list exactly what you need:
-- <item>: <what is missing>. Blocks <what>. Would be unblocked by <what>.
+- <item>: <what is missing>, because <why only I can supply it>. Blocks <what>.
+  Would be unblocked by <what>.
 Keep this list current, and do not let it silently shrink.
+```
+
+**Out-of-scope lines take the same reason clause**, wherever a template writes them:
+
+```text
+OUT OF SCOPE: do not start these, do not drift into them:
+- <item, by path>, because <reason: a later slice / another owner / a live session / the contract>.
 ```
 
 ### 4.14 Verification, DO/DON'T, DEFINITION OF DONE, REPORT

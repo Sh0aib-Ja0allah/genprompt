@@ -7,7 +7,7 @@ rows), or as the full table with `--verbose`.
 **Format:** `| # | Item | Verdict | Reason |`.
 - Verdict is `PASS`, `FAIL` or `N/A`.
 - **Every** row carries a reason: short for PASS, and mandatory for N/A and FAIL.
-- **Judgement rows** (5, 6, 7, 10, 13) cite their evidence on PASS: the `file:line` or the
+- **Judgement rows** (5, 6, 7, 10, 13, 23) cite their evidence on PASS: the `file:line` or the
   artifact read. Restating the row ("skepticism is present") is not a reason.
 - Never write a bare `✓ passed`, and never bulk-pass rows ("2,3,5 carried from r2").
 - A FAIL is fixed before emitting. Otherwise the reason says why the prompt ships anyway.
@@ -38,5 +38,6 @@ rows), or as the full table with `--verbose`.
 | 20 | Hygiene: no example specifics have leaked (from `examples/` or another repo). Volatile facts sit in §4.22 verify-at-start, with expected drift marked. There is no hardcoded attribution trailer and no finality claim. The occupancy check was done, and §4.27 is applied if the tree is occupied |
 | 21 | The length is within the archetype's budget (§4.21, lines ≤ 100 characters), or the measured-large allowance or another reason is given here |
 | 22 | Archived: line-1 header, §4.1 table, grounding, full block and this table in `~/.genprompt/generated-prompts/<key>/<file>`; a 5-field shard row appended below the last line (≤200 characters, no `\|`, `·` or em-dash). For `--dry-run`: N/A, with "dry run" as the reason, and no profile card written |
+| 23 | Every TRAP (§4.11), locked decision (§4.10), stop-list item (§4.13) and out-of-scope item carries a one-clause reason ("…, because …") |
 
 ---

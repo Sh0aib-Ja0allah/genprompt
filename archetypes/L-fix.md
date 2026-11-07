@@ -49,7 +49,7 @@ REPRO: <the exact call/state that triggers it>
 FIX: <what to change, or "your call, but say why" where the design is genuinely open>
 ACCEPTANCE: <the assertion that proves it; the assertion that proves the fix is load-bearing; the
             assertion that the legitimate case still succeeds>
-TRAPS: <what will break a naive fix>
+TRAPS: <what will break a naive fix>, because <mechanism> (<file:line>)
 
 <repeat per defect>
 
