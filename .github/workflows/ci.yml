@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: checks (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: utf-8
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Command files match the generator
+        run: python tools/build_shims.py --check
+
+      - name: Suite integrity (doctor --suite)
+        run: python tools/doctor.py --suite
+
+      - name: Unit tests
+        run: python -m unittest discover -s tools/tests -v
+
+      # `claude plugin validate` needs no login or API key (checked locally with an empty
+      # CLAUDE_CONFIG_DIR), so it runs here without secrets. Linux only: the manifest check does
+      # not depend on the OS, and one npm install per run is enough.
+      - name: Set up Node
+        if: runner.os == 'Linux'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Plugin manifest validation
+        if: runner.os == 'Linux'
+        env:
+          DISABLE_AUTOUPDATER: "1"
+        run: |
+          npm install -g @anthropic-ai/claude-code@2.1.318
+          claude plugin validate .
