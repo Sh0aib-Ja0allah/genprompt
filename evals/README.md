@@ -18,6 +18,7 @@ in CI.
 | `fixtures/samples/` | A good and a bad emission. The unit tests and the control use them |
 | `lint/structural.py` | The deterministic graders the eval CLI cannot express (it has no custom-code graders) |
 | `run.py` | Runs the eval, then applies `lint/structural.py` to each run's final message and workspace |
+| `BASELINE.md` | The Phase-1 baseline: scores per case and grader, cost, load sizes |
 
 Everything in `fixtures/` is invented. Nothing comes from `~/.genprompt` or any real repo.
 
@@ -47,7 +48,7 @@ In the eval (per case, in `graders/`):
 | lock-present | regex | no `TARGET LOCK` in the final message |
 | no-generator-marker | regex, not_contains | a `[generator:` marker is left in |
 | dry-run-declared | regex | no `DRY RUN` line |
-| protocol-loaded | regex on the trace | the slash command did not expand (the protocol never loaded) |
+| protocol-loaded | regex on the trace | the marker is not in the trace. It matches only a Read of PROTOCOL.md (the trace does not log @-include expansion), so it will fail once E-09b stops that double read; use the structural one from CP4 on |
 | archetype-label | regex | the lock's Archetype line lacks the expected letter(s) |
 | no-write / no-edit | tool_used, max 0 | the generator called Write or Edit |
 | rubric-grounding | llm | a cited file or `path:line` does not exist, or a gate uses a missing script |
@@ -66,6 +67,7 @@ After the eval (`lint/structural.py`, run by `run.py`):
 | gates-exist | a gate names an npm script that is not in the fixture's `package.json`, or there is no gate |
 | cites-real | a `path:line` in the block names a missing file or a line past its end |
 | self-check | neither the full checklist table (rows 1-22 present; more rows are fine, E-08 adds a 23rd) nor E-08's compact `Self-check: N PASS · N N/A · N FAIL` line is in chat |
+| protocol-loaded | (v2) the marker is in neither the logged context nor a Read, and the emission has no protocol-shaped TARGET LOCK |
 | no-writes | a write tool was called, or anything exists under the run's temp `~/.genprompt` |
 | archive-valid | always SKIPPED until E-04 adds the archive tool (`archive.py`); the output says so. It is reported, never counted as a pass |
 
