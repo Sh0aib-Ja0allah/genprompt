@@ -28,7 +28,8 @@ Emits no worker prompt. Writes nothing.
   - the help table lists every command
   - letters are unique
   - stale strings are banned, and no rule file names one user's absolute home path
-  - every command file loads the protocol
+  - every command file loads the protocol, except the protocol-free utilities (`help`, `doctor`)
+    listed in `PROTOCOL_FREE` in `tools/build_shims.py` (enforced by the generator comparison)
 - **Archive:**
   - shard rows point to files that exist
   - v3 files carry the line-1 header and a full fenced prompt
