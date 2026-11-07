@@ -23,6 +23,8 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
   an I-want-to table; onboard/greenfield/kickoff cross-links with reasons; :help routes next/approve.
 - 2026-11-07 · tools/build_shims.py · An empty :auto shows the target plus six core commands with
   their purpose, and points to :help for the rest, in one message.
+- 2026-11-07 · PROTOCOL.md, tools/doctor.py, utilities/history.md · flags/via/lock vocabulary pinned;
+  lock shows landed:; doctor and :history report via/lock/flag stats; width-aware stub check.
 
 ## 1.0.0 (2026-09-24): first public release
 

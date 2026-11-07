@@ -40,7 +40,6 @@ COMMANDS = HOME / "commands"
 V3_START = "2026-09-24"
 PROFILE_MAX_AGE_DAYS = 14
 TASK_CAP = 200
-MIN_PROMPT_LINES = 15
 V3_MARKER = "# --- v3 ---"
 V3_HEADER_RE = re.compile(r"^<!-- genprompt v3: (.+) -->\s*$")
 LABEL_RE = re.compile(r"^(none|[A-Z](\+[A-Z])*)$")
@@ -643,8 +642,9 @@ def check_prompt_file(p: Path, rel: str, header: re.Match[str] | None, row_label
         add("ERROR", "archive", f"{rel}: no fenced prompt (a stub breaks the chain)")
         return
     ticks, _start, end, body = max(blocks, key=lambda b: len(b[3]))
-    if len(body) < MIN_PROMPT_LINES:
-        add("ERROR", "archive", f"{rel}: longest fenced block has {len(body)} lines; the full prompt is missing")
+    counted = sum(max(1, -(-len(ln) // LINE_WIDTH)) for ln in body)   # width-aware, as in lint_prompt
+    if counted < MIN_BLOCK_LINES:      # the same stub rule as lint_prompt, so the two agree
+        add("ERROR", "archive", f"{rel}: longest fenced block has {counted} counted lines; the full prompt is missing")
     if ticks == 3 and any(re.match(r"^`{3}", ln) for ln in body):
         add("ERROR", "archive", f"{rel}: 3-backtick outer fence contains a nested fence; the pasted "
                                 f"prompt is truncated (use a 4-backtick outer fence)")
@@ -693,8 +693,44 @@ def check_profiles(today: dt.date) -> None:
             add("WARN", "archive", f"profile {prof.name}: stamp is not <file>@<sha> (cannot be checked)")
 
 
+def measure_header(stats: dict, fields: str) -> None:
+    """Count the E-05 fields of one v3 header. Files without them are counted, never flagged."""
+    meta = {k.strip(): v.strip() for k, v in (kv.split("=", 1) for kv in fields.split(" | ") if "=" in kv)}
+    if not any(meta.get(k) for k in HEADER_OPTIONAL):
+        stats["unmeasured"] += 1
+        return
+    stats["measured"] += 1
+    stats["via"][meta.get("via") or "(missing)"] += 1
+    stats["lock"][meta.get("lock") or "(missing)"] += 1
+    flags = meta.get("flags") or "-"
+    for f in (flags.split() if flags != "-" else []):
+        stats["flags"][f] += 1
+
+
+def measure_lines(stats: dict) -> list[str]:
+    """The stats block: via, lock outcome (with the correction rate) and flag use."""
+    n, old = stats["measured"], stats["unmeasured"]
+    out = [f"Measured (flags/via/lock in the header): {n} file(s); {old} older file(s) predate the fields"]
+    if not n:
+        return out
+    out.append("    via:   " + ", ".join(f"{k} {stats['via'][k]}" for k in (*VIA_VALUES, "(missing)")
+                                     if stats["via"][k]) +
+               "".join(f", {k} {v} (unknown)" for k, v in stats["via"].items()
+                       if k not in VIA_VALUES and k != "(missing)"))
+    lk = stats["lock"]
+    waited = lk["accepted"] + lk["corrected"]
+    rate = f"{100 * lk['corrected'] / waited:.0f}% of {waited} confirmed locks" if waited else "no confirmed locks yet"
+    out.append("    lock:  " + ", ".join(f"{k} {lk[k]}" for k in (*LOCK_VALUES, "(missing)") if lk[k]) +
+               "".join(f", {k} {v} (unknown)" for k, v in lk.items() if k not in LOCK_VALUES and k != "(missing)") +
+               f"; correction rate {rate}")
+    out.append("    flags: " + ", ".join(f"{f} {stats['flags'][f]}/{n}" for f in STAT_FLAGS) +
+               "".join(f", {f} {c}/{n}" for f, c in sorted(stats["flags"].items()) if f not in STAT_FLAGS))
+    return out
+
+
 def check_archive(letters_by_word: dict[str, str]) -> dict:
-    stats: dict = {"rows": Counter(), "arche": Counter(), "latest": {}, "files": 0}
+    stats: dict = {"rows": Counter(), "arche": Counter(), "latest": {}, "files": 0,
+                   "via": Counter(), "lock": Counter(), "flags": Counter(), "measured": 0, "unmeasured": 0}
     if not SHARDS.is_dir():
         stats["empty"] = True       # a fresh install: nothing archived yet is not an error
         return stats
@@ -776,6 +812,8 @@ def check_archive(letters_by_word: dict[str, str]) -> dict:
         in_folder = "/" in rel
         dated_v3 = in_folder and p.name[:10] >= V3_START and bool(DATE_RE.match(p.name[:10]))
         is_v3 = header is not None or rp in v3_files or dated_v3
+        if header is not None:
+            measure_header(stats, header.group(1))
         if rp not in referenced:
             add("ERROR" if is_v3 else "INFO", "archive", f"file with no shard row: {rel}")
         if is_v3:
@@ -840,6 +878,8 @@ def main(argv: list[str]) -> int:
             say(f"  {key:22} {n:4} rows   latest {stats['latest'].get(key, '?')}")
         top = ", ".join(f"{k}:{v}" for k, v in stats["arche"].most_common(16))
         say(f"  archetypes (legacy words mapped to letters): {top}")
+        for line in measure_lines(stats):
+            say(line if line.startswith("  ") else f"  {line}")
     return 1 if errors else 0
 
 

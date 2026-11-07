@@ -28,6 +28,13 @@ class GoodArchive(unittest.TestCase):
         self.assertIn("Summary: 0 ERROR, 0 WARN", out)
         self.assertEqual(code, 0, out)
 
+    def test_short_prompt_in_long_lines_is_not_a_stub(self):
+        # 6 physical block lines but ~15 width-counted lines: the old physical-line rule called
+        # this "the full prompt is missing"; the width-aware rule (shared with lint_prompt) does not
+        _code, out = run_tool(DOCTOR, "--archive", home=GOOD)
+        self.assertNotIn("f01-long-lines", out)
+        self.assertIn("Measured (flags/via/lock in the header): 0 file(s); 2 older file(s) predate the fields", out)
+
     def test_missing_archive_is_not_an_error(self):
         with tempfile.TemporaryDirectory() as tmp:
             code, out = run_tool(DOCTOR, "--archive", home=Path(tmp))

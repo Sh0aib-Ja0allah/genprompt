@@ -2,3 +2,4 @@
 # Fields: date | archetype | slug | file | task (<=200 chars)
 # schema: v3
 2026-10-01 | D | s01-good-row | 2026-10-01-slice-s01-good-row.md | A well-formed v3 row
+2026-10-02 | L | f01-long-lines | 2026-10-02-fix-f01-long-lines.md | A complete prompt written as a few very long lines

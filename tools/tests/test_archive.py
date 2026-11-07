@@ -187,6 +187,25 @@ class ArchiveWriter(unittest.TestCase):
         self.assertIn("via=guess is not argument|continuation|cwd|ask", out)
         self.assertTrue(self.file.exists())
 
+    def test_doctor_stats_count_via_lock_and_flags(self):
+        runs = [("s10-a", "--go --brief", "argument", "go"),
+                ("s11-b", "-", "cwd", "accepted"),
+                ("s12-c", "--verbose", "continuation", "corrected"),
+                ("s13-d", "--unattended", "cwd", "accepted")]
+        for slug, flags, via, lock in runs:
+            self.assertEqual(self.run_archive(parts(slug=slug, flags=flags, via=via, lock=lock))[0], 0)
+        old = parts(slug="s09-old")
+        for k in ("flags", "via", "lock"):
+            old.pop(k)
+        self.assertEqual(self.run_archive(old)[0], 0)          # a pre-E-05 style header
+        code, out = run_tool(DOCTOR, "--archive", home=self.home)
+        self.assertEqual(error_lines(out), [], out)
+        self.assertIn("Measured (flags/via/lock in the header): 4 file(s); 1 older file(s) predate the fields", out)
+        self.assertIn("via:   argument 1, continuation 1, cwd 2", out)
+        self.assertIn("lock:  go 1, accepted 2, corrected 1; correction rate 33% of 3 confirmed locks", out)
+        self.assertIn("flags: --go 1/4, --brief 1/4, --dry-run 0/4, --verbose 1/4, --unattended 1/4", out)
+        self.assertNotIn("WARN", out.split("Summary:")[0])         # old headers are never flagged
+
     def test_optional_header_fields_are_written_in_order(self):
         code, out = self.run_archive(parts(lock="go", flags="--go", via="cwd"))
         self.assertEqual(code, 0, out)
