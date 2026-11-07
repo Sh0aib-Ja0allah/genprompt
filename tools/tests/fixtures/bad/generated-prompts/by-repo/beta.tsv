@@ -1,0 +1,6 @@
+# genprompt shard: beta  (path: <path>)
+# Fields: date | archetype | slug | file | task (<=200 chars)
+# schema: legacy rows first; v3 rows go below the marker line at the end of this file
+2026-06-01 | slice | old-legacy-row | - | A legacy row with an em dash — held to legacy rules only
+# --- v3 ---
+2026-10-02 | none | beta-closeout | - | status: verified, no prompt emitted

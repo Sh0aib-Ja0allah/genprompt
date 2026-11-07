@@ -1,0 +1,4 @@
+# genprompt shard: epsilon  (path: <path>)
+# Fields: date | archetype | slug | file | task (<=200 chars)
+# schema: v3
+2026-10-05 | D | s01-truncated | 2026-10-05-slice-s01-truncated.md | The prompt file was cut off

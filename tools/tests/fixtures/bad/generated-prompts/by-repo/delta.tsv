@@ -1,0 +1,4 @@
+# genprompt shard: delta  (path: <path>)
+# Fields: date | archetype | slug | file | task (<=200 chars)
+# schema: v3
+2026-10-04 | s01-shifted-row | D | 2026-10-04-slice-s01-shifted-row.md | Slug and archetype swapped

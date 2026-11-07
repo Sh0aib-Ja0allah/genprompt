@@ -2,6 +2,7 @@
 
 Usage:  python3 tools/doctor.py [--suite] [--archive] [--verbose]
         (no scope flag = both; on Windows the interpreter is usually `python`)
+        GENPROMPT_HOME=<dir> overrides the genprompt home (default ~/.genprompt); tests use it.
 
 The suite is this plugin folder (the rules + commands/). The archive is ~/.genprompt/generated-prompts,
 which lives outside the plugin, so plugin updates never touch it.
@@ -19,6 +20,7 @@ from __future__ import annotations
 
 import datetime as dt
 import importlib.util
+import os
 import re
 import sys
 from collections import Counter
@@ -27,7 +29,10 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 
 HOME = Path(__file__).resolve().parent.parent       # the plugin root (the rules suite)
-ARCHIVE = Path.home() / ".genprompt" / "generated-prompts"
+# GENPROMPT_HOME overrides the genprompt home (default ~/.genprompt). The tests use it to point the
+# archive checks at a fixture archive; normal runs leave it unset.
+GENPROMPT_HOME = Path(os.environ.get("GENPROMPT_HOME") or Path.home() / ".genprompt")
+ARCHIVE = GENPROMPT_HOME / "generated-prompts"
 SHARDS = ARCHIVE / "by-repo"
 COMMANDS = HOME / "commands"
 V3_START = "2026-09-24"
@@ -94,7 +99,7 @@ def runtime_md() -> list[Path]:
     out = []
     for p in HOME.rglob("*.md"):
         rel = p.relative_to(HOME)
-        if rel.parts[0] in RUNTIME_EXCLUDE or rel.name == "CHANGELOG.md":
+        if rel.parts[0] in RUNTIME_EXCLUDE or rel.name == "CHANGELOG.md" or "fixtures" in rel.parts:
             continue
         out.append(p)
     return out
