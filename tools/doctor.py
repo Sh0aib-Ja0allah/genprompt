@@ -2,6 +2,7 @@
 
 Usage:  python3 tools/doctor.py [--suite] [--archive] [--verbose]
         (no scope flag = both; on Windows the interpreter is usually `python`)
+        python3 tools/doctor.py --prompt <archive file>   (per-file lint: PASS/FAIL per check)
         GENPROMPT_HOME=<dir> overrides the genprompt home (default ~/.genprompt); tests use it.
 
 The suite is this plugin folder (the rules + commands/). The archive is ~/.genprompt/generated-prompts,
@@ -341,6 +342,199 @@ def fences(text: str) -> list[tuple[int, int, int, list[str]]]:
     return out
 
 
+# ---------------------------------------------------------------------------------------------
+# Per-file lint (doctor --prompt, and tools/archive.py before it writes). The mechanical rows of
+# the self-check (§6 rows 8, 15, 16, 21, 22) are checked here so the generator does not grade
+# itself. --archive does not run these: most of the existing archive predates them.
+# ---------------------------------------------------------------------------------------------
+HEADER_KEYS = ("key", "repo", "path", "date", "archetype", "follows")
+HEADER_OPTIONAL = ("flags", "via", "lock")           # E-05 fields: optional, trailing, in this order
+LINE_WIDTH = 100
+# §4.21 tier caps (guide/03-blocks.md); check_tiers() keeps this map equal to the table.
+TIER_CAPS = {"Delta": 120, "Focused": 200, "Slice": 260, "Program": 350}
+TIER_OF = {**dict.fromkeys("EJ", "Delta"), **dict.fromkeys("ABCHKLMOPUVW", "Focused"),
+           "D": "Slice", **dict.fromkeys("FGINQRST", "Program")}
+SLICE_MULTI_CAP = 320                                 # D with several checkpoints
+MEASURED_LARGE = 1.2                                  # +20% when self-check row 21 names it
+PLACEHOLDER_RE = re.compile(r"<(?![/!=\-])([^<>\n]{1,80})>")
+IMPERATIVE_RE = re.compile(r"^\W*(start|begin|continue|proceed|resume|go|stop|report|read|run|"
+                           r"work|do not|don't|then|now)\b|\bnow\b", re.I)
+GATE_LABEL_RE = re.compile(r"\((script|contract|derived)[),;]|test: NONE|no gates?\b", re.I)
+
+
+def is_placeholder(inner: str) -> bool:
+    """A leftover generator placeholder such as <area to assess> or <script|contract>, as opposed
+    to code (<div class="x">, Map<String, Int>, a <= b) or an e-mail/URL in angle brackets."""
+    s = inner.strip()
+    if not s or not s[0].isalpha() or "=" in s or "@" in s or "://" in s:
+        return False
+    if re.fullmatch(r"[A-Z]\w*(\s*,\s*[A-Z]\w*)+", s):        # generic type arguments
+        return False
+    return bool(re.search(r"[ |…]|\.\.\.", s))
+
+
+def parse_header(line: str) -> tuple[dict[str, str] | None, list[str]]:
+    """Parse the v3 line-1 header. Returns (meta or None, problems)."""
+    m = V3_HEADER_RE.match(line)
+    if not m:
+        return None, ["line 1 is not '<!-- genprompt v3: key=… | … -->'"]
+    pairs = [kv.split("=", 1) for kv in m.group(1).split(" | ")]
+    if any(len(p) != 2 for p in pairs):
+        return None, ["a header field is not key=value"]
+    keys = [k.strip() for k, _ in pairs]
+    meta = {k.strip(): v.strip() for k, v in pairs}
+    problems = []
+    if tuple(keys[:len(HEADER_KEYS)]) != HEADER_KEYS:
+        problems.append(f"fields must start {', '.join(HEADER_KEYS)} in that order (got {', '.join(keys)})")
+    extra = keys[len(HEADER_KEYS):]
+    if extra != [k for k in HEADER_OPTIONAL if k in extra]:
+        problems.append(f"optional trailing fields must be a subset of {', '.join(HEADER_OPTIONAL)} "
+                        f"in that order (got {', '.join(extra)})")
+    if meta.get("date") and not DATE_RE.match(meta["date"]):
+        problems.append(f"date={meta['date']} is not YYYY-MM-DD")
+    arch = meta.get("archetype", "")
+    if not re.fullmatch(r"[A-Z](\+[A-Z])*", arch):
+        problems.append(f"archetype={arch!r} is not letters joined by +")
+    if any(not meta.get(k) for k in HEADER_KEYS):
+        problems.append("empty value in " + ", ".join(k for k in HEADER_KEYS if not meta.get(k)))
+    return meta, problems
+
+
+def tier_cap(letters: list[str], body: list[str], self_check: str) -> tuple[int, str]:
+    """The block's line cap: the largest tier among the label's letters (§4.21)."""
+    caps = []
+    for letter in letters:
+        tier = TIER_OF.get(letter)
+        if tier is None:
+            continue
+        cap = TIER_CAPS[tier]
+        if letter == "D" and sum(1 for ln in body if re.match(r"^\s*CHECKPOINT\b", ln)) >= 2:
+            cap = SLICE_MULTI_CAP
+        caps.append((cap, f"{letter}:{tier}"))
+    cap, why = max(caps) if caps else (TIER_CAPS["Focused"], "default:Focused")
+    row21 = next((ln for ln in self_check.splitlines() if re.match(r"^\|\s*21\s*\|", ln)), "")
+    if re.search(r"measured[- ]large", row21, re.I):
+        cap, why = int(cap * MEASURED_LARGE), why + " +20% measured-large (row 21)"
+    return cap, why
+
+
+def lint_prompt(text: str, filename: str | None = None,
+                cmd_by_letter: dict[str, str] | None = None) -> list[tuple[str, bool, str]]:
+    """Run the per-file checks. Returns [(check, passed, detail)], one entry per check."""
+    res: list[tuple[str, bool, str]] = []
+    lines = text.splitlines()
+
+    # header
+    meta, problems = parse_header(lines[0] if lines else "")
+    if meta is not None and filename:
+        name = Path(filename).name
+        if not name.startswith(f"{meta.get('date', '')}-"):
+            problems.append(f"filename {name} does not start with date={meta.get('date')}")
+        if cmd_by_letter:
+            cmds = "+".join(cmd_by_letter.get(x, "?") for x in meta.get("archetype", "").split("+"))
+            if not name.startswith(f"{meta.get('date', '')}-{cmds}-"):
+                problems.append(f"filename {name} does not match <date>-{cmds}-<slug>.md")
+        if not FILE_RE.match(name):
+            problems.append(f"filename {name} is not <date>-<cmd>[+<cmd>]-<slug>.md")
+    res.append(("header", not problems, "; ".join(problems) or "valid v3 line-1 header"))
+
+    # exactly one outer fence, closed, 4 backticks when it nests fences
+    blocks = fences(text)
+    fence_problems = []
+    if len(blocks) != 1:
+        fence_problems.append(f"{len(blocks)} top-level fenced blocks (need exactly 1)")
+    body: list[str] = []
+    end = len(lines)
+    if blocks:
+        ticks, _start, end, body = max(blocks, key=lambda b: len(b[3]))
+        if end >= len(lines):
+            fence_problems.append("the fence is never closed (truncated prompt)")
+        if any(re.match(r"^\s*`{3,}", ln) for ln in body) and ticks < 4:
+            fence_problems.append("the prompt nests a fence, so the outer fence needs 4 backticks")
+        if len(body) < MIN_PROMPT_LINES:
+            fence_problems.append(f"the block has {len(body)} lines (< {MIN_PROMPT_LINES}): the full prompt is missing")
+    res.append(("one-fence", not fence_problems, "; ".join(fence_problems) or f"1 block, {len(body)} lines"))
+
+    # leftover generator placeholders
+    found = []
+    for n, ln in enumerate(body, 1):
+        found += [f"block line {n}: <{m.group(1)}>" for m in PLACEHOLDER_RE.finditer(ln) if is_placeholder(m.group(1))]
+    found += [f"line {n}: [generator:" for n, ln in enumerate(lines, 1) if "[generator:" in ln]
+    res.append(("placeholders", not found, "; ".join(found[:5]) + (f" (+{len(found) - 5} more)" if len(found) > 5 else "")
+                if found else "no <…> generator placeholder or [generator: left"))
+
+    # line width inside the block
+    wide = [(n, len(ln)) for n, ln in enumerate(body, 1) if len(ln) > LINE_WIDTH]
+    res.append(("line-width", not wide,
+                f"{len(wide)} block line(s) over {LINE_WIDTH} chars, e.g. line {wide[0][0]} ({wide[0][1]})"
+                if wide else f"all block lines <= {LINE_WIDTH} chars"))
+
+    # length within the tier cap (a long line counts as ceil(len/100) lines)
+    tail = "\n".join(lines[end + 1:])
+    letters = (meta or {}).get("archetype", "").split("+")
+    counted = sum(max(1, -(-len(ln) // LINE_WIDTH)) for ln in body)
+    cap, why = tier_cap(letters, body, tail)
+    res.append(("length", counted <= cap, f"{counted} counted lines, cap {cap} ({why})"))
+
+    # terminal imperative
+    last = next((ln.strip() for ln in reversed(body) if ln.strip()), "")
+    res.append(("terminal-imperative", bool(IMPERATIVE_RE.search(last)),
+                f"last line: {last[:60]!r}" if last else "the block is empty"))
+
+    # gates labelled
+    res.append(("gates-labelled", bool(GATE_LABEL_RE.search("\n".join(body))),
+                "gates carry (script|contract|derived), or test: NONE is stated"
+                if GATE_LABEL_RE.search("\n".join(body)) else
+                "no gate labelled (script), (contract) or (derived), and no 'test: NONE'"))
+
+    # self-check table after the block
+    res.append(("self-check", bool(SELF_CHECK_RE.search(tail)),
+                "table present after the block" if SELF_CHECK_RE.search(tail) else
+                "no | # | Item | Verdict | Reason | table after the block"))
+    return res
+
+
+def cmd_map() -> dict[str, str]:
+    try:
+        return {letter: cmd for letter, cmd, *_ in load_build_shims().ARCHETYPES}
+    except Exception:  # noqa: BLE001 - the filename check degrades; check_suite reports the cause
+        return {}
+
+
+def check_tiers(root: Path = HOME) -> None:
+    """Keep TIER_CAPS / TIER_OF equal to the §4.21 table in guide/03-blocks.md."""
+    text = read(root / "guide" / "03-blocks.md", "suite")
+    if text is None:
+        return
+    rows = re.findall(r"^\|\s*(Delta|Focused|Slice|Program)\s*\|\s*(\d+)[^|]*\|\s*([^|]+)\|", text, re.M)
+    if len(rows) != len(TIER_CAPS):
+        add("ERROR", "suite", f"guide/03-blocks.md §4.21: found {len(rows)} tier rows, doctor knows {len(TIER_CAPS)}")
+    for tier, cap, letters in rows:
+        if TIER_CAPS.get(tier) != int(cap):
+            add("ERROR", "suite", f"§4.21 says {tier} cap {cap}; tools/doctor.py TIER_CAPS says {TIER_CAPS.get(tier)}")
+        listed = set(re.findall(r"\b([A-Z])\b", letters))
+        mapped = {k for k, v in TIER_OF.items() if v == tier}
+        if listed != mapped:
+            add("ERROR", "suite", f"§4.21 lists {tier} = {','.join(sorted(listed))}; tools/doctor.py TIER_OF has "
+                                  f"{','.join(sorted(mapped))}")
+
+
+def run_prompt_lint(path_arg: str) -> int:
+    p = Path(path_arg)
+    try:
+        text = p.read_text(encoding="utf-8-sig")
+    except (OSError, UnicodeDecodeError) as exc:
+        say(f"FAIL  read  cannot read {p}: {exc}")
+        return 1
+    results = lint_prompt(text, p.name, cmd_map())
+    for check, ok, detail in results:
+        say(f"{'PASS' if ok else 'FAIL'}  {check:20} {detail}")
+    fails = sum(1 for _c, ok, _d in results if not ok)
+    say()
+    say(f"Prompt lint: {len(results) - fails} PASS, {fails} FAIL  ({p.name})")
+    return 1 if fails else 0
+
+
 def check_prompt_file(p: Path, rel: str, header: re.Match[str] | None, row_label: str | None,
                       all_names: set[str]) -> None:
     text = read(p, "archive")
@@ -501,10 +695,16 @@ def main(argv: list[str]) -> int:
     reconfigure = getattr(sys.stdout, "reconfigure", None)
     if callable(reconfigure):
         reconfigure(encoding="utf-8")
+    if argv and argv[0] == "--prompt":
+        if len(argv) != 2:
+            say("usage: doctor.py --prompt <archive file>")
+            return 2
+        return run_prompt_lint(argv[1])
     allowed = {"--suite", "--archive", "--verbose"}
     unknown = [a for a in argv if a not in allowed]
     if unknown:
-        say(f"unknown argument(s): {' '.join(unknown)}   usage: doctor.py [--suite] [--archive] [--verbose]")
+        say(f"unknown argument(s): {' '.join(unknown)}   usage: doctor.py [--suite] [--archive] [--verbose]"
+            f" | doctor.py --prompt <file>")
         return 2
     VERBOSE = "--verbose" in argv
     scoped = {"--suite", "--archive"} & set(argv)
@@ -515,6 +715,7 @@ def main(argv: list[str]) -> int:
     if run_suite:
         check_suite()
         check_release()
+        check_tiers()
     if run_archive:
         try:
             bs = load_build_shims()
