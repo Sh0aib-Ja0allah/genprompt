@@ -16,6 +16,10 @@
 
 The first archived prompt creates the folders. Nothing in the archive is ever written into a repo.
 
+**The writer is `tools/archive.py`** (PROTOCOL Step 6). It writes the prompt file and the shard
+row from a JSON parts file, then validates them. This section describes what it produces, so you
+can read and check the archive; the generator never writes a prompt file or a shard row by hand.
+
 ### 10.1 Keys and filenames
 
 - **`<key>`** is the repo directory's basename, lowercased, with `_` and spaces turned into `-`
@@ -61,8 +65,8 @@ A **new** shard starts with these three lines, and every row in it is v3:
 A **legacy** shard (one created before 2026-09-23) has the third line
 `# schema: legacy rows first; v3 rows go below the marker line at the end of this file`. It
 contains exactly one marker line, `# --- v3 ---`.
-- Append new rows **below the last line** of the file. Do not insert above the marker, and do not
-  quote the marker text anywhere else, because an edit anchored on it must match exactly once.
+- `archive.py` appends new rows **below the last line** of the file, never above the marker. Do
+  not quote the marker text anywhere else, because a tool anchored on it must match exactly once.
 - Doctor holds a row to v3 rules if it is below the marker, if it is in a pure v3 shard, or if it is
   dated 2026-09-24 or later. Other rows count as legacy INFO.
 
@@ -102,12 +106,16 @@ by file mtime, because legacy backfilled rows are not strictly ordered.
 
 ### 10.5 Rules
 
-- **Archive every emitted prompt**, unless the request has `--dry-run`. A no-prompt turn gets a
-  status row.
+- **Archive every emitted prompt through `tools/archive.py`**, unless the request has
+  `--dry-run` (then run it with `--dry-run`, which writes nothing). A no-prompt turn gets a status
+  row, also through `archive.py` (`"archetype": "none"`). If python cannot run at all, say so and
+  mark self-check row 22 FAIL; never hand-write the file or the row.
 - **Never append to `INDEX.md`.** Never rename or move a prompt file: `Follows` and `Amends`
   references point at exact filenames.
 - **Shard rows may be normalised** (format, order, duplicates), but only with a snapshot copy in
-  `~/.genprompt/history/` first. Prompt files are never edited after they are archived.
+  `~/.genprompt/history/` first. Prompt files are never edited after they are archived. The one
+  exception is `archive.py --replace` in the same turn, to fix a prompt it flagged with a FAIL:
+  it rewrites that file and its shard row in place.
 - **The integrity check is `tools/doctor.py`** (`/genprompt:doctor`). v3 rules are enforced from
   2026-09-23; earlier drift is reported as legacy INFO.
 

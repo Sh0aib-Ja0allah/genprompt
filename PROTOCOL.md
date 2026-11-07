@@ -220,21 +220,33 @@ Reply "go" to accept, or correct any line.
 
 1. **Self-check.** Run the §6 checklist as a table with `| # | Item | Verdict | Reason |`. Every row
    carries a reason, and N/A always explains why. Never write a bare `✓ passed`.
-2. **Archive**, unless the request has `--dry-run`. The full spec is §10; the parts that drifted in
-   v2 are repeated here.
-   - **File:** `~/.genprompt/generated-prompts/<key>/<YYYY-MM-DD>-<cmd>[+<cmd>]-<slug>.md`
-     - `<key>`: the repo directory's basename, lowercased, with `_` and spaces turned into `-`
-     - `<cmd>`: the command word of each archetype in the label, dominant first (`next+fix`)
-     - `<slug>`: kebab-case, lowercase, 60 characters at most
-   - **Line 1 of the file, exactly:**
-     `<!-- genprompt v3: key=<key> | repo=<DirName> | path=<abs path> | date=<YYYY-MM-DD> | archetype=<letters joined by +, e.g. J+L> | follows=<filename, <key>/<filename>, or -> -->`
-     `--follows <file>` sets `follows` explicitly; otherwise infer it from the chain.
-   - **Then, in order:** the §4.1 header table, the grounding notes, **the complete fenced
-     prompt**, and the self-check table. A file that says "see the transcript" is a defect.
-   - **Shard row.** Append one row **below the last line** of `~/.genprompt/generated-prompts/by-repo/<key>.tsv`
-     (for a legacy shard, that last line is the `# --- v3 ---` marker):
-     `<YYYY-MM-DD> | <letters> | <slug> | <filename> | <task, 200 chars max, no "|", no "·", no em-dash>`
-     If the shard is new, write the three header lines from §10 first.
+2. **Archive through `tools/archive.py`, never by hand.** The script writes the prompt file and
+   the shard row; you never Write or Edit a `.md` in `generated-prompts/` or a `by-repo/*.tsv`
+   row yourself, not even when the script is inconvenient or fails.
+   - **Parts file.** Write one JSON object with the Write tool to
+     `~/.genprompt/tmp/<slug>.json` (absolute home path): `key`, `repo`, `path`, `date`,
+     `archetype` (letters), `follows` (`-` if none; `--follows <file>` sets it, otherwise infer it
+     from the chain), `slug`, `task`, then `header_table`, `grounding`, `prompt` (the whole fenced
+     block, fences included) and `self_check`, plus `rule` if there is a transferable rule.
+     Add `flags`, `via` and `lock` when known. `tmp/` is scratch: the file is not deleted, because
+     a `--replace` re-run needs it and the generator has no delete permission; the next run with
+     the same slug overwrites it.
+   - **Run it** (`python3`, or `python` if `python3` fails, as on Windows where `python3` can be a
+     Store alias): `python3 "${CLAUDE_PLUGIN_ROOT}/tools/archive.py" --dry-run <parts.json>`
+     first. Its PASS/WARN/FAIL lines are the evidence for self-check rows 8, 15, 16, 21 and 22:
+     cite them in those rows instead of grading by eye. Then run it again without `--dry-run` to
+     archive. Under a `--dry-run` request, the dry run is the only run and nothing is written.
+   - **What it produces** (the §10 spec, for readers): the file
+     `~/.genprompt/generated-prompts/<key>/<YYYY-MM-DD>-<cmd>[+<cmd>]-<slug>.md` (`<key>`: the repo
+     directory's basename, lowercased, `_` and spaces turned into `-`; `<cmd>`: the command word of
+     each archetype, dominant first; `<slug>`: kebab-case, 60 characters at most), whose line 1 is
+     `<!-- genprompt v3: key=… | repo=… | path=… | date=… | archetype=… | follows=… -->` (then
+     `flags`, `via`, `lock` when given), followed by the §4.1 header table, the grounding notes,
+     **the complete fenced prompt** and the self-check table. And one 5-field row
+     `<date> | <letters> | <slug> | <filename> | <task>` below the last line of
+     `by-repo/<key>.tsv` (a new shard first gets the three §10 header lines).
+   - **No python at all** (the script cannot run on this machine): say so in chat, mark row 22
+     FAIL with that reason, and leave the archive alone. Do not hand-write it.
 3. **Print** in chat, prompt first, in this order:
    1. the lock block, if `--go` skipped the wait
    2. `Interpretations locked in (overridable)`, if there are any, because the user must see an
@@ -249,12 +261,19 @@ Reply "go" to accept, or correct any line.
    holds the full table (§6), whatever the chat shows. Under `--dry-run` there is no archive file,
    so the verdict line says `(full table: --verbose)` instead.
 
-   If a write failed, say so and mark the archive row FAIL.
+   **archive.py exit codes.** It writes first, then validates, so a printed prompt is never
+   missing from the archive. 0: archived (WARN lines are advisory; mention them). 1: archived
+   with errors: show its FAIL lines, mark row 22 FAIL, fix the prompt and re-run with `--replace`
+   (same file, shard row rewritten in place). 3: the file already exists: use `--replace` only if
+   it is the same prompt, otherwise pick a new slug. 2: a structural field (key, date, slug,
+   letters, repo, path) is wrong and nothing was written: fix it and re-run.
 
 **No-prompt turns** (the work is verified done, or you are parking it):
 - Write a §4.26 closeout in chat.
-- Append a status row:
-  `<date> | none | <slug> | - | status: <verified|closed|parked>, no prompt emitted; <reason and the landed SHA>`
+- Archive a status row through `tools/archive.py` too: a parts file with `key`, `path`, `date`,
+  `"archetype": "none"`, `slug` and a `task` of the form
+  `status: <verified|closed|parked>, no prompt emitted; <reason and the landed SHA>`. It writes
+  only the row (file `-`).
 
 ## Step 7: Close
 
