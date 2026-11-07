@@ -3,3 +3,5 @@ __pycache__/
 *.pyc
 generated-prompts/
 .DS_Store
+# Test fixtures are sample archives on purpose; keep them tracked.
+!tools/tests/fixtures/**
