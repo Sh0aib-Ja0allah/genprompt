@@ -144,6 +144,10 @@ UTILITIES = [
      "[repo] [--dry-run]"),
 ]
 
+# Utilities that do not load PROTOCOL.md: they emit no prompt, need no TARGET LOCK and write nothing.
+# learn keeps PROTOCOL: it edits local-rules.md under the protocol's write boundary and precedence.
+PROTOCOL_FREE = {"help", "doctor"}
+
 
 def yaml_str(value: str) -> str:
     # A JSON string is a valid YAML double-quoted scalar: safe for ': ', '#', '[' and '<'.
@@ -155,12 +159,21 @@ def frontmatter(desc: str, hint: str, extra: str = "") -> str:
             f"allowed-tools: {ALLOWED_TOOLS}{extra}\n---\n")
 
 
-def includes(files: list[str]) -> str:
-    inc = "\n".join(f"@{PLUGIN_ROOT}/{f}" for f in ["PROTOCOL.md", *files])
-    reads = ", ".join(f"`{PLUGIN_ROOT}/{f}`" for f in ["PROTOCOL.md", *files])
-    return (f"{inc}\n\n"
-            f"Paths for this run: the genprompt root (these rules, read-only) is `{PLUGIN_ROOT}`. "
-            f"The genprompt home (the archive and your personal rules) is `{USER_HOME}/`.\n\n"
+def includes(files: list[str], protocol: bool = True) -> str:
+    load = ["PROTOCOL.md", *files] if protocol else list(files)
+    inc = "\n".join(f"@{PLUGIN_ROOT}/{f}" for f in load)
+    reads = ", ".join(f"`{PLUGIN_ROOT}/{f}`" for f in load)
+    paths = (f"Paths for this run: the genprompt root (these rules, read-only) is `{PLUGIN_ROOT}`. "
+             f"The genprompt home (the archive and your personal rules) is `{USER_HOME}/`.\n\n")
+    if not protocol:
+        # Protocol-free utilities: they emit no prompt, need no TARGET LOCK and write nothing, so
+        # Step 0 must not send the model to PROTOCOL.md (that would undo the saving).
+        return (f"{inc}\n\n{paths}"
+                f"Step 0: if any file listed here is missing from context, Read it now: {reads}. "
+                f"This utility does not need `PROTOCOL.md`; do not Read it. If "
+                f"`{USER_HOME}/local-rules.md` exists, Read it (personal rules). Everything below "
+                f"assumes they are loaded.\n")
+    return (f"{inc}\n\n{paths}"
             f"Step 0: if the line `GENPROMPT-PROTOCOL v3 LOADED` is not visible above, or any "
             f"file listed here is missing from context, Read it now: {reads}. Then run "
             f"`ls -d ~ {USER_HOME}/local-rules.md` once: it prints your absolute home directory "
@@ -178,7 +191,8 @@ def archetype_shim(letter, cmd, stem, name, desc, hint) -> str:
 
 def utility_shim(cmd, files, desc, hint) -> str:
     extra = EXTRA_TOOLS.get(cmd, "")
-    return (frontmatter(desc, hint, extra) + "\n" + includes(files) +
+    return (frontmatter(desc, hint, extra) + "\n" +
+            includes(files, protocol=cmd not in PROTOCOL_FREE) +
             f"\nUtility `/genprompt:{cmd}`: follow `utilities/{cmd}.md`. It emits no worker prompt.\n\n"
             f"Request: $ARGUMENTS\n")
 
