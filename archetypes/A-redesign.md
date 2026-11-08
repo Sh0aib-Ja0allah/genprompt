@@ -41,13 +41,18 @@ WHAT IS WRONG WITH IT TODAY (grounded):
 
 1. Analyse the current implementation before changing anything; state what it does today.
 2. <UI: redesign layout, spacing, hierarchy, states (loading/empty/error), accessibility>
-   <non-UI: tighten the public surface, error handling, boundaries, naming>
+   <non-UI: tighten error handling, boundaries and naming. Keep the public surface (exports, CLI
+   flags, messages, exit codes) exactly as it is>
 3. Refactor: structure, naming, state handling, separation of concerns. Extract sub-parts only
    where it earns its keep.
-4. Preserve the artifact's purpose and behaviour, unless a better one is justified. Say so if you
-   take that route.
+4. Preserve the artifact's observable behaviour exactly: outputs, errors, exit codes and public
+   exports. If a change seems worth making, propose it in the plan and wait for my yes; do not make it.
 5. Remove weak patterns and needless complexity. Do not over-engineer.
 6. Touch nothing outside this file and the pieces you extract from it.
+
+OUT OF SCOPE: do not start these, do not drift into them:
+- <sibling files by path>, because <their behaviour is what this rebuild must keep>
+- <roadmap items by ID>, because <they are separate slices>
 
 [INSERT §4.19 approval gate, or §4.8 MODE if unattended]
 Constraints: <PROFILE.contract> wins over this prompt. No new packages, no new env vars.

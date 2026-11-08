@@ -22,6 +22,9 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
   past 14,336 bytes.
 - 2026-11-08 · PROTOCOL.md, guide/01-target-profile.md · Pointers to the stack matrix's workspace
   section 1b (E-16): monorepo orchestrators, gate ladder order, zero-config formatters.
+- 2026-11-08 · archetypes/L-fix.md, archetypes/A-redesign.md, guide/04-checklist.md · Fix and
+  redesign prompts bound scope: L-fix gains a SCOPE block naming what not to start, A-redesign keeps
+  the public surface and asks before changing behaviour, row 10 checks both.
 
 ## 1.1.0 (2026-11-08): archive written and checked by a tool, a measurable workflow
 
