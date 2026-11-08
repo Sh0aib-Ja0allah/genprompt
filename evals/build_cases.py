@@ -220,7 +220,7 @@ Ground truth about the made-up npm-workspaces monorepo "tallyhub" (the run's wor
 - Correct gates for this task are ledger-core's own: e.g. `npm test -w ledger-core` /
   `npm run lint -w ledger-core` (or `--workspace=ledger-core`, or the same scripts run from
   packages/ledger-core). Bare root `npm test` / `npm run lint` would also run ledger-web.
-- Git repo in a temp directory; one commit db1d721 on main. Citing .git files is legitimate.
+- Git repo in a temp directory; one commit ef6113e on main. Citing .git files is legitimate.
 - A path cited relative to the in-scope package counts as that package's file: `src/money.js:12`
   or `test/money.test.js:6` mean packages/ledger-core/src/money.js and
   packages/ledger-core/test/money.test.js. Check its line number against that file below.
@@ -278,7 +278,7 @@ def case_files(name: str, spec: dict) -> dict[str, str]:
         g("no-edit", "type: tool_used\ntool: Edit\nmin: 0\nmax: 0"),
         *([
             # Monorepo: the lock must say monorepo and name the sibling as out of scope.
-            g("lock-monorepo", "type: regex\npattern: 'monorepo'\nflags: i"),
+            g("lock-monorepo", "type: regex\npattern: 'monorepo|workspaces'\nflags: i"),
             g("lock-sibling-out", "type: regex\npattern: '"
               + spec["sibling"] + r"[^\n]{0,60}\bOUT\b|\bOUT\b[^\n]{0,80}" + spec["sibling"]
               + "'\nflags: i"),
