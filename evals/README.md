@@ -19,6 +19,10 @@ in CI.
 | `lint/structural.py` | The deterministic graders the eval CLI cannot express (it has no custom-code graders) |
 | `run.py` | Runs the eval, then applies `lint/structural.py` to each run's final message and workspace |
 | `BASELINE.md` | The Phase-1 baseline: scores per case and grader, cost, load sizes |
+| `CP4.md` | CP4: E-09 at `4fb361a` vs the baseline; why the token gates cannot pass in this harness |
+| `CP4b.md`, `realuse/run.py` | CP4b: E-09 token saving measured with `claude -p` (where @-includes expand), and its harness |
+| `compare.py` | Applies the CP4 acceptance gates (G1-G4) to a candidate run vs the baseline |
+| `prepare_worktree.py` | Stages another commit in a detached worktree with this `evals/` copied in |
 
 Everything in `fixtures/` is invented. Nothing comes from `~/.genprompt` or any real repo.
 
