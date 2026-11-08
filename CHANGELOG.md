@@ -22,6 +22,18 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
   past 14,336 bytes.
 - 2026-11-08 · PROTOCOL.md, guide/01-target-profile.md · Pointers to the stack matrix's workspace
   section 1b (E-16): monorepo orchestrators, gate ladder order, zero-config formatters.
+- 2026-11-08 · archetypes/L-fix.md, archetypes/A-redesign.md, guide/04-checklist.md · Fix and
+  redesign prompts bound scope: L-fix gains a SCOPE block naming what not to start, A-redesign keeps
+  the public surface and asks before changing behaviour, row 10 checks both.
+- 2026-11-08 · archetypes/, tools/build_shims.py · Every abbreviated §4.14 INSERT names the gate
+  labels and the GENPROMPT-REPORT line, because the baseline fix prompt composed §4.14 from that
+  line alone; --check fails a template whose §4.14 INSERTs never name it.
+- 2026-11-08 · guide/03-blocks.md, guide/04-checklist.md · Hard wrap rule: every prompt line wraps
+  at 100 characters except a lone unbreakable token (§4.21), and the §4.14 GENPROMPT-REPORT spec is
+  shown wrapped, because every baseline prompt had longer lines and copied the one-line spec.
+- 2026-11-08 · PROTOCOL.md, guide/, archetypes/, utilities/ · Tone pass: bold kept only on the six
+  invariants and structural table labels (626 to ~190 markers); PROTOCOL wording compressed 16,548
+  to 15,747 bytes with every tool-matched literal unchanged.
 
 ## 1.1.0 (2026-11-08): archive written and checked by a tool, a measurable workflow
 

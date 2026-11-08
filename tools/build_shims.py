@@ -341,6 +341,7 @@ COMMON_BLOCKS = ("4.0", "4.1", "4.2", "4.3", "4.5", "4.6", "4.7", "4.13", "4.14"
 _SEC_HEAD = re.compile(r"^### (4\.\d+)\b", re.M)
 _SEC_REF = re.compile(r"§(4\.\d+)")
 _INSERT_REF = re.compile(r"\[INSERT §(4\.\d+)")
+_INSERT_414 = re.compile(r"\[INSERT §4\.14\b[^\]]*\]")   # body may span lines
 
 
 def _sec_key(s: str) -> int:
@@ -395,6 +396,11 @@ def excerpt_errors() -> list[str]:
         for ref in _INSERT_REF.findall(text):
             if ref not in ids:
                 errors.append(f"archetypes/{r.stem}.md INSERTs §{ref}, missing from its excerpt")
+        # E-10: a generator that composes §4.14 from the INSERT line alone must still emit the
+        # report header (the baseline fix case did not), so one §4.14 INSERT must name it.
+        inserts = _INSERT_414.findall(text)
+        if inserts and not any("GENPROMPT-REPORT" in body for body in inserts):
+            errors.append(f"archetypes/{r.stem}.md: no [INSERT §4.14 …] line names GENPROMPT-REPORT")
     return errors
 
 

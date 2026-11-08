@@ -11,19 +11,19 @@
 
 ## Generator: before emitting
 
-- **Capture the incident facts:** the symptom, since when, who is affected, error text/logs the
+- Capture the incident facts: the symptom, since when, who is affected, error text/logs the
   user has, recent deploys/commits (`git log --since`). Mark each as known or `[UNVERIFIED]`.
-- **Separate the steps:**
-  1. **mitigate** (stop the bleeding: a flag off, a revert, a config change); approval if live
-  2. **root cause**
-  3. **minimal fix**
-  4. **regression test**
-  5. **postmortem**
+- Separate the steps:
+  1. mitigate (stop the bleeding: a flag off, a revert, a config change); approval if live
+  2. root cause
+  3. minimal fix
+  4. regression test
+  5. postmortem
 
   Mitigation may come before the root cause.
-- **Minimal diff.** No refactors, no opportunistic cleanup. Anything else found goes in the
+- Minimal diff. No refactors, no opportunistic cleanup. Anything else found goes in the
   postmortem as follow-ups.
-- **Revert** is a legitimate mitigation. Name the candidate commit if the timing points at one.
+- Revert is a legitimate mitigation. Name the candidate commit if the timing points at one.
 
 ## Required blocks
 
@@ -53,6 +53,7 @@ STEP 4: FIX: minimal diff. [INSERT §4.15: a failing regression test first; prov
 STEP 5: POSTMORTEM, in `<PROFILE.docnaming: incident note>`: timeline, root cause, why tests/CI did
         not catch it, the fix, follow-ups (not done now).
 
-[INSERT §4.14: gates <literal>; baseline <n> → at least <n+1>; DON'T refactor or widen scope]
+[INSERT §4.14: gates <literal, each labelled>; baseline <n> → at least <n+1>; DON'T refactor
+ or widen scope; REPORT starting with the GENPROMPT-REPORT line]
 Start with STEP 1 now.
 ```

@@ -11,19 +11,19 @@
 
 ## Generator: before emitting
 
-- **Read the target file.** The prompt names what is actually wrong with it (`file:line`), not
+- Read the target file. The prompt names what is actually wrong with it (`file:line`), not
   generic advice.
-- **Take the role from the NEAREST manifest to the file** (never the git root), and never blend
+- Take the role from the NEAREST manifest to the file (never the git root), and never blend
   two stacks in one role. If the contract states a persona, use it verbatim.
-- **Pull the contract's rules for this kind of artifact:** design-system components, tokens,
+- Pull the contract's rules for this kind of artifact: design-system components, tokens,
   typing, RTL, accessibility, naming.
-- **Decide UI versus non-UI.** A UI artifact gets the UI/UX step. A module or controller gets the
+- Decide UI versus non-UI. A UI artifact gets the UI/UX step. A module or controller gets the
   API-surface / error-handling / boundaries step instead.
 
 ## Required blocks
 
 - §4.5, §4.6 (short), §4.7 (a falsifying artifact about this file), §4.14
-- §4.19 **or** §4.8
+- §4.19 or §4.8
 
 ## Template
 
@@ -41,19 +41,25 @@ WHAT IS WRONG WITH IT TODAY (grounded):
 
 1. Analyse the current implementation before changing anything; state what it does today.
 2. <UI: redesign layout, spacing, hierarchy, states (loading/empty/error), accessibility>
-   <non-UI: tighten the public surface, error handling, boundaries, naming>
+   <non-UI: tighten error handling, boundaries and naming. Keep the public surface (exports, CLI
+   flags, messages, exit codes) exactly as it is>
 3. Refactor: structure, naming, state handling, separation of concerns. Extract sub-parts only
    where it earns its keep.
-4. Preserve the artifact's purpose and behaviour, unless a better one is justified. Say so if you
-   take that route.
+4. Preserve the artifact's observable behaviour exactly: outputs, errors, exit codes and public
+   exports. If a change seems worth making, propose it in the plan and wait for my yes; do not make it.
 5. Remove weak patterns and needless complexity. Do not over-engineer.
 6. Touch nothing outside this file and the pieces you extract from it.
+
+OUT OF SCOPE: do not start these, do not drift into them:
+- <sibling files by path>, because <their behaviour is what this rebuild must keep>
+- <roadmap items by ID>, because <they are separate slices>
 
 [INSERT §4.19 approval gate, or §4.8 MODE if unattended]
 Constraints: <PROFILE.contract> wins over this prompt. No new packages, no new env vars.
 <git posture>. Out of bounds: <PROFILE.forbidden>.
 
-[INSERT §4.14: gates <PROFILE.gates>, baseline unchanged or up, report]
+[INSERT §4.14: literal gates, each labelled (script|contract|derived); baseline unchanged or up;
+ REPORT starting with the GENPROMPT-REPORT line]
 Summarise: UI/UX (or API) improvements, structural improvements, logic changes, the key decisions,
 and what you deliberately left alone and why.
 <terminal imperative>
@@ -61,6 +67,6 @@ and what you deliberately left alone and why.
 
 ## Traps
 
-- **Generic "modernise it" advice** yields a restyle that ignores the real defect. Name the
+- Generic "modernise it" advice yields a restyle that ignores the real defect. Name the
   defects.
-- **A role blended from two stacks** ("React/Laravel engineer") produces advice for neither.
+- A role blended from two stacks ("React/Laravel engineer") produces advice for neither.

@@ -124,6 +124,16 @@ class BuildShims(unittest.TestCase):
         self.assertEqual(code, 1, out)
         self.assertIn("DIFF  guide/blocks/D-slice.md", out)
 
+    def test_check_fails_when_no_414_insert_names_the_report_line(self):
+        # E-10: one [INSERT §4.14 …] line per template must name GENPROMPT-REPORT.
+        arch = self.copy / "archetypes" / "L-fix.md"
+        text = arch.read_text(encoding="utf-8")
+        self.assertIn("GENPROMPT-REPORT", text)
+        arch.write_text(text.replace("GENPROMPT-REPORT", "report"), encoding="utf-8", newline="\n")
+        code, out = run_tool(self.script, "--check", cwd=self.copy)
+        self.assertEqual(code, 1, out)
+        self.assertIn("L-fix.md: no [INSERT §4.14 …] line names GENPROMPT-REPORT", out)
+
 
 if __name__ == "__main__":
     unittest.main()

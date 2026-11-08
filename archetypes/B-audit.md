@@ -11,10 +11,10 @@
 
 ## Generator: before emitting
 
-- **Enforce read-only by enumeration, not by adjective:** the §4.20 explicit tool allow-list.
-- **Invert §2.5:** the worker must NOT run builds, tests or installs. List the gates only as facts
+- Enforce read-only by enumeration, not by adjective: the §4.20 explicit tool allow-list.
+- Invert §2.5: the worker must NOT run builds, tests or installs. List the gates only as facts
   the doc records.
-- **Build a reading manifest with depth** (READ FULLY / SKIM / CONTEXT ONLY) from the real `docs/`.
+- Build a reading manifest with depth (READ FULLY / SKIM / CONTEXT ONLY) from the real `docs/`.
 - If execution is also wanted, that is a separate `:roadmap` prompt, and it hard-STOPs if this doc
   is missing. Do not fold audit and execution into one prompt.
 

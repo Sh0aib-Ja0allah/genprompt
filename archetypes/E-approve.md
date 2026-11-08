@@ -11,20 +11,20 @@
 
 ## Generator: before emitting
 
-- **Quote the worker's own sentence verbatim before ruling on it** (§4.17). A paraphrase resizes
+- Quote the worker's own sentence verbatim before ruling on it (§4.17). A paraphrase resizes
   the claim.
-- **Where the worker was right** and the previous instruction was not, say so plainly (§4.16). A
+- Where the worker was right and the previous instruction was not, say so plainly (§4.16). A
   worker never told "you were right" learns to suppress deviations.
-- **A mid-session E inherits the running prompt's constraints.** State only the **deltas**. But if
+- A mid-session E inherits the running prompt's constraints. State only the deltas. But if
   code changes follow, **restate the literal gates** (principle 9): never "same as before".
-- **Sequencing decisions carry their rationale** (§4.20). Order is load-bearing when one ordering
+- Sequencing decisions carry their rationale (§4.20). Order is load-bearing when one ordering
   ships a disclosure.
-- **Amendment mode** (a prompt is already running):
+- Amendment mode (a prompt is already running):
   - set the header's `| Amends | <prior prompt filename>: insert before Part <X> |` (§4.1, the
     archive file, not the block)
   - open the block with an unmissable STOP AND INSERT
   - verify on the branch that the prior prompt actually reached the worker
-- **Anything that needs a decision rather than a fix** goes in §4.20 `RECORD, DO NOT ACT`.
+- Anything that needs a decision rather than a fix goes in §4.20 `RECORD, DO NOT ACT`.
 
 ## Template
 

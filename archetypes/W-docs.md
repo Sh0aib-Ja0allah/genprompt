@@ -11,14 +11,14 @@
 
 ## Generator: before emitting
 
-- **Name the audience and the language.** For example, an Arabic admin guide for a client, or an
+- Name the audience and the language. For example, an Arabic admin guide for a client, or an
   API reference for integrators. Audience decides depth and vocabulary. If the contract says
   client wording is contractual, quote it verbatim and never paraphrase it.
-- **List the facts the doc must carry and their sources in code:** commands from the manifests,
+- List the facts the doc must carry and their sources in code: commands from the manifests,
   routes from the route files, env keys from `.env.example`, screens from the panel resources.
-- **Drift check:** name the claims you already found stale (`file:line` in the doc against
+- Drift check: name the claims you already found stale (`file:line` in the doc against
   `file:line` in the code).
-- **Screenshots and images** are placeholders unless the worker can produce real ones. Mark them.
+- Screenshots and images are placeholders unless the worker can produce real ones. Mark them.
 
 ## Required blocks
 

@@ -1,6 +1,6 @@
 # 5. Archetypes
 
-**Archetypes compose.** Pick the dominant letter, name the ones folded in, and take blocks from
+Archetypes compose. Pick the dominant letter, name the ones folded in, and take blocks from
 each. The label is honest (`J+L`, `D+H`, `P+Q`); do not force a single letter. Labels join letters with
 `+` only. `B→I` in prose means two separate prompts in sequence, and is never a label. The filename
 uses the command words in the same order (`next+fix`).
@@ -63,14 +63,14 @@ Letters are permanent: archived prompts reference them. New archetypes take the 
 | V | Cleanup / maintenance | `:cleanup` | `V-cleanup.md` |
 | W | Documentation | `:docs` | `W-docs.md` |
 
-**Every archetype file has the same shape:**
+Every archetype file has the same shape:
 1. a header table: use when · not when · autonomy · baseline delta · length tier · deliverable
 2. generator steps before emitting
 3. required blocks (§4)
 4. the template (§4.0 notation)
 5. traps, where they apply
 
-**Common lifecycles** (each arrow is a new prompt):
+Common lifecycles (each arrow is a new prompt):
 - New repo: `onboard → plan → roadmap → review → commit → release`
 - Feature: `slice → next → … → review → commit`
 - Bug report: `audit or review → fix → commit`

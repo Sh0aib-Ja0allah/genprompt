@@ -4,16 +4,16 @@
 |---|---|
 | **Use when** | Drive one vertical slice (a feature or change set) through checkpoints |
 | **Not when** | The scope is a list of confirmed defects → `:fix`. A whole backlog → `:roadmap` |
-| **Autonomy** | Code-writing: §4.8 MODE (unattended) **or** §4.19 gate (attended), never neither |
+| **Autonomy** | Code-writing: §4.8 MODE (unattended) or §4.19 gate (attended), never neither |
 | **Baseline delta** | Up (new behaviour needs new tests); state the expected numbers |
 | **Length tier** | Slice (260; 320 with several checkpoints) |
 | **Deliverable** | The slice, green at every checkpoint, with a report |
 
 ## Generator: before emitting
 
-- **Scope items are mechanisms, not bullets:** a §4.9 defect with `file:line`, the causal chain
+- Scope items are mechanisms, not bullets: a §4.9 defect with `file:line`, the causal chain
   and the consequence. Ground each one.
-- **If this follows a prior slice,** put the relationship in the header, and confirm the prior
+- If this follows a prior slice, put the relationship in the header, and confirm the prior
   instruction landed on the branch.
 
 ## Required blocks
@@ -21,7 +21,7 @@
 - §4.5, §4.6, §4.7, §4.9, §4.10 (including the negative decisions), §4.11, §4.14
 - §4.12 wherever the majority pattern is the trap
 - §4.13 if anything is blocked
-- §4.8 **or** §4.19
+- §4.8 or §4.19
 
 ## Template
 
@@ -51,7 +51,7 @@ GATE: <literal commands>. All green before you continue. Baseline <n> → expect
 
 OUT OF SCOPE: do not start these, do not drift into them: <named items, by path, each with "because <reason>">.
 [INSERT §4.13 WHAT YOU CANNOT DO, if anything is blocked]
-[INSERT §4.14 DO/DON'T + DEFINITION OF DONE + REPORT]
+[INSERT §4.14 DO/DON'T + DEFINITION OF DONE + REPORT starting with the GENPROMPT-REPORT line]
 
 <Terminal imperative: "Start with checkpoint A now." | "Do not start the next slice; report and wait.">
 ```

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Use when** | Drive a list of **confirmed** defects to closure, each with a repro and acceptance |
+| **Use when** | Drive a list of confirmed defects to closure, each with a repro and acceptance |
 | **Not when** | A production incident under time pressure → `:hotfix`. Unconfirmed suspicions → `:review` or `:audit` first |
 | **Autonomy** | Code-writing: §4.8 MODE or §4.19 gate |
 | **Baseline delta** | Up: at least one new failing-then-passing test per defect |
@@ -11,24 +11,27 @@
 
 ## Generator: before emitting
 
-- **Re-verify each reported defect against the code** before it goes in the prompt. Some will
+- Re-verify each reported defect against the code before it goes in the prompt. Some will
   already be fixed, some misreported. Give each one MECHANISM (`file:line`), CONSEQUENCE, REPRO,
   FIX, ACCEPTANCE and TRAPS.
-- **Carry a `FALSE POSITIVES / DO NOT FIX` section**, with the evidence for each. Without it, the
+- Carry a `FALSE POSITIVES / DO NOT FIX` section, with the evidence for each. Without it, the
   worker "fixes" a non-defect and calls it done.
-- **Order the defects deliberately, and say why** when order matters. A gate must land before the
+- Order the defects deliberately, and say why when order matters. A gate must land before the
   permission it protects.
-- **State severity per defect.** Flag where you are reporting the worker's severity rather than
+- State severity per defect. Flag where you are reporting the worker's severity rather than
   your own.
-- **Anything that needs a product decision** goes in §4.20 `RECORD, DO NOT ACT`, not into a
+- Anything that needs a product decision goes in §4.20 `RECORD, DO NOT ACT`, not into a
   widened grant.
+- Name what not to start. Read the roadmap or backlog doc and list every open item that
+  touches the same files, by ID or path, under SCOPE. A fix prompt that names no out-of-scope item
+  fails §6 row 10.
 
 ## Required blocks
 
 - §4.5, §4.7, §4.14
 - §4.15 (this is the archetype it exists for)
 - §4.20 RECORD, DO NOT ACT, when needed
-- §4.8 **or** §4.19
+- §4.8 or §4.19
 
 ## Template
 
@@ -55,9 +58,13 @@ TRAPS: <what will break a naive fix>, because <mechanism> (<file:line>)
 
 FALSE POSITIVES / DO NOT FIX: <each re-checked non-defect, with the evidence>. A false positive
 retired with evidence is worth as much as a defect fixed.
+SCOPE: fix only the defects above. Do not start these, do not drift into them:
+- <roadmap item / slice ID / path / command>, because <a later slice | another owner |
+  a product decision>
 [INSERT §4.20 RECORD, DO NOT ACT, for decisions]
 
-[INSERT §4.14 gates (literal) + DEFINITION OF DONE + REPORT; baseline <n> → at least <n + defects>]
+[INSERT §4.14: literal gates, each labelled (script|contract|derived); DEFINITION OF DONE;
+ REPORT starting with the GENPROMPT-REPORT line; baseline <n> → at least <n + defects>]
 <git posture: a commit per defect, or leave uncommitted for review>
 Start with DEFECT 1 now.
 ```

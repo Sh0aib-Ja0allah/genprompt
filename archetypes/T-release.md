@@ -4,22 +4,22 @@
 |---|---|
 | **Use when** | Cut a release (version, changelog, tag), prepare or execute a deploy (staging/production, app-store build), write a deploy runbook, or run a handover of credentials and environments |
 | **Not when** | Just committing work → `:commit`. Writing handover docs only → `:docs` |
-| **Autonomy** | **§4.23 approval per action for every outward-facing or irreversible step, without exception.** Everything up to the action may run under §4.8 |
+| **Autonomy** | §4.23 approval per action for every outward-facing or irreversible step, without exception. Everything up to the action may run under §4.8 |
 | **Baseline delta** | Unchanged. The release candidate is exactly what was verified |
 | **Length tier** | Program (350) |
 | **Deliverable** | A release checklist doc/runbook, the prepared artifacts, and per-action logs of what was executed after approval |
 
 ## Generator: before emitting
 
-- **The repo's deploy rules are absolute.** Quote them in one line and follow them. For example, a
-  contract saying "never deploy without an explicit order" means **every** step in §4.23, with no
+- The repo's deploy rules are absolute. Quote them in one line and follow them. For example, a
+  contract saying "never deploy without an explicit order" means every step in §4.23, with no
   standing approval, even if the user asked for "the deploy".
-- **Inventory from the repo:** the version source (manifest, tags, app config), the changelog
+- Inventory from the repo: the version source (manifest, tags, app config), the changelog
   convention, the environments and their config (`.env.example` keys, not values), the deploy
   mechanism (CI job, script, Envoy/Forge, EAS, Docker), migrations pending, and smoke tests.
-- **Secrets and credentials** are never put in the prompt, the repo or the chat. The prompt names
+- Secrets and credentials are never put in the prompt, the repo or the chat. The prompt names
   *which* keys are needed and where they are set (an action for the user).
-- **Rollback is written before deploy.** No rollback path means no deploy.
+- Rollback is written before deploy. No rollback path means no deploy.
 
 ## Required blocks
 

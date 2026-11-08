@@ -11,9 +11,9 @@
 
 ## Generator: before emitting
 
-- **Inspect the real working tree** (`git status --porcelain -uall`, `git diff --stat`) and put the
+- Inspect the real working tree (`git status --porcelain -uall`, `git diff --stat`) and put the
   real file counts in the prompt. A kickoff written against an imagined tree is worse than none.
-- **Classify every change** as committed prior work / uncommitted WIP for this unit / missing work /
+- Classify every change as committed prior work / uncommitted WIP for this unit / missing work /
   unrelated tooling noise. Nothing is cleaned up, reverted or discarded unless the user asks.
 
 ## Required blocks
@@ -45,7 +45,8 @@ Phase 3: present the concrete slice plan in chat.
 [INSERT §4.19 approval gate]
 Phase 4: implement slice by slice, with checkpoints.  Phase 5: update the docs and the report.
 
-[INSERT §4.14 verification + report, for Phase 4]
+[INSERT §4.14 verification (literal gates, each labelled (script|contract|derived)) +
+ REPORT starting with the GENPROMPT-REPORT line, for Phase 4]
 
 Start now with Phase 1 and Phase 2 only. Do not edit code yet. Do not commit anything.
 ```
