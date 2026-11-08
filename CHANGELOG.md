@@ -4,6 +4,8 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-08 · tools/doctor.py, tools/build_skill_bundle.py · doctor --suite checks the Agensi bundle the
+  tool would build (SKILL.md version and counts vs plugin.json and the tables; the file set), in memory.
 - 2026-11-08 · tools/doctor.py · Final PROTOCOL budget 16,800 bytes (16,212 achieved); the lint's
   line-width WARN cites the §4.21 wrap rule and exempts a lone unbreakable token.
 - 2026-11-08 · PROTOCOL.md, tools/doctor.py, utilities/learn.md, utilities/history.md, guide/08-grammar.md

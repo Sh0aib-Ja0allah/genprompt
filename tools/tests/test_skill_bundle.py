@@ -110,5 +110,51 @@ class SkillBundle(unittest.TestCase):
         self.assertIn(self.r1["sha256"], out)
 
 
+class BundleCurrency(unittest.TestCase):
+    """E-18b: doctor --suite checks the bundle the tool WOULD build, without building a zip."""
+
+    def setUp(self):
+        self.doc = load(ROOT / "tools" / "doctor.py", "doctor_bundle_check")
+        self.skill = BUNDLE.skill_md(META, SHIMS)
+        self.names = BUNDLE.bundle_files(ROOT, use_git=False)
+
+    def errors(self, **kw) -> list[str]:
+        self.doc.findings.clear()
+        self.doc.check_bundle(**kw)
+        return [m for sev, _a, m in self.doc.findings if sev == "ERROR"]
+
+    def test_repo_bundle_is_current(self):
+        self.assertEqual(self.errors(), [])
+
+    def test_walk_matches_git_file_set(self):
+        # doctor walks the tree (no subprocess); it must pick the same files as the git-based build
+        self.assertEqual(set(self.names), set(BUNDLE.bundle_files(ROOT)))
+
+    def test_stale_version_is_an_error(self):
+        stale = self.skill.replace(f"version: {META['version']}", "version: 1.0.0", 1)
+        errs = self.errors(skill=stale, names=self.names)
+        self.assertTrue(any("SKILL.md version 1.0.0 != plugin.json" in e for e in errs), errs)
+
+    def test_stale_counts_are_errors(self):
+        n = len(SHIMS.ARCHETYPES)
+        stale = self.skill.replace(f"## The {n} archetypes", f"## The {n - 1} archetypes", 1)
+        stale = re.sub(r"^\| W \|.*\n", "", stale, flags=re.M)          # a 22-row listing
+        errs = self.errors(skill=stale, names=self.names)
+        self.assertTrue(any(f"'## The {n} archetypes'" in e for e in errs), errs)
+        self.assertTrue(any("archetype table differs" in e for e in errs), errs)
+
+    def test_missing_runtime_file_is_an_error(self):
+        names = [n for n in self.names if n != "commands/slice.md" and n != "tools/archive.py"]
+        errs = self.errors(skill=self.skill, names=names)
+        self.assertTrue(any("commands/slice.md would be missing" in e for e in errs), errs)
+        self.assertTrue(any("tools/archive.py would be missing" in e for e in errs), errs)
+
+    def test_shipping_evals_or_tests_is_an_error(self):
+        names = self.names + ["evals/run.py", "tools/tests/test_doctor.py", "dist/agensi/x.zip"]
+        errs = self.errors(skill=self.skill, names=names)
+        for rel in ("evals/run.py", "tools/tests/test_doctor.py", "dist/agensi/x.zip"):
+            self.assertTrue(any(f"bundle: {rel} would be shipped" in e for e in errs), errs)
+
+
 if __name__ == "__main__":
     unittest.main()

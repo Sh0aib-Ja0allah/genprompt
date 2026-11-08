@@ -26,6 +26,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import zipfile
@@ -35,7 +36,7 @@ sys.dont_write_bytecode = True
 
 ROOT = Path(__file__).resolve().parents[1]
 TOP = "genprompt"                                         # the zip's single top-level folder
-EXCLUDE_PREFIXES = (".github/", "evals/", "tools/tests/", "assets/")
+EXCLUDE_PREFIXES = (".github/", "evals/", "tools/tests/", "assets/", "dist/")
 EXCLUDE_FILES = {".gitignore", ".gitattributes", "SKILL.md"}
 FIXED_TIME = (2026, 1, 1, 0, 0, 0)                        # zip timestamps carry no build time
 FILE_MODE = 0o100644 << 16
@@ -52,14 +53,26 @@ def plugin_meta() -> dict:
     return json.loads((ROOT / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
 
 
-def bundle_files(root: Path = ROOT) -> list[str]:
-    """Repo-relative POSIX paths that go into the bundle, sorted."""
-    try:
-        out = subprocess.run(["git", "-C", str(root), "ls-files", "-z"], capture_output=True, check=True)
-        tracked = [p for p in out.stdout.decode("utf-8").split("\0") if p]
-    except (OSError, subprocess.CalledProcessError):           # not a git checkout: walk the tree
-        tracked = [p.relative_to(root).as_posix() for p in root.rglob("*")
-                   if p.is_file() and ".git" not in p.parts and "__pycache__" not in p.parts]
+def bundle_files(root: Path = ROOT, use_git: bool = True) -> list[str]:
+    """Repo-relative POSIX paths that go into the bundle, sorted. use_git=False walks the tree
+    instead (doctor uses that: it runs no subprocess), skipping dotted dirs, caches and .pyc."""
+    tracked = None
+    if use_git:
+        try:
+            out = subprocess.run(["git", "-C", str(root), "ls-files", "-z"], capture_output=True, check=True)
+            tracked = [p for p in out.stdout.decode("utf-8").split("\0") if p]
+        except (OSError, subprocess.CalledProcessError):        # not a git checkout: walk the tree
+            tracked = None
+    if tracked is None:
+        tracked = []
+        for dirpath, dirnames, filenames in os.walk(root):
+            rel_dir = Path(dirpath).relative_to(root).as_posix()
+            prefix = "" if rel_dir == "." else rel_dir + "/"
+            # prune dotted dirs (.git, caches), __pycache__ and excluded trees before descending
+            dirnames[:] = sorted(d for d in dirnames
+                                 if (not d.startswith(".") or d == ".claude-plugin") and d != "__pycache__"
+                                 and not (prefix + d + "/").startswith(EXCLUDE_PREFIXES))
+            tracked += [prefix + f for f in filenames if not f.startswith(".") and not f.endswith(".pyc")]
     keep = [p for p in tracked
             if not p.startswith(EXCLUDE_PREFIXES) and p not in EXCLUDE_FILES and (root / p).is_file()]
     return sorted(keep)

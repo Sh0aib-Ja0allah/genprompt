@@ -227,6 +227,56 @@ def check_protocol_size(path: Path = HOME / "PROTOCOL.md", limit: int = PROTOCOL
                              f"read-on-demand detail to its owning section with a 'Read only when' pointer")
 
 
+# E-18b: the Agensi bundle that tools/build_skill_bundle.py WOULD build must match the repo. No zip is
+# built (dist/ is not committed and CI should stay fast): SKILL.md text and the file list are
+# derived in memory, and the file list comes from a tree walk, so doctor still runs no subprocess.
+BUNDLE_REQUIRED = ("PROTOCOL.md", "LICENSE", "README.md", "CHANGELOG.md", ".claude-plugin/plugin.json",
+                   ".claude-plugin/marketplace.json", "archetypes/README.md", "guide/00-index.md",
+                   "stacks/stack-matrix.md", "tools/doctor.py", "tools/build_shims.py", "tools/archive.py")
+BUNDLE_BANNED = (".github/", "evals/", "tools/tests/", "assets/", "dist/", ".git/")
+
+
+def check_bundle(root: Path = HOME, skill: str | None = None, names: list[str] | None = None) -> None:
+    """The bundle's SKILL.md version and counts equal plugin.json and the build_shims tables, and its
+    file set is the intended one: every runtime file (commands, archetypes, guide incl. blocks,
+    utilities, stacks, the three tools) is in, nothing from CI, evals, tests, assets or dist."""
+    try:
+        spec = importlib.util.spec_from_file_location("bundle_for_doctor", root / "tools" / "build_skill_bundle.py")
+        bundle = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(bundle)
+        bs = load_build_shims()
+        meta = json.loads((root / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001 - a broken bundle tool is itself the finding
+        add("ERROR", "suite", f"bundle: cannot load tools/build_skill_bundle.py or plugin.json ({exc})")
+        return
+    if skill is None:
+        skill = bundle.skill_md(meta, bs)
+    if names is None:
+        names = bundle.bundle_files(root, use_git=False)
+    m = re.search(r"^version: (\S+)$", skill, re.M)
+    if not m or m.group(1) != meta.get("version"):
+        add("ERROR", "suite", f"bundle: SKILL.md version {m.group(1) if m else '(none)'} != plugin.json "
+                              f"{meta.get('version')}")
+    for label, n in (("archetypes", len(bs.ARCHETYPES)), ("utilities", len(bs.UTILITIES))):
+        if f"## The {n} {label}" not in skill:
+            add("ERROR", "suite", f"bundle: SKILL.md does not say '## The {n} {label}' (build_shims has {n})")
+    listed = re.findall(r"^\| [A-Z] \| `/genprompt:([a-z]+)` \|", skill, re.M)
+    if listed != [a.cmd for a in bs.ARCHETYPES]:
+        add("ERROR", "suite", "bundle: SKILL.md's archetype table differs from build_shims ARCHETYPES")
+    have = set(names)
+    for rel in BUNDLE_REQUIRED:
+        if rel not in have:
+            add("ERROR", "suite", f"bundle: {rel} would be missing from the bundle")
+    for sub in ("commands", "archetypes", "guide", "utilities", "stacks"):
+        for p in sorted((root / sub).rglob("*.md")):
+            rel = p.relative_to(root).as_posix()
+            if rel not in have:
+                add("ERROR", "suite", f"bundle: runtime file {rel} would be missing from the bundle")
+    for rel in sorted(have):
+        if rel.startswith(BUNDLE_BANNED) or "__pycache__" in rel or rel.endswith(".pyc"):
+            add("ERROR", "suite", f"bundle: {rel} would be shipped but is not part of the skill")
+
+
 def check_release(root: Path = HOME, archetype_count: int | None = None) -> None:
     """Version sync: plugin.json, both marketplace.json versions and the top released CHANGELOG
     heading must agree ("## Unreleased" is skipped), and any "<N> archetypes" claim in the manifest
@@ -1257,6 +1307,7 @@ def main(argv: list[str]) -> int:
         check_suite()
         check_release()
         check_tiers()
+        check_bundle()
     if run_archive:
         try:
             bs = load_build_shims()
