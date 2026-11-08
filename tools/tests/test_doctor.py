@@ -224,6 +224,13 @@ class Suite(unittest.TestCase):
         self.assertEqual(error_lines(out), [], out)
         self.assertEqual(code, 0, out)
 
+    def test_protocol_is_within_its_final_budget(self):
+        # E-11b set the final 1.2.0 budget; the repo's PROTOCOL.md must fit it (0 WARN)
+        doc = load_doctor()
+        self.assertLessEqual((ROOT / "PROTOCOL.md").stat().st_size, doc.PROTOCOL_MAX_BYTES)
+        _code, out = run_tool(DOCTOR, "--suite")
+        self.assertIn("Summary: 0 ERROR, 0 WARN", out)
+
     def test_unknown_argument_exits_2(self):
         code, _out = run_tool(DOCTOR, "--nope")
         self.assertEqual(code, 2)

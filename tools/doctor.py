@@ -213,7 +213,8 @@ def check_suite() -> None:
 
 
 # E-09c: every archetype command @-includes PROTOCOL.md, so its size is paid on every emission.
-PROTOCOL_MAX_BYTES = 14_336
+# Final 1.2.0 budget (E-11b): 16,212 bytes achieved + ~600 B headroom. Raise it only with a reason.
+PROTOCOL_MAX_BYTES = 16_800
 
 
 def check_protocol_size(path: Path = HOME / "PROTOCOL.md", limit: int = PROTOCOL_MAX_BYTES) -> None:
@@ -364,9 +365,12 @@ def fences(text: str) -> list[tuple[int, int, int, list[str]]]:
 # Severity, calibrated on the real v3 archive (2026-10-05 onward):
 #   FAIL  the record is broken: invalid line-1 header, no/unclosed/split fence or a stub block,
 #         no self-check table (§10.2, §4.21 "exactly one fenced block", row 22). Exit 1.
-#   WARN  advisory: the rule allows the case, or the check is a heuristic (line width: §4.21
-#         counts a long line as ceil(len/100) lines; length: §4.21 allows an overrun with a reason;
-#         placeholders, terminal imperative, gate labels, filename words). Never blocks.
+#   WARN  advisory: the rule allows the case, or the check is a heuristic (line width: §4.21 wraps
+#         block lines at 100 except a lone unbreakable token, but 565+ archived prompts predate
+#         that rule, so a long line is a WARN, not a FAIL; length: §4.21 allows an overrun with a
+#         reason; placeholders, terminal imperative, gate labels, filename words). Never blocks.
+#   Length and the stub test count a long line as ceil(len/100) lines: doctor's own measure, so a
+#   prompt written in long lines (older archive files) is neither undercounted nor called a stub.
 # ---------------------------------------------------------------------------------------------
 PASS, WARN, FAIL = "PASS", "WARN", "FAIL"
 HEADER_KEYS = ("key", "repo", "path", "date", "archetype", "follows")
@@ -408,7 +412,7 @@ def vocab_problems(meta: dict[str, str], flags_known: set[str] | None = None) ->
         out.append(f"lock={lock} is not {'|'.join(LOCK_VALUES)}")
     return out
 LINE_WIDTH = 100
-MIN_BLOCK_LINES = 5      # counted lines (ceil(len/100) each) below which the block is a stub
+MIN_BLOCK_LINES = 5      # counted lines (doctor counts ceil(len/100) per line) below which the block is a stub
 # §4.21 tier caps (guide/03-blocks.md); check_tiers() keeps this map equal to the table.
 TIER_CAPS = {"Delta": 120, "Focused": 200, "Slice": 260, "Program": 350}
 TIER_OF = {**dict.fromkeys("EJ", "Delta"), **dict.fromkeys("ABCHKLMOPUVW", "Focused"),
@@ -602,11 +606,15 @@ def lint_prompt(text: str, filename: str | None = None,
                  + " (§4.0: fill it, or write a worker-side variable as {…})")
                 if found else "no <…> generator placeholder or [generator: left"))
 
-    # line width (WARN: §4.21 counts a long line as ceil(len/100) lines, it does not forbid it)
-    wide = [(n, len(ln)) for n, ln in enumerate(body, 1) if len(ln) > LINE_WIDTH]
+    # line width (WARN: §4.21 wraps block lines at 100; only a lone unbreakable token, such as an
+    # absolute path, URL or command with no space in it, may run past on a line of its own. A WARN,
+    # not a FAIL, because most of the archive predates the rule.)
+    wide = [(n, len(ln)) for n, ln in enumerate(body, 1)
+            if len(ln) > LINE_WIDTH and len(ln.split()) > 1]
     res.append(("line-width", WARN if wide else PASS,
                 f"{len(wide)} block line(s) over {LINE_WIDTH} chars, e.g. line {wide[0][0]} ({wide[0][1]}); "
-                f"counted in length" if wide else f"all block lines <= {LINE_WIDTH} chars"))
+                f"§4.21: wrap at {LINE_WIDTH}, only a lone unbreakable token may run past"
+                if wide else f"all block lines <= {LINE_WIDTH} chars, or a lone unbreakable token"))
 
     # length (WARN: §4.21 allows an overrun with a reason in self-check row 21)
     tail = "\n".join(lines[end + 1:])

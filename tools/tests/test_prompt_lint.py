@@ -132,8 +132,14 @@ class Warnings(Base):
         self.assertStatus(in_block(BASE, "[generator: drop this line]"), "placeholders", "WARN")
 
     def test_line_over_100_chars(self):
-        # §4.21 counts a long line as ceil(len/100) lines; it does not forbid it
-        self.assertStatus(in_block(BASE, "x" * 101), "line-width", "WARN")
+        # §4.21 (E-10): wrap at 100; a breakable long line is a WARN (the archive predates the rule)
+        status, detail = lint(in_block(BASE, "word " * 25))["line-width"]
+        self.assertEqual(status, "WARN", detail)
+        self.assertIn("only a lone unbreakable token may run past", detail)
+
+    def test_lone_unbreakable_token_may_run_past_100(self):
+        self.assertStatus(in_block(BASE, "https://example.com/" + "a" * 100), "line-width", "PASS")
+        self.assertStatus(in_block(BASE, "  /very/long/absolute/path/" + "b" * 90), "line-width", "PASS")
 
     def test_length_over_tier_cap(self):
         self.assertStatus(in_block(BASE, "\n".join(f"filler {i}" for i in range(260))), "length", "WARN")
