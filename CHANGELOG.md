@@ -20,6 +20,8 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 - 2026-11-08 · PROTOCOL.md, guide/01, 03, 06, 07, tools/doctor.py · PROTOCOL core 19.9 → 16.5 KB:
   read-on-demand detail moved to its owning section behind "Read only when" pointers; doctor WARNs
   past 14,336 bytes.
+- 2026-11-08 · PROTOCOL.md, guide/01-target-profile.md · Pointers to the stack matrix's workspace
+  section 1b (E-16): monorepo orchestrators, gate ladder order, zero-config formatters.
 
 ## 1.1.0 (2026-11-08): archive written and checked by a tool, a measurable workflow
 

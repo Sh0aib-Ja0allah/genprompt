@@ -75,7 +75,8 @@ has no git or no repo at all.
 
 ## Step 2: Build the profile
 
-Derive the profile per §2 and `stacks/stack-matrix.md`.
+Derive the profile per §2 and `stacks/stack-matrix.md` (in a workspace, its section 1b decides
+per-package vs orchestrator gates).
 
 **Cached profile card.** Reuse `~/.genprompt/generated-prompts/by-repo/<key>.profile.md` only when both hold:
 - every `stamp:` entry still matches `git log -1 --format=%h -- <file>`, and no stamped file is dirty

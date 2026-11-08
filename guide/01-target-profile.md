@@ -141,7 +141,9 @@ every stack:
 - **Code roots are manifest directories.** The shallowest one wins within a subtree, and
   nearest-manifest-wins for any target file.
 - **Count greater than 1 means a monorepo:** one profile per root, plus a root orchestration
-  profile (Makefile or compose).
+  profile (Makefile, compose, or a workspace orchestrator: pnpm/Yarn/npm/Bun workspaces, Turborepo,
+  Nx, a Cargo or Go workspace, an Elixir umbrella). `stacks/stack-matrix.md` section 1b has the
+  evidence files and decides per-package vs orchestrator gates.
 - A lockfile with no manifest is debris, not a code root.
 - **Versions come from the manifest or lockfile, never from memory.**
 - **Append dependency modifiers** that change the review lens: `+ Supabase/RLS`,
@@ -168,9 +170,10 @@ every stack:
    - A `(derived)` gate is emitted only when:
      - it is a declared dependency, or it ships with the SDK (`dotnet`, `go`, `flutter`/`dart`)
      - **and** either its config file exists, or the tool is zero-config by design (Pint,
-       `gofmt`, `dart format`, `dotnet format`)
+       `gofmt`, `dart format`, `dotnet format`, `deno fmt`, `mix format`, `terraform fmt`)
 
-     The per-stack ladder is in `stacks/stack-matrix.md`.
+     The per-stack ladder is in `stacks/stack-matrix.md`; in a workspace, apply its section 1b
+     first.
    - **A script beats a derived command** for the same gate. The script is the form the repo
      agreed to.
    - Never emit a command whose tool you could not prove is present.
