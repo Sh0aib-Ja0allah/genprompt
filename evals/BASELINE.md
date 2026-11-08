@@ -132,6 +132,28 @@ becomes a post-run check in `run.py` that calls `tools/doctor.py --prompt` on ea
 outside the sandbox. The text checks in `lint/structural.py` become calls to the same lint. The
 graders were not changed during this baseline.
 
+### Re-grade with structural v3 (2026-11-08, stored runs, no model spend)
+
+The swap is done. Structural v3's archive-valid runs `tools/doctor.py --prompt` at main `77699ec`
+on each stored emission, after removing fenced lock blocks and adding a synthetic line-1 header
+that carries the case's archetype. doctor's archive-record checks (`header`, `filename-words`,
+`header-vocab`, `self-check`) are not graded, because `--dry-run` writes no record. A WARN is
+listed but does not fail. Every other row above is unchanged by v3.
+
+| Case | archive-valid (v3) | doctor WARNs |
+|---|---|---|
+| slice | PASS | line-width |
+| fix | PASS | line-width, gates-labelled, report-line |
+| redesign | PASS | line-width |
+| next-hybrid | PASS | line-width |
+| commit | FAIL: no prompt block (the generator wrote a closeout) | none |
+| plan | PASS | line-width |
+
+v3 structural passes: slice 10/11, fix 9/11, redesign 10/11, next-hybrid 10/11, commit 3/11,
+plan 10/11. The fix prompt asks for a report but has no GENPROMPT-REPORT line (E-07) and
+labels no gate. doctor flags both, and the stricter structural checks did not catch them. Compare
+CP4 against these v3 rows.
+
 ## Negative control
 
 `controls/bad-emission` (haiku, $0.0031) echoes a deliberately broken prompt and attempts one

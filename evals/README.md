@@ -33,6 +33,7 @@ All six run with `--go --dry-run`, so the generator never waits and never writes
 | redesign | `/genprompt:redesign src/cli.js` | main, clean | 200 |
 | next-hybrid | `/genprompt:next` + a pasted J+D stop-report | S-02 checkpoint A committed | 260 (see below) |
 | commit | `/genprompt:commit` S-02 | checkpoint A + uncommitted work, a scratch file and `.env` | 200 |
+| commit-finished (tag `extra`, not in the baseline) | `/genprompt:commit` S-02 | subtotal fix merged, checkpoint A, then S-02 finished and green (11 tests, `--csv` wired), plus a scratch file and `.env` that must stay out | 200 |
 | plan | `/genprompt:plan` S-03 tax lines | main, clean | 350 |
 
 The next-hybrid report says 10 tests pass, but the test files declare 9. The generator should
@@ -69,15 +70,21 @@ After the eval (`lint/structural.py`, run by `run.py`):
 | self-check | neither the full checklist table (rows 1-22 present; more rows are fine, E-08 adds a 23rd) nor E-08's compact `Self-check: N PASS · N N/A · N FAIL` line is in chat |
 | protocol-loaded | (v2) the marker is in neither the logged context nor a Read, and the emission has no protocol-shaped TARGET LOCK |
 | no-writes | a write tool was called, or anything exists under the run's temp `~/.genprompt` |
-| archive-valid | always SKIPPED until E-04 adds the archive tool (`archive.py`); the output says so. It is reported, never counted as a pass |
+| archive-valid | (v3) `python tools/doctor.py --prompt` FAILs the emission: there is no prompt block, the fence is unclosed or nests badly, or the block is a stub. Fenced lock blocks are removed first, and the text gets a synthetic line-1 header carrying the case's archetype, so doctor picks the right length tier. `header`, `filename-words`, `header-vocab` and `self-check` are reported but not graded, because `--dry-run` writes no archive record. doctor's WARNs are listed and do not fail |
 
 Every grader has a case built to fail it: `fixtures/samples/bad-emission.md` (unit tests and the
 control) and the variants in `lint/test_structural.py`. If the control ever reports a grader
-passing, that grader is broken.
+passing, that grader is broken. Three graders are not exercised by the control, and each is shown
+failing in the unit tests instead:
+- no-edit, which is the same check as no-write
+- length-cap, because the bad sample is short
+- archive-valid, because doctor grades the bad sample's defects as WARN
 
-**Planned swap.** E-04a adds `tools/doctor.py --prompt <file>`, a lint for the same checklist
-rows. When it lands, `lint/structural.py`'s text checks become a call to it. Keeping two
-validators would let them drift.
+**doctor --prompt and the text checks.** archive-valid calls doctor (E-04a) and uses doctor's
+severities. The text checks in `lint/structural.py` (one-fence, line-length, no-placeholders,
+length-cap) are stricter than doctor's: doctor counts a long line or an extra block as a WARN. They
+stay as they are, so the Phase-1 baseline stays comparable. Merging them into doctor is a separate
+decision.
 
 ## Running
 
@@ -88,7 +95,18 @@ python evals/run.py --validate               # every case loads; no model spend
 python evals/run.py --case slice             # one case, one run (smoke)
 python evals/run.py                          # all six cases
 python evals/run.py --controls               # negative control (cheap, haiku)
+python evals/run.py --tag extra              # cases outside the baseline (commit-finished)
+python evals/run.py --regrade evals/results/<timestamp>   # re-grade stored runs, no spend
 ```
+
+**Evaluating another commit (CP4).** `claude plugin eval` reads its cases from
+`<plugin>/evals/`, so the cases have to sit inside the tree under test. Run
+`python evals/prepare_worktree.py <ref> ../genprompt-wt-cp4`. It adds a *detached* worktree of
+`<ref>`, so no branch moves, and copies this `evals/` into it as untracked files. Then, from that
+worktree, run `python evals/run.py --model claude-opus-5-5 --max-cost-usd 8 --doctor
+../genprompt-wt-c/tools/doctor.py`. `--doctor` pins archive-valid to the same lint that graded the
+baseline. Copy `evals/results/` back, then run `python evals/prepare_worktree.py --remove
+../genprompt-wt-cp4`.
 
 `run.py` passes `--scaffold` (it runs our own `scaffold.sh`), `--trust-plugin`, `--ablation none`
 (a no-plugin arm says nothing useful about a prompt generator, and it doubles the cost) and
