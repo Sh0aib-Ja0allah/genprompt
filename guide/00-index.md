@@ -21,7 +21,7 @@ them in v3.
 |---|---|---|
 | — | Runtime steps (was §9) | `PROTOCOL.md` |
 | 0–2 | Invariants, target resolution, profile derivation, gates, truth, naming, branch, profile card | `guide/01-target-profile.md` |
-| 2.3–2.5 (expanded) | Stack detection, role labels, per-stack gate ladders | `stacks/stack-matrix.md` |
+| 2.3–2.5 (expanded) | Stack detection, role labels, per-stack gate ladders | `stacks/stack-matrix.md` (ladders in `stacks/ladders/`) |
 | 3 | Core principles | `guide/02-principles.md` |
 | 4 | Building blocks 4.0–4.27 | `guide/03-blocks.md` |
 | 5 | Archetypes A–W | `archetypes/README.md` + `archetypes/<X>-<cmd>.md` |

@@ -52,6 +52,9 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 - 2026-11-08 · PROTOCOL.md, guide/01-target-profile.md · Read pointers state a testable condition: a
   fresh card means no profile reads, archive.py exit 0 means no §10 read, stacks/workspaces.md only
   for multi-manifest or workspace repos (CP5 showed reads leaking past them).
+- 2026-11-08 · guide/01-target-profile.md, guide/00-index.md, README.md · Ladder pointers name
+  stacks/ladders/<stack>.md, the one file stack-matrix.md routes to, so a run reads one ladder, not
+  all of them.
 
 ## 1.1.0 (2026-11-08): archive written and checked by a tool, a measurable workflow
 

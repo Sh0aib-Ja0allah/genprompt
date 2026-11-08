@@ -173,8 +173,9 @@ Re-derive the gates on every invocation, whether or not a cache exists.
      - and either its config file exists, or the tool is zero-config by design (Pint,
        `gofmt`, `dart format`, `dotnet format`, `deno fmt`, `mix format`, `terraform fmt`)
 
-     The per-stack ladder is in `stacks/stack-matrix.md`. Read `stacks/workspaces.md` first only
-     when the repo has more than one manifest directory or a workspace file.
+     The per-stack ladder is the `stacks/ladders/<stack>.md` file that `stacks/stack-matrix.md`
+     routes to; read only that one. Read `stacks/workspaces.md` first only when the repo has more
+     than one manifest directory or a workspace file.
    - A script beats a derived command for the same gate. The script is the form the repo
      agreed to.
    - Never emit a command whose tool you could not prove is present.

@@ -185,7 +185,7 @@ rulebook, without the `/genprompt:` slash commands.
 | `PROTOCOL.md` | The runtime steps, loaded by every command except help and doctor |
 | `guide/` | The rulebook, split by section (§0–§12). Start at `guide/00-index.md` |
 | `archetypes/` | One template per archetype, A–W, plus the picker |
-| `stacks/stack-matrix.md` | Stack detection, role labels and gate ladders per ecosystem |
+| `stacks/stack-matrix.md` | Stack detection and role labels; routes to one gate ladder per ecosystem in `stacks/ladders/` |
 | `utilities/` | Specs for help, history, doctor, learn and profile |
 | `examples/` | Worked examples of strong blocks, for illustration only |
 | `commands/` | The slash commands. Generated: do not edit by hand |
