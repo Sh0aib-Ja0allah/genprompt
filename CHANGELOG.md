@@ -7,6 +7,11 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 - 2026-11-08 · guide/01-target-profile.md, utilities/profile.md, tools/doctor.py · A profile card is
   fresh while its file@sha stamps hold (no 14-day TTL), with a 90-day ceiling; age shown; first use
   writes the card. Gates stay uncached. PROTOCOL Step 2's wording follows in E-11 part 2.
+- 2026-11-07 · tools/build_shims.py · Step 0 no longer re-reads the @-included PROTOCOL and
+  archetype (probe showed they are already in context); saves ~20 KB per emission.
+- 2026-11-07 · tools/build_shims.py, guide/blocks/, PROTOCOL.md · Each archetype shim @-includes a
+  generated excerpt of the 03-blocks sections it needs, instead of the generator reading 03-blocks.
+  Real-use check (evals/CP4b.md): median rule bytes −26.5%.
 
 ## 1.1.0 (2026-11-08): archive written and checked by a tool, a measurable workflow
 
@@ -50,10 +55,6 @@ has CI, a unit-test suite and an eval baseline.
 - 2026-11-08 · tools/doctor.py · Lint WARN when a chat verdict line is not exactly `Self-check: <n> PASS
   · <n> N/A · <n> FAIL (…)` or its counts miss the row count (the table's, or the §6 checklist's when
   no table is shown); never runs on table-only files.
-- 2026-11-07 · tools/build_shims.py · Step 0 no longer re-reads the @-included PROTOCOL and
-  archetype (probe showed they are already in context); saves ~20 KB per emission.
-- 2026-11-07 · tools/build_shims.py, guide/blocks/, PROTOCOL.md · Each archetype shim @-includes a
-  generated excerpt of the 03-blocks sections it needs, instead of the generator reading 03-blocks.
 
 ## 1.0.0 (2026-09-24): first public release
 
