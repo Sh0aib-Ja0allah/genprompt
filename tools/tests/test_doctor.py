@@ -77,6 +77,37 @@ class BadArchive(unittest.TestCase):
         self.assertTrue(any("no self-check table" in e for e in errs), self.out)
 
 
+class ProfileFreshness(unittest.TestCase):
+    """§2.9: freshness is the file@sha stamps; doctor (which cannot run git in the repo) only
+    enforces the 90-day ceiling, so a 30-day-old card that used to WARN at 14 days is now valid."""
+
+    def run_with_cards(self, ages: dict[str, int]) -> str:
+        import datetime as _dt
+        with tempfile.TemporaryDirectory() as tmp:
+            shards = Path(tmp) / "generated-prompts" / "by-repo"
+            shards.mkdir(parents=True)
+            for key, age in ages.items():
+                (shards / f"{key}.tsv").write_text(
+                    f"# genprompt shard: {key}  (path: /srv/{key})\n# Fields: date | archetype | slug | file | task\n"
+                    "# schema: v3\n", encoding="utf-8")
+                derived = (_dt.date.today() - _dt.timedelta(days=age)).isoformat()
+                (shards / f"{key}.profile.md").write_text(
+                    f"---\nrepo: {key}\npath: /srv/{key}\nkey: {key}\nderived: {derived}\n"
+                    f"stamp: package.json@abc1234 ; CLAUDE.md@def5678\n---\nstack: x\n", encoding="utf-8")
+            _code, out = run_tool(DOCTOR, "--archive", home=Path(tmp))
+        return out
+
+    def test_card_within_the_ceiling_is_valid(self):
+        out = self.run_with_cards({"thirty": 30, "eightynine": 89})
+        self.assertNotIn("days old", out, out)
+        self.assertIn("Summary: 0 ERROR, 0 WARN", out)
+
+    def test_card_past_the_ceiling_warns(self):
+        out = self.run_with_cards({"old": 100})
+        self.assertIn("profile old.profile.md is 100 days old, past the 90-day ceiling", out)
+        self.assertNotIn("ERROR  [archive] profile", out)
+
+
 def load_doctor():
     spec = importlib.util.spec_from_file_location("doctor_under_test", DOCTOR)
     mod = importlib.util.module_from_spec(spec)

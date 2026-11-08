@@ -38,7 +38,7 @@ ARCHIVE = GENPROMPT_HOME / "generated-prompts"
 SHARDS = ARCHIVE / "by-repo"
 COMMANDS = HOME / "commands"
 V3_START = "2026-09-24"
-PROFILE_MAX_AGE_DAYS = 14
+PROFILE_MAX_AGE_DAYS = 90   # §2.9 hard ceiling; freshness itself is the file@sha stamps (doctor cannot run git in a repo)
 TASK_CAP = 200
 V3_MARKER = "# --- v3 ---"
 V3_HEADER_RE = re.compile(r"^<!-- genprompt v3: (.+) -->\s*$")
@@ -741,7 +741,8 @@ def check_profiles(today: dt.date) -> None:
         try:
             age = (today - dt.date.fromisoformat(front.get("derived", ""))).days
             if age > PROFILE_MAX_AGE_DAYS:
-                add("WARN", "archive", f"profile {prof.name} is {age} days old (max {PROFILE_MAX_AGE_DAYS})")
+                add("WARN", "archive", f"profile {prof.name} is {age} days old, past the {PROFILE_MAX_AGE_DAYS}-day "
+                                       f"ceiling (§2.9): re-derive it even if its stamps still match")
         except ValueError:
             add("WARN", "archive", f"profile {prof.name}: derived date missing or invalid")
         if not re.search(r"\S+@[0-9a-f]{6,}", front.get("stamp", "")):

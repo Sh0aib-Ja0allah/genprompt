@@ -298,6 +298,22 @@ gates:       NOT CACHED: always re-derived at runtime (§2.5); <PROFILE.gates> m
 - `key` = the directory basename, lowercased, with `_` and spaces turned into `-`.
 - The key is only a filename; **`path:` is the identity**. If a key collides with a different path,
   suffix the key with `-2` and note it.
-- Invalidate the whole card when any stamp no longer matches (the file gained a commit, or is
-  dirty), or when `derived` is more than 14 days old.
+- **Fresh means the stamps still hold.** A card is fresh while every `stamp:` entry still matches
+  `git log -1 --format=%h -- <file>` and no stamped file is dirty (`git status --porcelain <file>`).
+  Invalidate the whole card as soon as one stamp moves. There is no fixed short TTL: a quiet repo's
+  card can stay valid for weeks, because nothing it was derived from has changed.
+- **Hard ceiling: 90 days.** Re-derive a card whose `derived` is more than 90 days old even if every
+  stamp matches. Stamps cover the manifests and the contract, not everything the card reads (the
+  ancestor scan, the user-level contract, CI triggers, docs naming), so a long-lived card can drift
+  without any stamp moving. 90 days bounds that drift without re-deriving active repos for nothing.
+- **Gates are never cached.** Freshness never extends to `gates:`; they are re-derived on every run
+  (§2.5, PROTOCOL Step 2), whatever the card's age.
+- **Age.** The card's age is `today − derived`, in days. It is what a reader reports next to the
+  verdict, for example `card 37d, stamps fresh` or `card 12d, stale: composer.json moved`, so a
+  long-reused card is visible. `derived` changes only when the card is re-derived.
+- **First use writes it.** The first prompt for a repo that has no card derives the profile and
+  writes the card to `by-repo/<key>.profile.md`, so the next run can reuse it. A stale or expired
+  card is rewritten the same way. **`--dry-run` never writes the card.**
+- Future work, not active: skipping the TARGET LOCK wait when the card is fresh ("auto-go") stays
+  off until the archive's `lock=` data (PROTOCOL Step 6) shows that locks are rarely corrected.
 - Why git shas and not mtimes: a checkout or pull changes mtimes without changing content.

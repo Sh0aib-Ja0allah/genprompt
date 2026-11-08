@@ -4,6 +4,10 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-08 · guide/01-target-profile.md, utilities/profile.md, tools/doctor.py · A profile card is
+  fresh while its file@sha stamps hold (no 14-day TTL), with a 90-day ceiling; age shown; first use
+  writes the card. Gates stay uncached. PROTOCOL Step 2's wording follows in E-11 part 2.
+
 ## 1.1.0 (2026-11-08): archive written and checked by a tool, a measurable workflow
 
 The generator now archives every prompt through `tools/archive.py`, which writes the file and the
