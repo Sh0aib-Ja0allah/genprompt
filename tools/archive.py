@@ -1,6 +1,7 @@
 """genprompt archive writer: write one prompt file and its shard row, deterministically.
 
 Usage:  python3 tools/archive.py [--dry-run | --replace] [<parts.json> | -]   (default: stdin)
+        python3 tools/archive.py --where   (print the resolved home; read-only, see below)
 
 The generator composes the parts; this tool does the writing, so the archive follows §10
 (guide/06-library.md) and PROTOCOL Step 6 every time instead of depending on the model.
@@ -30,7 +31,9 @@ to a worker, so a gap in the archive (a broken follows chain) is worse than a fl
 An existing file is never overwritten by accident (exit 3, nothing written). --replace is the
 deliberate fix-and-re-archive path: it overwrites that same file and rewrites its shard row in
 place (never a second row). --dry-run writes nothing and prints what it would write plus the lint.
-GENPROMPT_HOME overrides the genprompt home (default ~/.genprompt).
+GENPROMPT_HOME overrides the genprompt home (default ~/.genprompt), through doctor.genprompt_home().
+--where prints `home <absolute path>` and `local-rules <path> (present|absent)` and writes nothing,
+so the generator can learn the home from the one script it may already run (E-21).
 
 Exit codes: 0 archived (warnings allowed) · 1 archived with errors (or dry run with errors) ·
 2 bad input, nothing written · 3 refused: the file exists and --replace was not given.
@@ -53,7 +56,7 @@ _spec.loader.exec_module(doctor)
 KEY_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 EXIT_OK, EXIT_ERRORS, EXIT_INPUT, EXIT_EXISTS = 0, 1, 2, 3
 BODY_PARTS = ("header_table", "grounding", "prompt", "self_check", "rule")
-USAGE = "usage: archive.py [--dry-run | --replace] [<parts.json> | -]"
+USAGE = "usage: archive.py [--dry-run | --replace] [<parts.json> | -]  |  archive.py --where"
 
 
 def say(msg: str = "") -> None:
@@ -167,6 +170,15 @@ def main(argv: list[str]) -> int:
     reconfigure = getattr(sys.stdout, "reconfigure", None)
     if callable(reconfigure):
         reconfigure(encoding="utf-8")
+    if "--where" in argv:
+        if argv != ["--where"]:
+            say(USAGE)
+            return EXIT_INPUT
+        home = doctor.genprompt_home()
+        rules = home / "local-rules.md"
+        say(f"home {home.as_posix()}")
+        say(f"local-rules {rules.as_posix()} ({'present' if rules.is_file() else 'absent'})")
+        return EXIT_OK
     dry, replace = "--dry-run" in argv, "--replace" in argv
     rest = [a for a in argv if a not in ("--dry-run", "--replace")]
     if len(rest) > 1 or any(a.startswith("--") for a in rest) or (dry and replace):
@@ -192,7 +204,7 @@ def main(argv: list[str]) -> int:
     for note in notes:
         say(f"WARN  task  {note}")
 
-    archive = Path(doctor.ARCHIVE)
+    archive = doctor.genprompt_home() / "generated-prompts"      # resolved per run (E-21)
     shard = archive / "by-repo" / f"{p['key']}.tsv"
     target = None if p["archetype"] == "none" else archive / p["key"] / file_name(p, cmd_by_letter)
     row_fields = [p["date"], p["archetype"], p["slug"], target.name if target else "-", p["task"]]

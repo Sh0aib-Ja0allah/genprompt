@@ -31,9 +31,19 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 
 HOME = Path(__file__).resolve().parent.parent       # the plugin root (the rules suite)
-# GENPROMPT_HOME overrides the genprompt home (default ~/.genprompt). The tests use it to point the
-# archive checks at a fixture archive; normal runs leave it unset.
-GENPROMPT_HOME = Path(os.environ.get("GENPROMPT_HOME") or Path.home() / ".genprompt")
+
+
+def genprompt_home(env: dict | None = None) -> Path:
+    """The genprompt home: GENPROMPT_HOME when set and non-blank, else ~/.genprompt. Always absolute
+    (`~` expanded, a relative value resolved against the cwd), because every tool and the generator
+    need absolute paths. The ONE place a tool resolves the home (E-21): archive.py calls it too.
+    Tests and probes set GENPROMPT_HOME to a sandbox; normal runs leave it unset."""
+    raw = (os.environ if env is None else env).get("GENPROMPT_HOME", "").strip()
+    home = Path(raw).expanduser() if raw else Path.home() / ".genprompt"
+    return home if home.is_absolute() else home.resolve()
+
+
+GENPROMPT_HOME = genprompt_home()
 ARCHIVE = GENPROMPT_HOME / "generated-prompts"
 SHARDS = ARCHIVE / "by-repo"
 COMMANDS = HOME / "commands"
@@ -1250,8 +1260,8 @@ def suggest_fixes() -> int:
 
     say("genprompt doctor --suggest-fixes: a PRINT-ONLY plan. Nothing has been or will be written.")
     say(f"Archive: {ARCHIVE}")
-    say("BACK UP FIRST: copy the whole ~/.genprompt folder to a dated folder such as "
-        f"~/.genprompt-backup-{dt.date.today().isoformat()} before applying anything.")
+    say(f"BACK UP FIRST: copy the whole {GENPROMPT_HOME} folder to a dated folder such as "
+        f"{GENPROMPT_HOME}-backup-{dt.date.today().isoformat()} before applying anything.")
     say()
     for kind in ("derivable", "manual"):
         group = [x for x in plans if x["kind"] == kind]

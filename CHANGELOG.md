@@ -4,6 +4,9 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-09 · tools/doctor.py, tools/archive.py · Every tool resolves the genprompt home through
+  doctor.genprompt_home() (GENPROMPT_HOME, absolute); archive.py --where prints it, read-only.
+
 ## 1.2.0 (2026-11-09): rules loaded per archetype and per stack, a profile card that stays fresh
 
 Each command now @-includes only the rule excerpt its archetype needs, the stack matrix routes to
