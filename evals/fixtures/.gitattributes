@@ -1,0 +1,3 @@
+# Fixture bytes must not depend on core.autocrlf: the scaffold commits them with fixed dates, and
+# the rubrics quote the resulting SHAs (e.g. tallyhub db1d721 vs ef6113e when one file had CRLF).
+* text eol=lf

@@ -67,8 +67,10 @@ RULE_HINTS = ("PROTOCOL.md", "/archetypes/", "/guide/", "/stacks/", "/examples/"
 INCLUDE_RE = re.compile(r"^@\$\{CLAUDE_PLUGIN_ROOT\}/(\S+)", re.M)
 DENIED_RE = re.compile(r"denied|not allowed|No such tool available", re.I)
 # The protocol's ancestor scan checks CLAUDE.md / AGENTS.md in every parent directory. A
-# "does not exist" answer reveals nothing, so A5 accepts it (CP5).
-HARMLESS_RE = re.compile(r"denied|not allowed|No such tool available|does not exist", re.I)
+# "does not exist" answer reveals nothing, so A5 accepts it (CP5). A Glob from the drive root
+# that times out returns no names either (CP5b), so that is accepted too.
+HARMLESS_RE = re.compile(r"denied|not allowed|No such tool available|does not exist|"
+                         r"search timed out", re.I)
 # Shared scratch roots that hold other projects: Read, Glob and Grep are denied there so a
 # recursive Glob cannot list another project's files (CP5 A5).
 SHARED_ROOTS = [Path("C:/tmp"), Path("C:/Users")] if os.name == "nt" else [Path("/tmp")]
@@ -169,7 +171,9 @@ def include_bytes(plugin: Path, case: str) -> int:
 
 def analyze(path: Path, plugin: Path, work: Path) -> dict:
     first, calls, reads, outside, result = None, {}, [], [], {}
-    work_s, plugin_name = work.resolve().as_posix().lower(), plugin.name
+    # "Inside" is the probe's own root (every run dir under it is ours), so the ancestor scan
+    # listing a sibling run's fixture CLAUDE.md is not a leak (CP5b).
+    work_s, plugin_name = work.resolve().parent.as_posix().lower(), plugin.name
     for raw in path.read_text(encoding="utf-8", errors="replace").splitlines():
         try:
             e = json.loads(raw)
