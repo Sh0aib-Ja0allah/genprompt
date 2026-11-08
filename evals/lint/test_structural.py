@@ -157,6 +157,20 @@ class Variants(unittest.TestCase):
                                          Path("no/such/doctor.py")).status, s.SKIPPED)
         self.assertEqual(s.check_archive(self.GOOD).status, s.SKIPPED)
 
+    def test_cites_real_resolves_package_relative_paths(self):
+        mono = build_cases.fixture_files("mono")
+        text = self.GOOD.replace("src/invoice.js:14", "test/money.test.js:6", 1)
+        r = s.check_prompt_text(text, 260, files=mono, package="packages/ledger-core")
+        cites = next(x for x in r if x.name == "cites-real")
+        self.assertNotIn("money.test.js", cites.detail)  # resolved under the package
+        r = s.check_prompt_text(text, 260, files=mono)    # without a package it is unresolved
+        self.assertIn("test/money.test.js:6 (no such file)",
+                      next(x for x in r if x.name == "cites-real").detail)
+        past = text.replace("test/money.test.js:6", "test/money.test.js:60")
+        r = s.check_prompt_text(past, 260, files=mono, package="packages/ledger-core")
+        n = mono["packages/ledger-core/test/money.test.js"]
+        self.assertIn(f"file has {n} lines", next(x for x in r if x.name == "cites-real").detail)
+
     def test_gates_scoped_monorepo(self):
         pkg, sib = "packages/ledger-core", "ledger-web"
         good = self.GOOD.replace("npm test\nnpm run lint",

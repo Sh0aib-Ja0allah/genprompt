@@ -22,6 +22,7 @@ in CI.
 | `BASELINE.md` | The Phase-1 baseline: scores per case and grader, cost, load sizes |
 | `CP4.md` | CP4: E-09 at `4fb361a` vs the baseline; why the token gates cannot pass in this harness |
 | `CP4b.md` | CP4b: E-09's token saving, measured in real use |
+| `CP5.md` | CP5: the 1.2.0 candidate (483d021): quality gates pass, load gates fail (stack-matrix and 06-library Reads); isolation follow-ups |
 | `realuse/run.py` | The real-use load probe: `compare --base <ref> --cand <ref>` prints the CP4b table and verdict; `isolation` proves the home directory is sealed |
 | `compare.py` | Applies the CP4 acceptance gates (G1-G4) to a candidate run vs the baseline |
 | `prepare_worktree.py` | Stages another commit in a detached worktree with this `evals/` copied in |
@@ -146,11 +147,15 @@ Two consequences:
 
 The probe keeps the real HOME, because sign-in needs it; credentials are never copied. It is sealed
 by flags instead: `--setting-sources local`, `--strict-mcp-config`, `--permission-mode dontAsk`
-with only the work dir added, and deny rules on Read, Glob and Grep for the whole home directory
-and `~/.genprompt`. The work dir (fixture and plugin copies) lives outside the home directory, in
-`C:/tmp` on Windows. Its check A5 fails the verdict if any call outside the work dir returns
-anything but a denial. Under CP4b's original flags, A5 would have caught the Glob name-listing
-gap.
+with only the work dir added, and deny rules on Read, Glob and Grep for the whole home directory,
+`~/.genprompt`, and the shared scratch roots `C:/tmp` and `C:/Users` (`/tmp` elsewhere), where
+other projects live. The work dir (fixture and plugin copies) lives under a root used only by the
+probe: `C:/genprompt-probe` on Windows, `/var/tmp/genprompt-probe` elsewhere. Check A5 fails the
+verdict if any call outside the work dir returns anything but a denial or "does not exist" (the
+protocol's ancestor scan legitimately asks about `CLAUDE.md` in every parent directory). Under
+CP4b's original flags, A5 would have caught the Glob name-listing gap, and in CP5 it caught a
+recursive Glob of `C:/tmp`. Residual: the drive root itself cannot be denied without also denying
+the work dir, so a Glob from `C:/` could list top-level folder names (in practice it times out).
 
 ## Sandbox facts (measured on this suite)
 

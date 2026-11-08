@@ -121,7 +121,8 @@ def block_cost(lines: list[str]) -> int:
 
 def check_prompt_text(text: str, cap: int, cap_multi: int | None = None,
                       scripts: set[str] | None = None,
-                      files: dict[str, int] | None = None) -> list[Result]:
+                      files: dict[str, int] | None = None,
+                      package: str | None = None) -> list[Result]:
     res: list[Result] = []
     res.append(Result("lock-present", PASS if "TARGET LOCK" in text else FAIL,
                       "TARGET LOCK found" if "TARGET LOCK" in text else "no TARGET LOCK"))
@@ -199,6 +200,8 @@ def check_prompt_text(text: str, cap: int, cap_multi: int | None = None,
                 path, lo, hi = m.group(1).lstrip("./"), int(m.group(2)), m.group(3)
                 seen += 1
                 top = int(hi) if hi else lo
+                if path not in files and package and f"{package.rstrip('/')}/{path}" in files:
+                    path = f"{package.rstrip('/')}/{path}"  # monorepo: relative to the in-scope package
                 if path not in files and "/" not in path and len(by_base.get(path, [])) == 1:
                     path = by_base[path][0]  # a bare basename that is unique in the workspace
                 if path not in files:
@@ -387,7 +390,7 @@ def grade(text: str, *, cap: int, cap_multi: int | None = None, scripts: set[str
           home: Path | None = None, trace_events: list[dict] | None = None,
           letters: str = "", cmd: str = "", doctor: Path | None = None,
           package: str | None = None, sibling: str | None = None) -> list[Result]:
-    res = (check_prompt_text(text, cap, cap_multi, scripts, files)
+    res = (check_prompt_text(text, cap, cap_multi, scripts, files, package)
            + [check_self_check(text), check_protocol_loaded(trace_events, text),
               check_writes(tool_uses, home), check_archive(text, letters, cmd, doctor)])
     if package:  # monorepo cases only, so single-repo results keep their shape
