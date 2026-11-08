@@ -71,6 +71,14 @@ DENIED_RE = re.compile(r"denied|not allowed|No such tool available", re.I)
 # that times out returns no names either (CP5b), so that is accepted too.
 HARMLESS_RE = re.compile(r"denied|not allowed|No such tool available|does not exist|"
                          r"search timed out", re.I)
+# An empty Glob/Grep from the drive root returns exactly "No files found" (CP5c). It must be the
+# whole result, so a reply that also lists names is still flagged.
+EMPTY_RE = re.compile(r"\s*No (?:files|matches) found\s*", re.I)
+
+
+def harmless(text: str) -> bool:
+    """True when an outside call's result reveals nothing (A5)."""
+    return bool(HARMLESS_RE.search(text) or EMPTY_RE.fullmatch(text))
 # Shared scratch roots that hold other projects: Read, Glob and Grep are denied there so a
 # recursive Glob cannot list another project's files (CP5 A5).
 SHARED_ROOTS = [Path("C:/tmp"), Path("C:/Users")] if os.name == "nt" else [Path("/tmp")]
@@ -196,7 +204,7 @@ def analyze(path: Path, plugin: Path, work: Path) -> dict:
                 c = b.get("content")
                 text = c if isinstance(c, str) else json.dumps(c)
                 if p and not p.lower().startswith(work_s):
-                    outside.append((name, p, "denied" if HARMLESS_RE.search(text)
+                    outside.append((name, p, "denied" if harmless(text)
                                     else "RETURNED: " + text[:80].replace("\n", " / ")))
                 if name == "Read" and f"/{plugin_name}/" in p and any(h in p for h in RULE_HINTS):
                     reads.append((p.split(f"/{plugin_name}/")[-1], len(text.encode())))

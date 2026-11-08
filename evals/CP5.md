@@ -293,3 +293,11 @@ profile or stack-matrix. Fix and redesign are now worse than v1.1.0.
    offline on these traces with no spend.
 
 Traces: `C:/genprompt-probe/genprompt-probe-20261108-232954/` (24 jsonl + `report.md`).
+
+### After CP5c (no spend)
+
+- Decision: 1.2.0 ships with the fix and redesign regressions stated. 1.3.0 starts with the
+  excerpt and profile-path cut.
+- A5 now treats a result of exactly "No files found" or "No matches found" as harmless (a
+  whole-result match, so a reply that also lists names is still flagged). Re-checked offline on
+  the CP5c traces: 99 outside calls, 0 flagged, **A5 PASS**. Covered by `lint/test_realuse.py`.
