@@ -11,9 +11,9 @@
 
 ## Generator: before emitting
 
-- **Inspect the real working tree** (`git status --porcelain -uall`, `git diff --stat`) and put the
+- Inspect the real working tree (`git status --porcelain -uall`, `git diff --stat`) and put the
   real file counts in the prompt. A kickoff written against an imagined tree is worse than none.
-- **Classify every change** as committed prior work / uncommitted WIP for this unit / missing work /
+- Classify every change as committed prior work / uncommitted WIP for this unit / missing work /
   unrelated tooling noise. Nothing is cleaned up, reverted or discarded unless the user asks.
 
 ## Required blocks

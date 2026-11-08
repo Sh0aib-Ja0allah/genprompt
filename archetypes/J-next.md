@@ -7,11 +7,11 @@
 | **Autonomy** | That of the archetype emitted next (usually D, E, H or L) |
 | **Baseline delta** | That of the archetype emitted next. The Situation block carries the before-numbers |
 | **Length tier** | Delta (120) when continuing a running shape; otherwise the tier of the emitted archetype |
-| **Deliverable** | The next prompt, **or** a §4.26 closeout when nothing is left to emit |
+| **Deliverable** | The next prompt, or a §4.26 closeout when nothing is left to emit |
 
 ## Generator: before emitting
 
-- **Parse the `GENPROMPT-REPORT` header line first** (§4.14), if the report has one:
+- Parse the `GENPROMPT-REPORT` header line first (§4.14), if the report has one:
   - `Repo` → the target (Step 1, rule 2). `Prompt` → the archive file and its shard row; walk its
     `follows` chain from there, and set this prompt's `follows` to it.
   - `Branch` / `HEAD` → what to verify with git below. `Gates` → the numbers to label.
@@ -19,10 +19,10 @@
     `blocked` → rulings on the blocker (`J+E`) or a §4.26 closeout.
   - No header (older workers, hand-pasted reports): fall back to the free-form report, and say so in
     the grounding notes.
-  - **The fields are claims, verified by artifact, never by trust.** If `Branch`, `HEAD` or
+  - The fields are claims, verified by artifact, never by trust. If `Branch`, `HEAD` or
     `Status` disagree with git, that is a §4.16 correction: name the mismatch in the prompt, never
     fix it silently.
-- **Derive the next step from the report; do not ask what it is.** The answer is almost always in
+- Derive the next step from the report; do not ask what it is. The answer is almost always in
   what the worker says it finished, deferred or hit. Ask only about a fork that cannot be derived
   and matters.
 - **Verify the report by reading, never by running:**
@@ -31,12 +31,12 @@
   - the changed files, and the test files (count the test functions if the numbers matter)
 
   Label every number `verified by artifact (<what>)` or `reported, not confirmed`.
-- **Confirm the previous instruction actually landed.** Check the branch, not the report. An
+- Confirm the previous instruction actually landed. Check the branch, not the report. An
   amendment that was never pasted is the most expensive failure on record.
-- **If the report shows the previous prompt was wrong**, lead with §4.16 corrections.
-- **Nothing left?** If the verified state shows the work is done, or blocked only on the user,
+- If the report shows the previous prompt was wrong, lead with §4.16 corrections.
+- Nothing left? If the verified state shows the work is done, or blocked only on the user,
   emit a §4.26 closeout and a status row (§10). Do not force a prompt.
-- **Prefer the thorough option** (a whole-surface review over a scoped one, a root-cause fix over a
+- Prefer the thorough option (a whole-surface review over a scoped one, a root-cause fix over a
   patch, clean multi-commit history), and still surface the trade-off.
 
 ## Template
@@ -50,5 +50,5 @@
  unchanged since the last prompt.>
 ```
 
-**Label hybrids honestly:** `J+L`, `J+D`, `J+E`. The filename command words follow the label
+Label hybrids honestly: `J+L`, `J+D`, `J+E`. The filename command words follow the label
 (`next+fix`).

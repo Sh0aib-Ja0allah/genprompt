@@ -5,27 +5,27 @@
 | **Use when** | Something is slow or heavy (page load, bundle size, query count/N+1, memory, API p95, app start, build time), or a target metric is set |
 | **Not when** | There is no symptom and no target: do not optimise speculatively |
 | **Autonomy** | Measure first (read-only + measurement), then optimise behind §4.19, or §4.8 if `--unattended` |
-| **Baseline delta** | The **metric** must improve by a stated amount. Tests unchanged or up; behaviour unchanged |
+| **Baseline delta** | The metric must improve by a stated amount. Tests unchanged or up; behaviour unchanged |
 | **Length tier** | Program (350) |
 | **Deliverable** | A before/after measurement table per change (§4.24), the changes, and the rejected ideas with their numbers |
 
 ## Generator: before emitting
 
-- **Pick the measurable metric and the tool from the stack:**
-  - **Web:** build output size, Lighthouse/Web Vitals, network waterfall
-  - **Laravel:** query count per request (debugbar/telescope/`DB::listen` in a test), response time
-  - **Node API:** autocannon/k6 locally
-  - **Flutter/RN:** frame timings, app size
-  - **SQL:** `EXPLAIN`
-- **State the environment.** Measure in production build mode where it matters, and never against
+- Pick the measurable metric and the tool from the stack:
+  - Web: build output size, Lighthouse/Web Vitals, network waterfall
+  - Laravel: query count per request (debugbar/telescope/`DB::listen` in a test), response time
+  - Node API: autocannon/k6 locally
+  - Flutter/RN: frame timings, app size
+  - SQL: `EXPLAIN`
+- State the environment. Measure in production build mode where it matters, and never against
   production data or servers.
-- **Name candidate hotspots from the code** (`file:line`) as hypotheses, not conclusions.
+- Name candidate hotspots from the code (`file:line`) as hypotheses, not conclusions.
 
 ## Required blocks
 
 - §4.5, §4.7, §4.24, §4.14
 - §4.10 (behaviour must not change)
-- §4.19 **or** §4.8
+- §4.19 or §4.8
 
 ## Template
 

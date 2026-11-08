@@ -11,10 +11,10 @@ Verbatim from `guide/03-blocks.md`: §4.0, §4.1, §4.2, §4.3, §4.5, §4.6, §
 | `<…>` | Fill it from grounding. Every one must be filled before emitting. None may reach the user. |
 | `[INSERT §x.y]` | Insert that block, adapted to this repo. |
 | `[generator: …]` | An instruction to you. Strip it; it never appears in the emitted prompt. |
-| `{…}` | A **worker-side** variable inside a command the worker will run (`git show {sha}:{path}`). It stays in the emitted prompt; it is not a generator placeholder. |
+| `{…}` | A worker-side variable inside a command the worker will run (`git show {sha}:{path}`). It stays in the emitted prompt; it is not a generator placeholder. |
 | `═══` banner | The only banner character. Keep one width, 79 characters. |
 
-**Fences.** When the emitted prompt itself contains a fenced block, the outer fence is four
+Fences. When the emitted prompt itself contains a fenced block, the outer fence is four
 backticks, so the prompt stays exactly one copyable block.
 
 ### 4.1 Header (generator- and user-facing: printed in chat and saved in the archive file, never inside the worker's block)
@@ -26,7 +26,7 @@ backticks, so the prompt stays exactly one copyable block.
 | Follows | <prior prompt filename>   (or Amends / Depends on / Re-issues / Reviews) |
 ```
 
-**Order in the archive file:** line-1 HTML comment (§10) → this table → grounding (§4.2) → the
+Order in the archive file: line-1 HTML comment (§10) → this table → grounding (§4.2) → the
 fenced prompt → the self-check (§6). `Follows`, `Amends`, `Depends on`, `Re-issues` and `Reviews`
 are what make the library a chain. Never omit one that applies.
 
@@ -66,7 +66,7 @@ disagree, follow the contract and tell me.<If the prompt deliberately deviates f
 
 If the path makes the `Repo:` line pass 100 characters, put the path alone on the next line.
 
-Mention ancestor files **only** when the scan found some: `CLAUDE.md files above this repo
+Mention ancestor files only when the scan found some: `CLAUDE.md files above this repo
 (<paths>) describe other projects and do not govern it.` Never name a file the scan did not find.
 
 ### 4.6 Source of truth, with authority annotations
@@ -103,7 +103,7 @@ MODE FOR THIS SESSION
   or the contract.
 ```
 
-Use this **or** the §4.19 approval gate in a code-writing prompt, never neither and never both.
+Use this or the §4.19 approval gate in a code-writing prompt, never neither and never both.
 Read-only and commit-only archetypes state `Autonomy: N/A` in the lock instead.
 
 ### 4.9 The defect: mechanism, chain, consequence
@@ -124,7 +124,7 @@ DECISIONS ALREADY MADE: implement exactly these, do not re-litigate:
 - <AREA>: do NOT <tempting alternative>, because <mechanism> (<file:line>).
 ```
 
-Include the **negative** decisions, and give every decision a one-clause reason ("…, because
+Include the negative decisions, and give every decision a one-clause reason ("…, because
 …"): a worker that knows why a decision holds applies it to the case the prompt did not foresee. An unattended worker meeting an open
 question either stalls or guesses.
 
@@ -158,7 +158,7 @@ These need something only I can supply. Build to the boundary, label it, and lis
 Keep this list current, and do not let it silently shrink.
 ```
 
-**Out-of-scope lines take the same reason clause**, wherever a template writes them:
+Out-of-scope lines take the same reason clause, wherever a template writes them:
 
 ```text
 OUT OF SCOPE: do not start these, do not drift into them:
@@ -189,7 +189,7 @@ reconciled against `git status`; the gate numbers; any existing test you touched
 explicit confirmation of each DON'T.
 ```
 
-**The report header line** (`GENPROMPT-REPORT · …`) is required in every emitted prompt that asks
+The report header line (`GENPROMPT-REPORT · …`) is required in every emitted prompt that asks
 for a report, including templates whose own REPORT text replaces the rest of this block, and
 delta prompts (E, J) that continue a running one.
 - The generator fills `Prompt:` with the archive file name at emission (the name it would have
@@ -197,7 +197,7 @@ delta prompts (E, J) that continue a running one.
 - The worker prints it as one line, the fields in this order, separated by ` · `. The prompt shows
   it wrapped at a ` · ` (§4.21), with the fields and their order unchanged. The worker keeps
   `Status:` to one of the three words: `partial` means some checkpoints landed, `blocked` means it stopped on the stop-list.
-- The fields are **claims**, not facts. The generator verifies `Branch`, `HEAD` and the gate
+- The fields are claims, not facts. The generator verifies `Branch`, `HEAD` and the gate
   numbers by artifact (Step 4) before building on them (§5.J).
 
 ### 4.19 Approval gate (attended mode only)
@@ -208,11 +208,11 @@ Do not start coding until I approve the plan, unless I explicitly say "continue 
 
 ### 4.21 Shape and length budget
 
-- **Three zones in the archive file:** preamble (grounding, interpretations) · **exactly one
+- Three zones in the archive file: preamble (grounding, interpretations) · **exactly one
   fenced block**, which is the whole prompt · footers (self-check, caveats, the transferable rule).
-- **Banner-delimited ALL-CAPS parts:** `PART A…F` / `STEP 1…4` / `CHECKPOINT A…C`, under `═`
+- Banner-delimited ALL-CAPS parts: `PART A…F` / `STEP 1…4` / `CHECKPOINT A…C`, under `═`
   rules.
-- **Canonical order inside the block:**
+- Canonical order inside the block:
   1. anchor, role, contract precedence
   2. mode/autonomy
   3. verification (hoisted early for unattended runs) and environment facts
@@ -226,13 +226,13 @@ Do not start coding until I approve the plan, unless I explicitly say "continue 
   11. definition of done
   12. report spec
   13. terminal imperative
-- **Wrap every line in the block at 100 characters.** Break prose at a word, a list at its
+- Wrap every line in the block at 100 characters. Break prose at a word, a list at its
   separator, and the GENPROMPT-REPORT spec at ` · ` (continuation lines indented two spaces; the
   worker still prints its own report line unwrapped). Only one thing may run past 100: a single
   unbreakable token (an absolute path, URL or command) on a line of its own.
-- **Length budget: a hard cap, counted in lines inside the block.** The archetype file names its
+- Length budget: a hard cap, counted in lines inside the block. The archetype file names its
   tier. `--brief` means about 60% of the cap.
-  - A **measured-large scope** may use up to +20%: a review of more than 3 commits or 50 files, or
+  - A measured-large scope may use up to +20%: a review of more than 3 commits or 50 files, or
     a plan or roadmap of more than 20 items. Row 21 of the self-check names the measure.
   - Any other overrun needs a one-line reason in the self-check.
 
@@ -243,7 +243,7 @@ Do not start coding until I approve the plan, unless I explicitly say "continue 
 | Slice | 260 | D (320 for a multi-checkpoint slice) |
 | Program | 350 | F, G, I, N, Q, R, S, T |
 
-- **Compression pass, before archiving:**
+- Compression pass, before archiving:
   - cut context the worker already holds
   - replace restated contract rules with a one-line pointer to the contract
   - drop praise and narrative closings
@@ -261,4 +261,4 @@ If any other entry differs, STOP and report the difference. Do not adapt silentl
 ```
 
 Use it for SHAs the prompt builds on, quotas, counts that change daily, and whether a remote or
-service is reachable. **Never assert such a fact bare.**
+service is reachable. Never assert such a fact bare.

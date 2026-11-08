@@ -31,6 +31,9 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 - 2026-11-08 · guide/03-blocks.md, guide/04-checklist.md · Hard wrap rule: every prompt line wraps
   at 100 characters except a lone unbreakable token (§4.21), and the §4.14 GENPROMPT-REPORT spec is
   shown wrapped, because every baseline prompt had longer lines and copied the one-line spec.
+- 2026-11-08 · PROTOCOL.md, guide/, archetypes/, utilities/ · Tone pass: bold kept only on the six
+  invariants and structural table labels (626 to ~190 markers); PROTOCOL wording compressed 16,548
+  to 15,747 bytes with every tool-matched literal unchanged.
 
 ## 1.1.0 (2026-11-08): archive written and checked by a tool, a measurable workflow
 

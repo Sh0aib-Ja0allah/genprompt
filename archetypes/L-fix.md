@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Use when** | Drive a list of **confirmed** defects to closure, each with a repro and acceptance |
+| **Use when** | Drive a list of confirmed defects to closure, each with a repro and acceptance |
 | **Not when** | A production incident under time pressure → `:hotfix`. Unconfirmed suspicions → `:review` or `:audit` first |
 | **Autonomy** | Code-writing: §4.8 MODE or §4.19 gate |
 | **Baseline delta** | Up: at least one new failing-then-passing test per defect |
@@ -11,18 +11,18 @@
 
 ## Generator: before emitting
 
-- **Re-verify each reported defect against the code** before it goes in the prompt. Some will
+- Re-verify each reported defect against the code before it goes in the prompt. Some will
   already be fixed, some misreported. Give each one MECHANISM (`file:line`), CONSEQUENCE, REPRO,
   FIX, ACCEPTANCE and TRAPS.
-- **Carry a `FALSE POSITIVES / DO NOT FIX` section**, with the evidence for each. Without it, the
+- Carry a `FALSE POSITIVES / DO NOT FIX` section, with the evidence for each. Without it, the
   worker "fixes" a non-defect and calls it done.
-- **Order the defects deliberately, and say why** when order matters. A gate must land before the
+- Order the defects deliberately, and say why when order matters. A gate must land before the
   permission it protects.
-- **State severity per defect.** Flag where you are reporting the worker's severity rather than
+- State severity per defect. Flag where you are reporting the worker's severity rather than
   your own.
-- **Anything that needs a product decision** goes in §4.20 `RECORD, DO NOT ACT`, not into a
+- Anything that needs a product decision goes in §4.20 `RECORD, DO NOT ACT`, not into a
   widened grant.
-- **Name what not to start.** Read the roadmap or backlog doc and list every open item that
+- Name what not to start. Read the roadmap or backlog doc and list every open item that
   touches the same files, by ID or path, under SCOPE. A fix prompt that names no out-of-scope item
   fails §6 row 10.
 
@@ -31,7 +31,7 @@
 - §4.5, §4.7, §4.14
 - §4.15 (this is the archetype it exists for)
 - §4.20 RECORD, DO NOT ACT, when needed
-- §4.8 **or** §4.19
+- §4.8 or §4.19
 
 ## Template
 

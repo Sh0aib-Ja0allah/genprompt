@@ -11,16 +11,16 @@
 
 ## Generator: before emitting
 
-- **Read the existing test setup:** runner, helpers, factories/fixtures, mocks, CI config. Name
+- Read the existing test setup: runner, helpers, factories/fixtures, mocks, CI config. Name
   the helper to reuse and the pattern to copy (§4.12). Test code copies the majority pattern even
   when it is wrong.
-- **For each target, name the behaviour to pin,** not the function to call. Use the spec line, the
+- For each target, name the behaviour to pin, not the function to call. Use the spec line, the
   route, or the user-visible outcome.
-- **Vacuous tests:** list each suspected one with why it cannot fail (it asserts on a mock, has no
+- Vacuous tests: list each suspected one with why it cannot fail (it asserts on a mock, has no
   assertion, or matches a string that always renders).
-- **Flaky tests:** name the nondeterminism source (time, order, network, randomness, shared DB
+- Flaky tests: name the nondeterminism source (time, order, network, randomness, shared DB
   state).
-- **Production code is out of scope.** A product defect a test exposes is RECORDED, not fixed. The
+- Production code is out of scope. A product defect a test exposes is RECORDED, not fixed. The
   only exception is a test seam the contract allows.
 
 ## Required blocks
@@ -28,7 +28,7 @@
 - §4.5, §4.7, §4.12, §4.14, §4.15
 - §4.20 RECORD, DO NOT ACT
 - §4.24, if coverage or timing is measured
-- §4.8 **or** §4.19
+- §4.8 or §4.19
 
 ## Template
 

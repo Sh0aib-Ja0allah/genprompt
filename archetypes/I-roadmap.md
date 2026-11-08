@@ -4,18 +4,18 @@
 |---|---|
 | **Use when** | Drive a whole backlog or roadmap doc to done, in parts and slices |
 | **Not when** | One slice → `:slice`. No backlog doc exists yet → `:audit` or `:plan` first |
-| **Autonomy** | Usually §4.8 MODE, **plus** an exit valve (§4.13 or §4.20 STOP/DEFER). `--attended` gives a gate per part |
+| **Autonomy** | Usually §4.8 MODE, plus an exit valve (§4.13 or §4.20 STOP/DEFER). `--attended` gives a gate per part |
 | **Baseline delta** | Up overall. Stated per part |
 | **Length tier** | Program (350) |
 | **Deliverable** | Every item id with its final state, plus a report of what the user must supply, ranked |
 
 ## Generator: before emitting
 
-- **Find the backlog doc from the source-of-truth order** (§2.6: roadmap docs, task sheets).
+- Find the backlog doc from the source-of-truth order (§2.6: roadmap docs, task sheets).
   Don't assume a filename.
-- **If the backlog depends on a prior artifact** (an audit doc), open with a §4.20 STEP 0 check
+- If the backlog depends on a prior artifact (an audit doc), open with a §4.20 STEP 0 check
   that hard-STOPs.
-- **Do not assume the backlog's own claims are still true.** Each item is verified against current
+- Do not assume the backlog's own claims are still true. Each item is verified against current
   code; if it is already resolved, it is marked done and skipped.
 
 ## Required blocks

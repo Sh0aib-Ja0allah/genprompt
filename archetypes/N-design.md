@@ -11,19 +11,19 @@
 
 ## Generator: before emitting
 
-- **Name the decision precisely,** and the constraints that bind it (the contract, the stack, the
+- Name the decision precisely, and the constraints that bind it (the contract, the stack, the
   client docs, the existing schema). Read the parts of the code the decision touches.
-- **Set the output format for the decision type:**
-  - **ADR:** Context · Options (at least 2, with trade-offs) · Decision · Consequences ·
+- Set the output format for the decision type:
+  - ADR: Context · Options (at least 2, with trade-offs) · Decision · Consequences ·
     Reversibility
-  - **API contract:** endpoints/methods, request/response shapes, status codes, errors, auth,
+  - API contract: endpoints/methods, request/response shapes, status codes, errors, auth,
     versioning, and example payloads
-  - **Schema/ERD:** entities, fields and types, keys, indexes, relations, migrations order, data
+  - Schema/ERD: entities, fields and types, keys, indexes, relations, migrations order, data
     backfill, and a mermaid ERD
-  - **Design-system mapping:** tokens → code, components → files, gaps, `[NOT DESIGNED]` markers
+  - Design-system mapping: tokens → code, components → files, gaps, `[NOT DESIGNED]` markers
     for anything missing
-  - **Spike:** a question, a time box, a scratch path, the result, and a keep/discard verdict
-- **Anything that needs the user's taste or authority** goes in a `[DECIDE]` list, not into a
+  - Spike: a question, a time box, a scratch path, the result, and a keep/discard verdict
+- Anything that needs the user's taste or authority goes in a `[DECIDE]` list, not into a
   silent choice.
 
 ## Required blocks

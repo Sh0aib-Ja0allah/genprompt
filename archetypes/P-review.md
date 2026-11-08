@@ -5,34 +5,34 @@
 | **Use when** | Review a diff, a branch, a PR or the last N commits before building on them or shipping them |
 | **Not when** | A whole-repo assessment → `:audit`. Security-focused → `:security` (or `P+Q`). Proving tests are load-bearing (mutation) → `:test` |
 | **Autonomy** | N/A: read-only. Writes are enumerated: one review doc, or none (chat-only), plus contract-mandated tools and gate side effects |
-| **Baseline delta** | The **reported** baseline at the range head, labelled verified/reported; expected delta **unchanged**. Gates run only when HEAD equals the head SHA and the tree is clean |
+| **Baseline delta** | The reported baseline at the range head, labelled verified/reported; expected delta unchanged. Gates run only when HEAD equals the head SHA and the tree is clean |
 | **Length tier** | Focused (200); measured-large allowance +20% for more than 3 commits or 50 files (§4.21) |
 | **Deliverable** | A severity-ranked findings register (§4.25) with per-commit attribution, a FALSE POSITIVES table, a verdict (ship / fix first / rethink), and a hand-off list for `:fix` |
 
 ## Generator: before emitting
 
-- **Pin the range by SHA:** `<base_sha>..<head_sha>`, never `HEAD~N`. A live repo moves, and a
+- Pin the range by SHA: `<base_sha>..<head_sha>`, never `HEAD~N`. A live repo moves, and a
   relative range slides under the reviewer. Read `git diff --stat <base>..<head>`. Name the 5–8
   files that matter most, and the bulk to skip (generated assets, lockfiles, captures).
-- **Compare the range with the working tree:** `git diff --name-only <base> <head>` against
+- Compare the range with the working tree: `git diff --name-only <base> <head>` against
   `git status --porcelain -uall`. If they overlap, or the tree is occupied (PROTOCOL Step 4), the
-  prompt carries the **HOW TO READ** block and §4.27. The reviewer reads committed content by SHA
+  prompt carries the HOW TO READ block and §4.27. The reviewer reads committed content by SHA
   and cites `file:line@<head>`.
-- **Build the CLAIMS block:** one line per commit (`<sha> <what it claims>`), from
+- Build the CLAIMS block: one line per commit (`<sha> <what it claims>`), from
   `git log -1 --format=%B <sha>`. Include claimed numbers (test counts, "N mutations killed"). A
   claimed mutation result can never be confirmed read-only: label it reported.
-- **Map each commit to the prompt that produced it** (§10.4: shard rows by date and subject, or the
+- Map each commit to the prompt that produced it (§10.4: shard rows by date and subject, or the
   brief's HEAD anchor). Point the reviewer at those briefs by path, and at their "do not fake" or
   acceptance lists as review criteria. A commit with no brief is labelled "no brief".
-- **Choose the lenses for this change:** correctness, contract compliance, tests (would they fail
+- Choose the lenses for this change: correctness, contract compliance, tests (would they fail
   if the change were reverted?), security, performance, data/migrations, UX/RTL/a11y, docs drift.
   Drop the lenses that cannot apply, and say why.
-- **Gates:** the full derived list (§2.5), run only under the HEAD-and-clean condition, with their
+- Gates: the full derived list (§2.5), run only under the HEAD-and-clean condition, with their
   side effects listed. Never run a suite that shares a test database with a live session.
-- **Report destination:** a review doc named per §2.7 (default `code-review-<date>` in the repo's
-  case style), **or chat-only** when the tree is occupied or a doc would land in someone else's
+- Report destination: a review doc named per §2.7 (default `code-review-<date>` in the repo's
+  case style), or chat-only when the tree is occupied or a doc would land in someone else's
   commit.
-- **The worker never edits.** Fixes are a separate `:fix` prompt that consumes this register.
+- The worker never edits. Fixes are a separate `:fix` prompt that consumes this register.
 
 ## Required blocks
 
@@ -122,9 +122,9 @@ Begin with the VERIFY block, then <the first file>.
 
 ## Traps
 
-- **Reviewing the working tree instead of the range** when another session is editing it. You get
+- Reviewing the working tree instead of the range when another session is editing it. You get
   citations from someone else's work in progress.
-- **Taking "N mutations killed" as evidence.** It needs an edit to confirm; that belongs to `:test`.
-- **Gates on a dirty or shared tree** measure someone else's work, and can break their test run.
-- **A review doc in `docs/` during a live phase** gets swept into the other worker's commit. Use
+- Taking "N mutations killed" as evidence. It needs an edit to confirm; that belongs to `:test`.
+- Gates on a dirty or shared tree measure someone else's work, and can break their test run.
+- A review doc in `docs/` during a live phase gets swept into the other worker's commit. Use
   chat-only.

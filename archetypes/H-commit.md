@@ -11,15 +11,15 @@
 
 ## Generator: before emitting
 
-- **Ground the commit on real git state:**
+- Ground the commit on real git state:
   - the current branch and the `origin` SHA
   - what is dirty (`git status --porcelain -uall`)
   - the recent commit subjects, so the message matches the repo's style
-- **Take the branch and push policy from the contract.** If the instruction overrides it (for
+- Take the branch and push policy from the contract. If the instruction overrides it (for
   example, "commit directly to main" or "push is authorised for this task only"), say so explicitly
   in the prompt.
-- **Offer `verify+commit`** when the work has not been independently checked.
-- **Name the probe/scratch files that must NOT be swept in.** `.env` is excluded; **`.env.example`
+- Offer `verify+commit` when the work has not been independently checked.
+- Name the probe/scratch files that must NOT be swept in. `.env` is excluded; **`.env.example`
   is in scope**.
 
 ## Required blocks

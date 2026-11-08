@@ -5,19 +5,19 @@
 | **Use when** | A repo is unfamiliar, has no (or a thin) conventions contract, or is empty. Map it before any other prompt |
 | **Not when** | The contract is solid and you want a gap analysis → `:audit`. You will build a new layer or app from a reference repo → `:greenfield`, because it studies the reference first and maps only what the build needs. Partial uncommitted WIP is already in the tree → `:kickoff`, because it audits the dirty tree file by file before any code |
 | **Autonomy** | N/A: read-only, plus exactly the enumerated docs |
-| **Baseline delta** | N/A. The deliverable *records* the gates and baseline counts; the worker may run the non-⚠ gates **once** to record them, but not if the contract forbids it |
+| **Baseline delta** | N/A. The deliverable *records* the gates and baseline counts; the worker may run the non-⚠ gates once to record them, but not if the contract forbids it |
 | **Length tier** | Focused (200) |
 | **Deliverable** | A draft conventions contract (`CLAUDE.md`, or `CLAUDE.draft.md` if one exists), a repo map doc, and the gate list with baseline numbers |
 
 ## Generator: before emitting
 
-- **Derive what you can first** (stack, manifests, scripts, CI, docs), so the worker confirms
+- Derive what you can first (stack, manifests, scripts, CI, docs), so the worker confirms
   rather than rediscovers.
-- **If a `CLAUDE.md` exists,** the worker must NOT overwrite it. It writes `CLAUDE.draft.md` and a
+- If a `CLAUDE.md` exists, the worker must NOT overwrite it. It writes `CLAUDE.draft.md` and a
   diff summary; the user merges.
-- **Empty repo** (no manifest): the deliverable is a bootstrap decision list (stack, structure,
+- Empty repo (no manifest): the deliverable is a bootstrap decision list (stack, structure,
   gates, conventions) for the user to rule on. It feeds `:plan` or `:greenfield`, not code.
-- **Whether gates may run** is a question for the lock when the repo has ⚠ gates or a
+- Whether gates may run is a question for the lock when the repo has ⚠ gates or a
   database-touching test suite.
 
 ## Required blocks
@@ -62,6 +62,6 @@ Start with STEP 1 now.
 
 ## Traps
 
-- **A worker writing a confident contract** out of one reading bakes guesses in as rules. Every
+- A worker writing a confident contract out of one reading bakes guesses in as rules. Every
   rule needs an example path, or a `[DECIDE]` marker.
-- **Overwriting an existing `CLAUDE.md`** destroys the owner's rules. Draft beside it.
+- Overwriting an existing `CLAUDE.md` destroys the owner's rules. Draft beside it.

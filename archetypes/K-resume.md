@@ -11,14 +11,14 @@
 
 ## Generator: before emitting
 
-- **Ground the actual mid-flight state yourself:** `git status --porcelain -uall`,
+- Ground the actual mid-flight state yourself: `git status --porcelain -uall`,
   `git log --oneline -10`, `git diff --stat`. Put the real numbers in the prompt, so the worker's
   reconstruction can be checked.
-- **Name the authoritative resume-state doc first** (the one that records done / remaining /
+- Name the authoritative resume-state doc first (the one that records done / remaining /
   decisions per slice), then the work list, then the audit/traceability docs.
-- **Restate the LOCKED DECISIONS still in force, each with its reason:** stack choices, boundaries,
+- Restate the LOCKED DECISIONS still in force, each with its reason: stack choices, boundaries,
   rulings. These are exactly what compaction loses, and a re-decision forks the codebase.
-- **Restate the gates.** The worker may not remember those either.
+- Restate the gates. The worker may not remember those either.
 
 ## Template
 

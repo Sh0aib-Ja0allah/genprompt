@@ -11,12 +11,12 @@
 
 ## Generator: before emitting
 
-- **Read the lockfile and manifests** for the current versions. Name the target versions and
-  **check whether the repo's policy blocks any** (for example, Composer security-advisory blocking,
+- Read the lockfile and manifests for the current versions. Name the target versions and
+  check whether the repo's policy blocks any (for example, Composer security-advisory blocking,
   `engines`, a CI matrix).
-- **The worker reads the official upgrade guide and changelogs itself.** The prompt names them; it
+- The worker reads the official upgrade guide and changelogs itself. The prompt names them; it
   never paraphrases a changelog from memory.
-- **Stage it:**
+- Stage it:
   1. prerequisites
   2. one major at a time
   3. codemods
@@ -24,12 +24,12 @@
   5. remove deprecations
 
   Every stage must end green, with its own commit.
-- **Data migrations** need:
+- Data migrations need:
   - a dry run on a copy
   - reversibility (`down()`, or a documented forward-only reason)
   - a backfill plan
-  - **§4.23 approval for anything that touches a non-local database**
-- **Lockfile policy:** commit the lockfile. No `--force`, no `--legacy-peer-deps`, and no disabling
+  - §4.23 approval for anything that touches a non-local database
+- Lockfile policy: commit the lockfile. No `--force`, no `--legacy-peer-deps`, and no disabling
   of security policies without an explicit ruling.
 
 ## Required blocks
@@ -38,7 +38,7 @@
 - §4.20 structure table (stages)
 - §4.20 STOP/DEFER with revert
 - §4.23 (non-local data)
-- §4.19 **or** §4.8
+- §4.19 or §4.8
 
 ## Template
 

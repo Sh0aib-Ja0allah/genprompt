@@ -11,11 +11,11 @@
 
 ## Generator: before emitting
 
-- **Forbid code changes and commits** during planning. If the prompt also carries execution, make
+- Forbid code changes and commits during planning. If the prompt also carries execution, make
   the boundary a phase gate with write access, not a blanket ban.
-- **Write the `WHAT THIS REPO IS` inventory block** from real counts, so the worker does not burn a
+- Write the `WHAT THIS REPO IS` inventory block from real counts, so the worker does not burn a
   phase re-deriving it.
-- **Cross-repo plans:**
+- Cross-repo plans:
   - anchor both repos, each with its own branch, gates and commit permissions
   - carry the paired-change rule (§1)
 

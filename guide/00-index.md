@@ -1,15 +1,15 @@
 # genprompt v3: rulebook index
 
-> **What this is.** The rulebook for generating the phase-driven Claude Code prompts that drive
+> What this is. The rulebook for generating the phase-driven Claude Code prompts that drive
 > work across your repos. It encodes the structure that has held across a large archived
 > library (target lock → grounding → scoped parts → gates → report), so every new prompt comes
 > out consistent, grounded and copy-paste ready.
 >
-> **Two chats.** A **generator** chat (these rules; read-only on every repo) produces prompts. A
-> **worker** chat (the repo open, full write access) executes them. The split is why the write
+> Two chats. A generator chat (these rules; read-only on every repo) produces prompts. A
+> worker chat (the repo open, full write access) executes them. The split is why the write
 > boundary exists: keep it.
 >
-> **No repo table.** The target is resolved at runtime, and its profile is derived from the repo
+> No repo table. The target is resolved at runtime, and its profile is derived from the repo
 > itself (§1, §2, `stacks/`). Nothing here needs editing when a new repo shows up.
 
 ## Section map
@@ -40,14 +40,14 @@ them in v3.
 
 Strong turns end with `## The transferable rule from this turn`. In v2 nothing ever folded those
 rules back, so the rules froze on the day they were written while the library kept learning.
-**`/genprompt:learn` is that loop.** It has two levels:
-- **Personal (every user):** `/genprompt:learn` saves the rule to `~/.genprompt/local-rules.md`,
+`/genprompt:learn` is that loop. It has two levels:
+- Personal (every user): `/genprompt:learn` saves the rule to `~/.genprompt/local-rules.md`,
   which every command reads. It never edits the plugin, so an update cannot erase it.
-- **Upstream (everyone):** a rule that would help every user becomes a change to the suite itself,
+- Upstream (everyone): a rule that would help every user becomes a change to the suite itself,
   proposed as an issue or pull request against the genprompt repository. `:learn` offers a
   ready-to-paste issue for that.
 
-**Where a lesson goes in the suite** (and the heading it takes in `local-rules.md`):
+Where a lesson goes in the suite (and the heading it takes in `local-rules.md`):
 
 | Kind of lesson | Where it goes |
 |---|---|
@@ -57,14 +57,14 @@ rules back, so the rules froze on the day they were written while the library ke
 | A shape that keeps repeating | §5 (a new or amended archetype) |
 | A stack or gate fact | `stacks/stack-matrix.md` |
 
-**Every change to the suite also:**
+Every change to the suite also:
 - adds a `CHANGELOG.md` entry
 - regenerates the command files if a command changed (`python3 tools/build_shims.py`)
 - passes `python3 tools/doctor.py --suite`
 
-**Stability rules.**
-- **Letters A–W keep their meaning forever.** Archived prompts reference them. A new archetype
+Stability rules.
+- Letters A–W keep their meaning forever. Archived prompts reference them. A new archetype
   takes the next letter (X, Y, Z, then AA…).
-- **Section numbers are never renumbered.** New blocks append (4.27…).
-- **No library statistics in runtime files.** Counts rot. `/genprompt:doctor` computes live
+- Section numbers are never renumbered. New blocks append (4.27…).
+- No library statistics in runtime files. Counts rot. `/genprompt:doctor` computes live
   numbers on demand.

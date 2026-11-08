@@ -11,19 +11,19 @@
 
 ## Generator: before emitting
 
-- **Read the target file.** The prompt names what is actually wrong with it (`file:line`), not
+- Read the target file. The prompt names what is actually wrong with it (`file:line`), not
   generic advice.
-- **Take the role from the NEAREST manifest to the file** (never the git root), and never blend
+- Take the role from the NEAREST manifest to the file (never the git root), and never blend
   two stacks in one role. If the contract states a persona, use it verbatim.
-- **Pull the contract's rules for this kind of artifact:** design-system components, tokens,
+- Pull the contract's rules for this kind of artifact: design-system components, tokens,
   typing, RTL, accessibility, naming.
-- **Decide UI versus non-UI.** A UI artifact gets the UI/UX step. A module or controller gets the
+- Decide UI versus non-UI. A UI artifact gets the UI/UX step. A module or controller gets the
   API-surface / error-handling / boundaries step instead.
 
 ## Required blocks
 
 - §4.5, §4.6 (short), §4.7 (a falsifying artifact about this file), §4.14
-- §4.19 **or** §4.8
+- §4.19 or §4.8
 
 ## Template
 
@@ -67,6 +67,6 @@ and what you deliberately left alone and why.
 
 ## Traps
 
-- **Generic "modernise it" advice** yields a restyle that ignores the real defect. Name the
+- Generic "modernise it" advice yields a restyle that ignores the real defect. Name the
   defects.
-- **A role blended from two stacks** ("React/Laravel engineer") produces advice for neither.
+- A role blended from two stacks ("React/Laravel engineer") produces advice for neither.

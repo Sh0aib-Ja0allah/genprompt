@@ -2,30 +2,30 @@
 
 | | |
 |---|---|
-| **Use when** | Remove dead code or a retired feature, park a feature behind a flag, restore a red build to green, tighten or change CI gates, or refactor with **no behaviour change** |
+| **Use when** | Remove dead code or a retired feature, park a feature behind a flag, restore a red build to green, tighten or change CI gates, or refactor with no behaviour change |
 | **Not when** | The behaviour should change → `:slice` or `:fix`. Dependency majors → `:upgrade` |
 | **Autonomy** | Code-writing: §4.8 MODE or §4.19 gate. Deletions are listed before they happen |
-| **Baseline delta** | **Unchanged** (the same tests pass). It goes down only for tests of the removed code, listed one by one |
+| **Baseline delta** | Unchanged (the same tests pass). It goes down only for tests of the removed code, listed one by one |
 | **Length tier** | Focused (200) |
 | **Deliverable** | A smaller or cleaner tree with an identical behaviour surface, and a list of what was removed and why it was safe |
 
 ## Generator: before emitting
 
-- **Prove "dead" before prescribing a deletion.** Find every reference with Grep (routes, config,
+- Prove "dead" before prescribing a deletion. Find every reference with Grep (routes, config,
   jobs/schedules, templates, dynamic string references, reflection/container bindings, tests,
   docs). A feature that is *inert by design* (§2.8) is not dead: it needs a ruling.
-- **Restore-green:** read the failing gate's output if the report includes it. The goal is the
-  **root cause** of the red, not a skip or a loosened threshold.
-- **CI gate changes:** make any loosening explicit and justified. Tightening needs the tree to pass
+- Restore-green: read the failing gate's output if the report includes it. The goal is the
+  root cause of the red, not a skip or a loosened threshold.
+- CI gate changes: make any loosening explicit and justified. Tightening needs the tree to pass
   first.
-- **Refactor:** name the invariant (public API, rendered output, response shapes) and how to prove
+- Refactor: name the invariant (public API, rendered output, response shapes) and how to prove
   it unchanged.
 
 ## Required blocks
 
 - §4.5, §4.7, §4.10, §4.11, §4.14
 - §4.20 one predicate, not N guards (for consolidation refactors)
-- §4.8 **or** §4.19
+- §4.8 or §4.19
 
 ## Template
 

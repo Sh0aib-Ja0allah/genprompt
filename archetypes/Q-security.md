@@ -4,24 +4,24 @@
 |---|---|
 | **Use when** | Threat-model and harden an app or area: authn/authz/policies/RLS, input and upload handling, secrets, headers/CSP, rate limits, dependency CVEs, data exposure |
 | **Not when** | A generic code review → `:review`. An active incident → `:hotfix` |
-| **Autonomy** | Two phases. **Phase 1 is read-only** (the threat model and findings). **Phase 2 fixes only the FIX-NOW items**, behind §4.19 (or §4.8 if `--unattended`) |
-| **Baseline delta** | Up: every fix lands with a test that proves the attack is refused **and** the legitimate case still works |
+| **Autonomy** | Two phases. Phase 1 is read-only (the threat model and findings). Phase 2 fixes only the FIX-NOW items, behind §4.19 (or §4.8 if `--unattended`) |
+| **Baseline delta** | Up: every fix lands with a test that proves the attack is refused and the legitimate case still works |
 | **Length tier** | Program (350) |
 | **Deliverable** | A threat-model and findings doc (§4.25), the fixes for the FIX-NOW items, and RECORD items for decisions |
 
 ## Generator: before emitting
 
-- **Inventory the attack surface from the code:** routes and who can reach them, auth guards,
+- Inventory the attack surface from the code: routes and who can reach them, auth guards,
   policies/scopes, file uploads (MIME, extension, served origin; for example SVG served same-origin
   is script), admin panels, webhooks, queues, secrets in the repo, CORS/CSP/headers, rate limits.
   Cite `file:line`.
-- **Name roles and audiences.** Most authz bugs are the "same-looking field, different audience"
+- Name roles and audiences. Most authz bugs are the "same-looking field, different audience"
   class (§7.2).
-- **Hard lines:**
-  - **Never test against production or any remote system.**
+- Hard lines:
+  - Never test against production or any remote system.
   - Never exfiltrate or print real secrets. Report a secret's location, not its value.
   - Never weaken a control to make a test pass.
-- **Decision items** (which roles may do what, retention, disclosure) are RECORD, DO NOT ACT.
+- Decision items (which roles may do what, retention, disclosure) are RECORD, DO NOT ACT.
 
 ## Required blocks
 

@@ -11,13 +11,13 @@
 
 ## Generator: before emitting
 
-- **The reference repo is an argument, not a constant.** Ask for it if it is not given. Derive a
+- The reference repo is an argument, not a constant. Ask for it if it is not given. Derive a
   profile for the reference too: its stack decides how much transfers.
-- **Name the specific reason cloning is wrong here** (a different framework major, routing model or
+- Name the specific reason cloning is wrong here (a different framework major, routing model or
   conventions). "Reference, not template" is only credible with a concrete reason.
-- **Name the three docs by §2.7** (the repo's convention, or N6 with a declared new convention).
+- Name the three docs by §2.7 (the repo's convention, or N6 with a declared new convention).
   Never use a filename left over from another project.
-- **Take Phase 1's study list from the reference's stack** (`stacks/stack-matrix.md`), not from a
+- Take Phase 1's study list from the reference's stack (`stacks/stack-matrix.md`), not from a
   React-shaped default.
 
 ## Required blocks
