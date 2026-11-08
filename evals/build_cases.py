@@ -221,6 +221,9 @@ Ground truth about the made-up npm-workspaces monorepo "tallyhub" (the run's wor
   `npm run lint -w ledger-core` (or `--workspace=ledger-core`, or the same scripts run from
   packages/ledger-core). Bare root `npm test` / `npm run lint` would also run ledger-web.
 - Git repo in a temp directory; one commit db1d721 on main. Citing .git files is legitimate.
+- A path cited relative to the in-scope package counts as that package's file: `src/money.js:12`
+  or `test/money.test.js:6` mean packages/ledger-core/src/money.js and
+  packages/ledger-core/test/money.test.js. Check its line number against that file below.
 - Files in the workspace, with line counts:
 {listing}"""
     sha_extra = VARIANT_SHAS[variant]
