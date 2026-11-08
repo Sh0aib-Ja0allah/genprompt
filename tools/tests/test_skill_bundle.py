@@ -68,7 +68,8 @@ class SkillBundle(unittest.TestCase):
         self.assertTrue(all(n.startswith("genprompt/") for n in self.names))
         self.assertIn("genprompt/SKILL.md", self.names)
         for must in ("PROTOCOL.md", "LICENSE", ".claude-plugin/plugin.json", "tools/doctor.py",
-                     "tools/build_shims.py", "tools/archive.py", "archetypes/README.md", "guide/00-index.md"):
+                     "tools/build_shims.py", "tools/archive.py", "archetypes/README.md", "guide/00-index.md",
+                     "stacks/stack-matrix.md", "stacks/workspaces.md"):
             self.assertIn(f"genprompt/{must}", self.names, must)
         self.assertEqual(self.names, sorted(self.names))
 
@@ -142,6 +143,11 @@ class BundleCurrency(unittest.TestCase):
         errs = self.errors(skill=stale, names=self.names)
         self.assertTrue(any(f"'## The {n} archetypes'" in e for e in errs), errs)
         self.assertTrue(any("archetype table differs" in e for e in errs), errs)
+
+    def test_missing_workspaces_file_is_an_error(self):
+        names = [n for n in self.names if n != "stacks/workspaces.md"]
+        errs = self.errors(skill=self.skill, names=names)
+        self.assertTrue(any("stacks/workspaces.md would be missing" in e for e in errs), errs)
 
     def test_missing_runtime_file_is_an_error(self):
         names = [n for n in self.names if n != "commands/slice.md" and n != "tools/archive.py"]

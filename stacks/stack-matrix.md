@@ -30,9 +30,9 @@ project can also carry a `package.json`.
 | `go.mod` | Go. Module path and `go` version. Web framework from requires: `gin` / `echo` / `fiber` / `chi` / stdlib. |
 | `pyproject.toml` / `requirements*.txt` / `Pipfile` / `uv.lock` / `poetry.lock` | Python. `django` → Django · `fastapi` → FastAPI · `flask` → Flask · `langchain`/`openai`/`anthropic` → an LLM service modifier · the tool manager from the lockfile (`uv`, `poetry`, `pipenv`, pip). |
 | `Gemfile` | Ruby. `rails` → Rails. |
-| `mix.exs` | Elixir. `:phoenix` in `deps` → Phoenix (`+ LiveView` if `:phoenix_live_view`; `+ Ecto` if `:ecto_sql`) · an `apps/` umbrella with its own `mix.exs` files → umbrella project (see section 1b) · otherwise an Elixir library or OTP app. |
+| `mix.exs` | Elixir. `:phoenix` in `deps` → Phoenix (`+ LiveView` if `:phoenix_live_view`; `+ Ecto` if `:ecto_sql`) · an `apps/` umbrella with its own `mix.exs` files → umbrella project (see `stacks/workspaces.md`) · otherwise an Elixir library or OTP app. |
 | `pom.xml` / `build.gradle(.kts)` | JVM. `spring-boot` → Spring Boot · `com.android.application` → Android · Kotlin if there are `.kt` sources or the Kotlin plugin. |
-| `Cargo.toml` | Rust. `axum`/`actix-web` → Rust API · a `[workspace]` table → Cargo workspace (see section 1b) · otherwise a crate or CLI. |
+| `Cargo.toml` | Rust. `axum`/`actix-web` → Rust API · a `[workspace]` table → Cargo workspace (see `stacks/workspaces.md`) · otherwise a crate or CLI. |
 | `CMakeLists.txt` | C/C++ (CMake). The language from `project(... LANGUAGES ...)` or the source extensions · `CMakePresets.json` gives the configure and build presets · `enable_testing()` / `add_test(` → CTest tests exist. A bare `Makefile` with no `CMakeLists.txt` is not this row: read its targets and ask for the gates. |
 | `Package.swift` / `*.xcodeproj` | Swift/iOS. |
 | `*.tf` / `.terraform.lock.hcl` | Terraform (infrastructure as code). The provider set from `required_providers` · the backend from `terraform { backend ... }`. |
@@ -42,45 +42,9 @@ project can also carry a `package.json`.
 
 ## 1b. Workspaces and monorepo orchestrators
 
-A workspace is one repository with several packages and, usually, one tool that runs a task across
-them. Detect it before deriving gates, because the right gate for a slice depends on which package
-is in scope.
-
-| Orchestrator | Evidence file (read it; never assume) | Package list from |
-|---|---|---|
-| pnpm workspaces | `pnpm-workspace.yaml` | its `packages:` globs |
-| Yarn workspaces | root `package.json` `"workspaces"` + `yarn.lock` | the `workspaces` globs (or `workspaces.packages`) |
-| npm workspaces | root `package.json` `"workspaces"` + `package-lock.json` | the `workspaces` globs |
-| Bun workspaces | root `package.json` `"workspaces"` + `bun.lock` | the `workspaces` globs |
-| Turborepo | `turbo.json` (on top of one of the above) | the package manager's list; tasks from `turbo.json` `tasks` (`pipeline` in Turborepo 1.x) |
-| Nx | `nx.json`, plus `project.json` per project or `nx` targets in `package.json` | `project.json` files; targets from them and `nx.json` `targetDefaults` |
-| Cargo workspace | root `Cargo.toml` with `[workspace]` | `members` (minus `exclude`) |
-| Go workspace | `go.work` | its `use` directives |
-| Elixir umbrella | root `mix.exs` with `apps_path` | the `apps/*` directories |
-
-How to derive a gate for each command, in this order:
-1. **The contract wins.** If `CLAUDE.md`/`AGENTS.md` names the command to run (for example "always
-   run `pnpm turbo run test` from the root"), emit exactly that, labelled `(contract)`.
-2. One package is in scope, and it has its own script for the gate: run that package's script
-   through the package manager's filter, labelled `(script)`, with the package's `package.json` as
-   evidence. Node-style: `pnpm --filter <pkg> run <script>` · `yarn workspace <pkg> run <script>` ·
-   `npm run <script> -w <pkg>` · `bun run --filter <pkg> <script>`.
-3. The task is defined in the orchestrator, not in the package: run the orchestrator, scoped to the
-   package, labelled `(script)`, with `turbo.json` or `project.json` as evidence. Turborepo:
-   `<pm> exec turbo run <task> --filter=<pkg>` · Nx: `<pm> exec nx run <project>:<target>`.
-4. Several packages are in scope, or the work changes a shared package: run the orchestrator across
-   the workspace, labelled `(script)`: the root script if one exists (`<pm> run test` that calls
-   `turbo run test`), otherwise `<pm> exec turbo run <task>` or `<pm> exec nx run-many -t <target>`.
-   Use `--filter=...<pkg>` (Turborepo) or `nx affected -t <target>` only when the repo's CI or
-   contract already does; say which.
-5. Non-Node workspaces: Cargo `cargo test -p <crate>` for one crate, `cargo test --workspace` for
-   several (same for `clippy`, `build`, `fmt --all --check`) · Go `go test ./<module>/...` per module
-   listed in `go.work` · Elixir umbrella `mix test` from the root, or `mix cmd --app <app> mix test`
-   for one app.
-
-Name the in-scope packages and the out-of-scope ones in the lock's `Scope` line, and keep a gate
-inside the scope it claims to check: a per-package filter never stands in for a workspace-wide
-check that the contract or CI requires.
+Read `stacks/workspaces.md` only when the repo has more than one manifest directory or a workspace
+file (pnpm-workspace.yaml, workspaces in package.json, turbo.json, nx.json, Cargo [workspace],
+go.work, an umbrella). It detects the orchestrator and decides per-package vs orchestrator gates.
 
 ## 2. Stack label, role label and code roots
 
@@ -116,7 +80,7 @@ Versions always come from the manifest or lockfile.
 Mark each emitted command `(script)` when it comes from a manifest script key, `(contract)` when the
 repo's contract tells you to run it, or `(derived)` when it comes from a proven tool (add
 `, no baseline` if nothing shows it was ever run). `–` means there is no default: omit the gate,
-and name the gap only if it matters. In a workspace, apply section 1b first.
+and name the gap only if it matters. In a workspace, apply `stacks/workspaces.md` first.
 
 ### Node (the package manager `<pm>` comes from the lockfile)
 
@@ -242,7 +206,7 @@ and name the gap only if it matters. In a workspace, apply section 1b first.
 - Rails: `bundle exec rubocop` (if configured) · `bin/rails test` or `bundle exec rspec`
 - JVM: `./gradlew check` / `./gradlew test` / `./gradlew assembleDebug` · or `./mvnw -q verify`
 - Rust: `cargo fmt --check` · `cargo clippy -- -D warnings` · `cargo test` · `cargo build` (a Cargo
-  workspace adds `-p <crate>` or `--workspace`, per section 1b)
+  workspace adds `-p <crate>` or `--workspace`, per `stacks/workspaces.md`)
 - Swift: `swift build` / `swift test`, or `xcodebuild … test` with the scheme named by CI
 
 ### Unknown stack
