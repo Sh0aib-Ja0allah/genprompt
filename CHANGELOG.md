@@ -4,6 +4,19 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+## 1.2.0 (2026-11-09): rules loaded per archetype and per stack, a profile card that stays fresh
+
+Each command now @-includes only the rule excerpt its archetype needs, the stack matrix routes to
+one per-stack gate ladder, and workspace detection is read only for monorepos. A profile card stays
+fresh while its file@sha stamps hold (90-day ceiling), and auto-go can skip the lock wait when you
+opt in. Prompts wrap at 100 characters, fix and redesign prompts bound their scope, and doctor
+checks the Agensi bundle. Measured load is mixed (evals/CP5.md, CP5c, haiku, 3 runs vs 1.1.0):
+slice −24% and plan −42% rule bytes, but fix +12% and redesign +34%, because a first run with no
+profile card derives it from guide/01 and the stack matrix, and every run now loads its full
+excerpt (1.1.0 sometimes skipped 03-blocks). Repeat runs with a cached card skip derivation; a cut
+of the excerpts and the profile path is planned for 1.3.0.
+
+- 2026-11-09 · utilities/doctor.md · Documents the suite's Agensi bundle check (deferred from E-18b).
 - 2026-11-08 · stacks/ladders/, stacks/stack-matrix.md, tools/doctor.py · Per-stack gate ladders moved
   verbatim to stacks/ladders/<stack>.md (16 files); the matrix routes to the detected stack's file only.
 - 2026-11-08 · stacks/workspaces.md, stacks/stack-matrix.md, tools/doctor.py · Workspace detection moved

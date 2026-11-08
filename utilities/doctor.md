@@ -38,6 +38,9 @@ What doctor checks (the source of truth is the script itself):
   - stale strings are banned, and no rule file names one user's absolute home path
   - every command file loads the protocol, except the protocol-free utilities (`help`, `doctor`)
     listed in `PROTOCOL_FREE` in `tools/build_shims.py` (enforced by the generator comparison)
+  - the Agensi bundle that `tools/build_skill_bundle.py` would build is current: its SKILL.md
+    version and counts match plugin.json and the tables, and every runtime file (every routed
+    stack ladder included) ships while CI, evals, tests and assets do not; checked in memory
 - Archive:
   - shard rows point to files that exist
   - v3 files carry the line-1 header and a full fenced prompt
