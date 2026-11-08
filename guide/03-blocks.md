@@ -289,7 +289,7 @@ Do not start coding until I approve the plan, unless I explicitly say "continue 
 | Tier | Cap | Archetypes |
 |---|---|---|
 | Delta | 120 | E, J (a mid-session ruling or continuation that inherits a running prompt's constraints) |
-| Focused | 200 | A, B, C, H, K, L, M, O, P, U, V, W |
+| Focused | 200 | A, B, C, H, K, L, M, O, P, U, V, W, X |
 | Slice | 260 | D (320 for a multi-checkpoint slice) |
 | Program | 350 | F, G, I, N, Q, R, S, T |
 

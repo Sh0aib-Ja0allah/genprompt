@@ -526,7 +526,7 @@ LINE_WIDTH = 100
 MIN_BLOCK_LINES = 5      # counted lines (doctor counts ceil(len/100) per line) below which the block is a stub
 # §4.21 tier caps (guide/03-blocks.md); check_tiers() keeps this map equal to the table.
 TIER_CAPS = {"Delta": 120, "Focused": 200, "Slice": 260, "Program": 350}
-TIER_OF = {**dict.fromkeys("EJ", "Delta"), **dict.fromkeys("ABCHKLMOPUVW", "Focused"),
+TIER_OF = {**dict.fromkeys("EJ", "Delta"), **dict.fromkeys("ABCHKLMOPUVWX", "Focused"),
            "D": "Slice", **dict.fromkeys("FGINQRST", "Program")}
 SLICE_MULTI_CAP = 320                                 # D with several checkpoints
 MEASURED_LARGE = 1.2                                  # +20% when self-check row 21 names it

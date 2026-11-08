@@ -138,7 +138,7 @@ whose own REPORT text replaces the rest of this block and deltas (E, J).
 
 | Tier | Cap | Archetypes |
 |---|---|---|
-| Focused | 200 | A, B, C, H, K, L, M, O, P, U, V, W |
+| Focused | 200 | A, B, C, H, K, L, M, O, P, U, V, W, X |
 
 - Compression pass before archiving: cut what the worker already holds, restated contract
   rules (point instead), praise, narrative closings and repeated DO/DON'T lines; keep every gate,

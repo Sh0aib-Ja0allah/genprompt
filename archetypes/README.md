@@ -13,6 +13,7 @@ Letters are permanent: archived prompts reference them. New archetypes take the 
 |---|---|---|---|---|
 | understand an unfamiliar or empty repo, and draft its contract | `:onboard` | M | read-only + docs | Focused |
 | assess the state against the docs, and get a ranked backlog | `:audit` | B | read-only + 1 doc | Focused |
+| find the cause of a bug before fixing it | `:investigate` | X | read-only + scratch repro | Focused |
 | plan a unit or cross-repo work, without code | `:plan` | F | read-only + 1 doc | Program |
 | design one decision (ADR, API contract, schema/ERD, design-system map, spike) | `:design` | N | docs (+ scratch spike) | Program |
 | build a new layer after studying a reference repo | `:greenfield` | G | docs → gate → code | Program |
@@ -62,6 +63,7 @@ Letters are permanent: archived prompts reference them. New archetypes take the 
 | U | Hotfix / incident | `:hotfix` | `U-hotfix.md` |
 | V | Cleanup / maintenance | `:cleanup` | `V-cleanup.md` |
 | W | Documentation | `:docs` | `W-docs.md` |
+| X | Investigate / root cause | `:investigate` | `X-investigate.md` |
 
 Every archetype file has the same shape:
 1. a header table: use when · not when · autonomy · baseline delta · length tier · deliverable

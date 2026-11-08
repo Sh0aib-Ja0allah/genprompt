@@ -12,7 +12,7 @@
     {
       "name": "genprompt",
       "source": "./",
-      "description": "Generates grounded, ready-to-paste Claude Code prompts for a separate worker chat: 23 archetypes, a target lock derived from the repo, literal quality gates, and a self-check on every prompt.",
+      "description": "Generates grounded, ready-to-paste Claude Code prompts for a separate worker chat: 24 archetypes, a target lock derived from the repo, literal quality gates, and a self-check on every prompt.",
       "version": "1.2.0",
       "author": {
         "name": "Sh0aib-Ja0allah",
