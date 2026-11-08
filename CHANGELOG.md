@@ -15,6 +15,8 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 - 2026-11-07 · tools/build_shims.py, guide/blocks/, PROTOCOL.md · Each archetype shim @-includes a
   generated excerpt of the 03-blocks sections it needs, instead of the generator reading 03-blocks.
   Real-use check (evals/CP4b.md): median rule bytes −26.5%.
+- 2026-11-08 · PROTOCOL.md · Step 2's card rule follows §2.9 (90-day ceiling, freshness is the
+  stamps) and the lock's Stack line reports the card's age.
 
 ## 1.1.0 (2026-11-08): archive written and checked by a tool, a measurable workflow
 

@@ -114,9 +114,10 @@ Derive the profile per §2 and `stacks/stack-matrix.md`.
 
 **Cached profile card.** Reuse `~/.genprompt/generated-prompts/by-repo/<key>.profile.md` only when both hold:
 - every `stamp:` entry still matches `git log -1 --format=%h -- <file>`, and no stamped file is dirty
-- `derived:` is under 14 days old
+- `derived:` is at most 90 days old (the §2.9 ceiling; freshness itself is the stamps)
 
-Otherwise re-derive the card and rewrite it. **`--dry-run` never writes the card.**
+Otherwise re-derive the card and rewrite it. **`--dry-run` never writes the card.** Report the
+card's age in the lock (§2.9).
 
 **Ancestor scan.** In every directory from the repo root's parent up to the drive root, check four
 names: `CLAUDE.md`, `AGENTS.md`, `.claude/CLAUDE.md` and `CLAUDE.local.md`. Use `ls` or Glob.
@@ -142,7 +143,7 @@ Repo        <Name> · <absolute path>
             branch <current> (default <default>) · tree <clean | N files dirty> · via <argument|continuation|cwd|ask>
 Occupancy   <free | OCCUPIED: <evidence>; see §4.27>
 Scope       <single root | monorepo: apps/x IN, apps/y + services/ OUT>
-Stack       <stack + versions read from the manifest/lockfile> · role <role label>
+Stack       <stack + versions read from the manifest/lockfile> · role <role label> · card <Nd, stamps fresh | Nd, stale: <file> moved | new>
 Contract    <path to CLAUDE.md / AGENTS.md, or "none in-repo"> · hard rules: <branching / deploy / push / logging, quoted short with line numbers>
 Ancestors   <non-governing paths | none found> · user-level: <path | none>
 Truth       <source-of-truth docs, in order>
