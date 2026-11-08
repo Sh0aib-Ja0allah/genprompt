@@ -439,7 +439,23 @@ def verdict_check(lines: list[str], block_span: tuple[int, int] | None) -> tuple
     rows = sum(1 for j, ln in enumerate(lines) if re.match(r"^\|\s*\d+\s*\|", ln) and not (lo <= j <= hi))
     if rows and total != rows:
         return WARN, f"line {i + 1}: the verdict counts add up to {total}, but the self-check table has {rows} rows"
-    return PASS, f"line {i + 1}: exact verdict line" + (f", counts match the {rows}-row table" if rows else "")
+    if not rows:
+        # a chat emission without the table: the counts must cover every §6 row (Step 6 item 3)
+        want = checklist_rows()
+        if want and total != want:
+            return WARN, (f"line {i + 1}: the verdict counts add up to {total}, but the §6 checklist has "
+                          f"{want} rows (guide/04-checklist.md)")
+        return PASS, f"line {i + 1}: exact verdict line" + (f", counts cover the {want} checklist rows" if want else "")
+    return PASS, f"line {i + 1}: exact verdict line, counts match the {rows}-row table"
+
+
+def checklist_rows(root: Path = HOME) -> int:
+    """The number of §6 self-check rows in guide/04-checklist.md (0 if it cannot be read)."""
+    try:
+        text = (root / "guide" / "04-checklist.md").read_text(encoding="utf-8-sig")
+    except OSError:
+        return 0
+    return sum(1 for ln in text.splitlines() if re.match(r"^\|\s*\d+\s*\|", ln))
 
 
 def is_placeholder(inner: str) -> bool:
