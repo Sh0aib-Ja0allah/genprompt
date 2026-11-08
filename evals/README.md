@@ -147,11 +147,15 @@ Two consequences:
 
 The probe keeps the real HOME, because sign-in needs it; credentials are never copied. It is sealed
 by flags instead: `--setting-sources local`, `--strict-mcp-config`, `--permission-mode dontAsk`
-with only the work dir added, and deny rules on Read, Glob and Grep for the whole home directory
-and `~/.genprompt`. The work dir (fixture and plugin copies) lives outside the home directory, in
-`C:/tmp` on Windows. Its check A5 fails the verdict if any call outside the work dir returns
-anything but a denial. Under CP4b's original flags, A5 would have caught the Glob name-listing
-gap.
+with only the work dir added, and deny rules on Read, Glob and Grep for the whole home directory,
+`~/.genprompt`, and the shared scratch roots `C:/tmp` and `C:/Users` (`/tmp` elsewhere), where
+other projects live. The work dir (fixture and plugin copies) lives under a root used only by the
+probe: `C:/genprompt-probe` on Windows, `/var/tmp/genprompt-probe` elsewhere. Check A5 fails the
+verdict if any call outside the work dir returns anything but a denial or "does not exist" (the
+protocol's ancestor scan legitimately asks about `CLAUDE.md` in every parent directory). Under
+CP4b's original flags, A5 would have caught the Glob name-listing gap, and in CP5 it caught a
+recursive Glob of `C:/tmp`. Residual: the drive root itself cannot be denied without also denying
+the work dir, so a Glob from `C:/` could list top-level folder names (in practice it times out).
 
 ## Sandbox facts (measured on this suite)
 

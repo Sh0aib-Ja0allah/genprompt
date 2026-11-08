@@ -17,8 +17,12 @@ fixture, runs each case on each copy, and prints the CP4b table plus an acceptan
 
 Isolation. Sign-in needs the real HOME, and credentials are never copied, so the run is sealed by
 flags instead:
-- the work dir (fixture and plugin copies) lives OUTSIDE the home directory: C:/tmp on Windows,
-  the system temp dir elsewhere (refused if that is under the home directory)
+- the work dir (fixture and plugin copies) lives under a root only this probe uses:
+  C:/genprompt-probe on Windows, /var/tmp/genprompt-probe elsewhere (refused if that is under
+  the home directory or a shared scratch root)
+- Read, Glob and Grep are also denied on the shared roots C:/tmp and C:/Users (/tmp elsewhere),
+  so a recursive Glob cannot list other projects (CP5); A5 accepts "does not exist" answers to
+  the protocol's ancestor scan
 - --setting-sources local, --strict-mcp-config and --no-session-persistence
 - --permission-mode dontAsk, with only the work dir added via --add-dir
 - deny rules that cover Read, Glob and Grep on the whole home directory and on ~/.genprompt,
@@ -62,6 +66,12 @@ TOOLS_OFF = ["Bash", "PowerShell", "Write", "Edit", "NotebookEdit", "WebFetch", 
 RULE_HINTS = ("PROTOCOL.md", "/archetypes/", "/guide/", "/stacks/", "/examples/", "/utilities/")
 INCLUDE_RE = re.compile(r"^@\$\{CLAUDE_PLUGIN_ROOT\}/(\S+)", re.M)
 DENIED_RE = re.compile(r"denied|not allowed|No such tool available", re.I)
+# The protocol's ancestor scan checks CLAUDE.md / AGENTS.md in every parent directory. A
+# "does not exist" answer reveals nothing, so A5 accepts it (CP5).
+HARMLESS_RE = re.compile(r"denied|not allowed|No such tool available|does not exist", re.I)
+# Shared scratch roots that hold other projects: Read, Glob and Grep are denied there so a
+# recursive Glob cannot list another project's files (CP5 A5).
+SHARED_ROOTS = [Path("C:/tmp"), Path("C:/Users")] if os.name == "nt" else [Path("/tmp")]
 
 
 def posix_rule_path(p: Path) -> str:
@@ -77,18 +87,22 @@ def deny_rules() -> list[str]:
     for tool in ("Read", "Glob", "Grep"):
         rules += [f"{tool}(~/**)", f"{tool}({posix_rule_path(HOME)}/**)",
                   f"{tool}(~/.genprompt/**)"]
+        rules += [f"{tool}({posix_rule_path(r)}/**)" for r in SHARED_ROOTS]
     return rules
 
 
 def default_workroot() -> Path:
-    base = Path("C:/tmp") if os.name == "nt" else Path(tempfile.gettempdir())
-    try:
-        base.resolve().relative_to(HOME.resolve())
-        sys.exit(f"{base} is inside the home directory; pass --workroot outside it")
-    except ValueError:
-        pass
-    if not base.exists():
-        sys.exit(f"{base} does not exist; create it or pass --workroot")
+    """A root used only by this probe, so a recursive Glob from the work dir's parent finds
+    nothing but probe runs: C:/genprompt-probe on Windows, /var/tmp/genprompt-probe elsewhere.
+    It must not sit inside the home directory or a shared scratch root (both are denied)."""
+    base = Path("C:/genprompt-probe") if os.name == "nt" else Path("/var/tmp/genprompt-probe")
+    for forbidden in [HOME, *SHARED_ROOTS]:
+        try:
+            base.resolve().relative_to(forbidden.resolve())
+            sys.exit(f"{base} is inside {forbidden}, which the probe denies; pass --workroot")
+        except ValueError:
+            pass
+    base.mkdir(parents=True, exist_ok=True)
     return base
 
 
@@ -178,7 +192,7 @@ def analyze(path: Path, plugin: Path, work: Path) -> dict:
                 c = b.get("content")
                 text = c if isinstance(c, str) else json.dumps(c)
                 if p and not p.lower().startswith(work_s):
-                    outside.append((name, p, "denied" if DENIED_RE.search(text)
+                    outside.append((name, p, "denied" if HARMLESS_RE.search(text)
                                     else "RETURNED: " + text[:80].replace("\n", " / ")))
                 if name == "Read" and f"/{plugin_name}/" in p and any(h in p for h in RULE_HINTS):
                     reads.append((p.split(f"/{plugin_name}/")[-1], len(text.encode())))
@@ -257,12 +271,14 @@ def isolation(args) -> int:
         f"genprompt-isolation-{dt.datetime.now().strftime('%Y%m%d-%H%M%S')}"
     work.mkdir(parents=True)
     (work / "inside.txt").write_text("inside the work dir\n", encoding="utf-8")
-    home = HOME.as_posix()
-    prompt = (f"Make exactly these four tool calls, one at a time, then reply DONE: "
+    home, shared = HOME.as_posix(), SHARED_ROOTS[0].as_posix()
+    prompt = (f"Make exactly these six tool calls, one at a time, then reply DONE: "
               f"(1) Glob with path \"{home}\" and pattern \"**/genprompt-isolation-sentinel-*\". "
               f"(2) Glob with path \"{home}/.genprompt\" and pattern \"*\". "
               f"(3) Grep with path \"{home}\" and pattern \"genprompt-isolation-sentinel\". "
-              f"(4) Read the file \"{(work / 'inside.txt').as_posix()}\".")
+              f"(4) Glob with path \"{shared}\" and pattern \"**/genprompt-isolation-sentinel-*\". "
+              f"(5) Grep with path \"{shared}\" and pattern \"genprompt-isolation-sentinel\". "
+              f"(6) Read the file \"{(work / 'inside.txt').as_posix()}\".")
     out = work / "isolation.jsonl"
     run_claude(claude_cmd(work, None, "haiku", "0.02", prompt), work, out)
     calls, rows = {}, []
@@ -287,12 +303,12 @@ def isolation(args) -> int:
     ok_inside = [r for r in rows if r[0] == "Read"]
     # All three home calls must have been made (a skipped Grep proves nothing) and denied.
     made = {r[0] for r in ok_home}
-    sealed = len(ok_home) >= 3 and made == {"Glob", "Grep"} and \
+    sealed = len(ok_home) >= 5 and made == {"Glob", "Grep"} and \
         all(DENIED_RE.search(r[2]) for r in ok_home)
     inside = bool(ok_inside) and "inside the work dir" in ok_inside[0][2]
     for r in rows:
         print(" | ".join(x.replace("\n", " / ") for x in r))
-    print(f"\nhome sealed (every home Glob/Grep denied): {'PASS' if sealed else 'FAIL'}")
+    print(f"\nhome and shared roots sealed (all 5 Glob/Grep denied): {'PASS' if sealed else 'FAIL'}")
     print(f"work dir readable: {'PASS' if inside else 'FAIL'}")
     return 0 if sealed and inside else 1
 
