@@ -2,7 +2,10 @@
 
 Run it before archiving. The archive file always holds the **full** table. In chat, under the
 prompt, it prints in the compact form of PROTOCOL Step 6.3 (a verdict line plus the FAIL and N/A
-rows), or as the full table with `--verbose`.
+rows), or as the full table with `--verbose`. The verdict line is this exact string, with only the
+counts filled in (PROTOCOL Step 6.3 has the rules):
+`Self-check: <n> PASS · <n> N/A · <n> FAIL (full table in the archive file)`, or, under
+`--dry-run`, `Self-check: <n> PASS · <n> N/A · <n> FAIL (full table: --verbose)`.
 
 **Format:** `| # | Item | Verdict | Reason |`.
 - Verdict is `PASS`, `FAIL` or `N/A`.
