@@ -28,6 +28,9 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 - 2026-11-08 · archetypes/, tools/build_shims.py · Every abbreviated §4.14 INSERT names the gate
   labels and the GENPROMPT-REPORT line, because the baseline fix prompt composed §4.14 from that
   line alone; --check fails a template whose §4.14 INSERTs never name it.
+- 2026-11-08 · guide/03-blocks.md, guide/04-checklist.md · Hard wrap rule: every prompt line wraps
+  at 100 characters except a lone unbreakable token (§4.21), and the §4.14 GENPROMPT-REPORT spec is
+  shown wrapped, because every baseline prompt had longer lines and copied the one-line spec.
 
 ## 1.1.0 (2026-11-08): archive written and checked by a tool, a measurable workflow
 

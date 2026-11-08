@@ -39,7 +39,7 @@ counts filled in (PROTOCOL Step 6.3 has the rules):
 | 18 | If it follows, amends, depends on or reviews prior prompts: the relationship is in the header, and the prior instruction is **confirmed landed on the branch** (not from the report). Partially landed work is said to be partial |
 | 19 | Every claimed number (from a worker report or commit messages) is re-read and labelled `verified by artifact` or `reported, not confirmed`. The generator ran nothing |
 | 20 | Hygiene: no example specifics have leaked (from `examples/` or another repo). Volatile facts sit in §4.22 verify-at-start, with expected drift marked. There is no hardcoded attribution trailer and no finality claim. The occupancy check was done, and §4.27 is applied if the tree is occupied |
-| 21 | The length is within the archetype's budget (§4.21, lines ≤ 100 characters), or the measured-large allowance or another reason is given here |
+| 21 | The length is within the archetype's budget (§4.21; every line wrapped at 100 characters except a lone unbreakable token), or the measured-large allowance or another reason is given here |
 | 22 | Archived by `tools/archive.py` (never by hand): line-1 header, §4.1 table, grounding, full block and this table in `~/.genprompt/generated-prompts/<key>/<file>`, and a 5-field shard row. The reason cites archive.py's result (exit 0, or the FAIL lines and the `--replace` fix). For `--dry-run`: N/A, with "dry run" as the reason, the `--dry-run` lint result, and no profile card written. No python on the machine: FAIL, with that reason |
 | 23 | Every TRAP (§4.11), locked decision (§4.10), stop-list item (§4.13) and out-of-scope item carries a one-clause reason ("…, because …") |
 

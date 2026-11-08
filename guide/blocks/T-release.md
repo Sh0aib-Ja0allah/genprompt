@@ -56,12 +56,15 @@ block makes a reinterpretation visible before the prompt is pasted.
 ### 4.5 Repo anchor and contract precedence (the first lines inside the block)
 
 ```text
-Repo: <PROFILE.path>  (branch `<PROFILE.branch>`<; monorepo: <IN root> IN scope, <siblings> OUT, because <reason>; do not touch them>)
+Repo: <PROFILE.path>  (branch `<PROFILE.branch>`<; monorepo: <IN root> IN scope,
+  <siblings> OUT, because <reason>; do not touch them>)
 
 Read `<PROFILE.contract>` FIRST. It is the binding conventions contract. Where this prompt and it
 disagree, follow the contract and tell me.<If the prompt deliberately deviates from a contract rule:
 "This prompt deviates from <rule> in one way: <how>. That deviation is authorised for this task only.">
 ```
+
+If the path makes the `Repo:` line pass 100 characters, put the path alone on the next line.
 
 Mention ancestor files **only** when the scan found some: `CLAUDE.md files above this repo
 (<paths>) describe other projects and do not govern it.` Never name a file the scan did not find.
@@ -133,10 +136,12 @@ DO: <the 3–6 things most likely to be done wrong, stated positively>
 DON'T: <the forbidden moves: dependencies, flipping live, weakening tests, touching OUT paths, …>
 
 DEFINITION OF DONE: <gates green with the baseline moved as stated> + <the observable behaviour,
-with the assertion that proves it> + <negative conditions: nothing added, flipped or touched outside scope>.
+with the assertion that proves it> + <negative conditions: nothing added, flipped or touched
+outside scope>.
 
-REPORT: start with this one line, filled in, before anything else:
-GENPROMPT-REPORT · Repo: {abs path} · Branch: {branch} · HEAD: {short sha} · Prompt: <archive file name> · Gates: {cmd → numbers; …} · Status: done|partial|blocked
+REPORT: start with this one line, filled in, before anything else (print it as one line):
+GENPROMPT-REPORT · Repo: {abs path} · Branch: {branch} · HEAD: {short sha} ·
+  Prompt: <archive file name> · Gates: {cmd → numbers; …} · Status: done|partial|blocked
 Then, per checkpoint: what you built; the decisions this prompt did not cover; the file list
 reconciled against `git status`; the gate numbers; any existing test you touched and why; and
 explicit confirmation of each DON'T.
@@ -147,8 +152,9 @@ for a report, including templates whose own REPORT text replaces the rest of thi
 delta prompts (E, J) that continue a running one.
 - The generator fills `Prompt:` with the archive file name at emission (the name it would have
   under `--dry-run`). Every other field is a worker-side `{…}` variable (§4.0).
-- One line, the fields in this order, separated by ` · `. The worker keeps `Status:` to one of the
-  three words: `partial` means some checkpoints landed, `blocked` means it stopped on the stop-list.
+- The worker prints it as one line, the fields in this order, separated by ` · `. The prompt shows
+  it wrapped at a ` · ` (§4.21), with the fields and their order unchanged. The worker keeps
+  `Status:` to one of the three words: `partial` means some checkpoints landed, `blocked` means it stopped on the stop-list.
 - The fields are **claims**, not facts. The generator verifies `Branch`, `HEAD` and the gate
   numbers by artifact (Step 4) before building on them (§5.J).
 
@@ -193,8 +199,11 @@ delta prompts (E, J) that continue a running one.
   11. definition of done
   12. report spec
   13. terminal imperative
-- **Length budget: a hard cap, counted in lines inside the block.** Keep lines at or under 100
-  characters; a longer line counts as `ceil(length / 100)` lines. The archetype file names its
+- **Wrap every line in the block at 100 characters.** Break prose at a word, a list at its
+  separator, and the GENPROMPT-REPORT spec at ` · ` (continuation lines indented two spaces; the
+  worker still prints its own report line unwrapped). Only one thing may run past 100: a single
+  unbreakable token (an absolute path, URL or command) on a line of its own.
+- **Length budget: a hard cap, counted in lines inside the block.** The archetype file names its
   tier. `--brief` means about 60% of the cap.
   - A **measured-large scope** may use up to +20%: a review of more than 3 commits or 50 files, or
     a plan or roadmap of more than 20 items. Row 21 of the self-check names the measure.
