@@ -112,14 +112,27 @@ def main() -> int:
     if len(gv) != 1:
         sys.exit(f"grader versions differ {gv}: re-grade both with run.py --regrade first")
 
-    regress, hold_fail, forbidden, drops = [], [], [], []
+    regress, hold_fail, forbidden, drops, notes = [], [], [], [], []
     lines = ["| Case | rule bytes base → cand (Δ) | rule Reads (cand) | cache write base → cand | "
              "cache read base → cand | output base → cand | $ base → cand |",
              "|---|---|---|---|---|---|---|"]
     for case in [c for c in build_cases.SPEC if c in base and c in cand]:
         b, c = base[case], cand[case]
         bs, cs = status_map(b), status_map(c)
+        exempt: set[str] = set()
+        if case == "commit":
+            # Planner ruling: the fixture's work is unfinished, so the correct output is a refusal
+            # with no prompt block. archive-valid never gates commit, and a grader that failed
+            # only because there is no block is not a regression.
+            exempt.add("structural:archive-valid")
+            exempt |= {f"structural:{g['name']}" for g in c["structural"]
+                       if "no prompt block" in g["detail"] or "no fenced prompt" in g["detail"]
+                       or (g["name"] == "self-check" and "no self-check" in g["detail"])}
+            if exempt:
+                notes.append(f"commit: exempt from G1 ({', '.join(sorted(exempt))})")
         for name, st in bs.items():
+            if name in exempt:
+                continue
             if st == "PASS" and cs.get(name) == "FAIL":
                 regress.append(f"{case}: {name}")
                 if name in ("structural:cites-real", "structural:gates-exist"):
@@ -152,6 +165,8 @@ def main() -> int:
     ]
     print("\n".join(lines))
     print()
+    for n in notes:
+        print(f"note  {n}")
     for name, ok, detail in gates:
         print(f"{'PASS' if ok else 'FAIL'}  {name}: {detail}")
     verdict = all(ok for _, ok, _ in gates)
