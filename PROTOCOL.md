@@ -271,6 +271,17 @@ Reply "go" to accept, or correct any line.
    holds the full table (§6), whatever the chat shows. Under `--dry-run` there is no archive file,
    so the verdict line says `(full table: --verbose)` instead.
 
+   **The verdict line is an exact string, not a paraphrase**, because tools and evals match it
+   literally. Print exactly one of these two forms, with only the three counts filled in:
+   ```text
+   Self-check: <n> PASS · <n> N/A · <n> FAIL (full table in the archive file)
+   Self-check: <n> PASS · <n> N/A · <n> FAIL (full table: --verbose)
+   ```
+   - The second form is for `--dry-run` only. The counts are integers that add up to the number of
+     rows in §6, and a zero is printed as `0`, never dropped.
+   - The separators are a middle dot `·` with one space on each side. No bold, backticks, emoji,
+     trailing period, or other wording on the line. It stands on a line of its own.
+
    **archive.py exit codes.** It writes first, then validates, so a printed prompt is never
    missing from the archive. 0: archived (WARN lines are advisory; mention them). 1: archived
    with errors: show its FAIL lines, mark row 22 FAIL, fix the prompt and re-run with `--replace`
