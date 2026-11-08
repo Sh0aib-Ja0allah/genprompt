@@ -13,6 +13,7 @@ in CI.
 | `cases/<name>/` | Generated. `prompt.md` (request and run limits), `case.yaml` (scaffold), `scaffold.sh`, `graders/*.md` |
 | `controls/bad-emission/` | Generated negative control: the model echoes a broken prompt, and every grader must FAIL |
 | `fixtures/ledgerlite/` | A made-up Node repo: real `npm test` / `npm run lint`, a `CLAUDE.md` with branching rules, and one planted defect at `src/invoice.js:14` |
+| `fixtures/tallyhub/` | A made-up npm-workspaces monorepo: `packages/ledger-core` (in scope per its `CLAUDE.md`) and `packages/ledger-web` (out of scope, with a sibling-only `build` script); the root `test`/`lint` run every workspace |
 | `fixtures/overlays/` | Files laid over the fixture for later states: S-02 checkpoint A (committed), then uncommitted work |
 | `fixtures/scaffold-lib.sh` | Builds the fixture as a git repo in the eval's empty workspace, with fixed dates, so SHAs are stable |
 | `fixtures/samples/` | A good and a bad emission. The unit tests and the control use them |
@@ -40,6 +41,7 @@ All seven run with `--go --dry-run`, so the generator never waits and never writ
 | commit (the refusal case: unfinished work) | `/genprompt:commit` S-02 | checkpoint A + uncommitted work, a scratch file and `.env` | 200 |
 | commit-finished (the second commit case: committable work) | `/genprompt:commit` S-02 | subtotal fix merged, checkpoint A, then S-02 finished and green (11 tests, `--csv` wired), plus a scratch file and `.env` that must stay out | 200 |
 | plan | `/genprompt:plan` S-03 tax lines | main, clean | 350 |
+| slice-monorepo (tag `extra`, for E-16; no baseline yet) | `/genprompt:slice` C-02 in ledger-core | tallyhub, one commit | 260 (320). Extra graders: lock-monorepo, lock-sibling-out (regex) and gates-scoped (structural) |
 
 The next-hybrid report says 10 tests pass, but the test files declare 9. The generator should
 label that number "reported, not confirmed". Its cap is the D tier, not the 120-line Delta tier:
@@ -72,6 +74,7 @@ After the eval (`lint/structural.py`, run by `run.py`):
 | length-cap | the block's counted lines exceed the archetype's cap (a long line counts `ceil(len/100)`) |
 | gates-exist | a gate names an npm script that is not in the fixture's `package.json`, or there is no gate |
 | cites-real | a `path:line` in the block names a missing file or a line past its end |
+| gates-scoped | (monorepo cases only) a gate command runs the root scripts unfiltered or touches the sibling package. A gate passes when it is scoped with `-w`, `--workspace`, `--filter` or `--prefix`, or runs after a `cd` into the package. Command lines only, so a prose mention does not count |
 | self-check | neither the full checklist table (rows 1-22 present; more rows are fine, E-08 adds a 23rd) nor E-08's compact `Self-check: N PASS · N N/A · N FAIL` line is in chat |
 | protocol-loaded | (v2) the marker is in neither the logged context nor a Read, and the emission has no protocol-shaped TARGET LOCK |
 | no-writes | a write tool was called, or anything exists under the run's temp `~/.genprompt` |
@@ -100,7 +103,7 @@ python evals/run.py --validate               # every case loads; no model spend
 python evals/run.py --case slice             # one case, one run (smoke)
 python evals/run.py                          # all seven baseline cases
 python evals/run.py --controls               # negative control (cheap, haiku)
-python evals/run.py --tag extra              # cases tagged extra (none at present)
+python evals/run.py --tag extra              # cases tagged extra (slice-monorepo)
 python evals/run.py --regrade evals/results/<timestamp>   # re-grade stored runs, no spend
 ```
 

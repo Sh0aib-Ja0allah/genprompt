@@ -1,0 +1,10 @@
+{
+  "name": "ledger-core",
+  "version": "0.4.0",
+  "private": true,
+  "main": "src/money.js",
+  "scripts": {
+    "test": "node --test",
+    "lint": "node scripts/lint.js"
+  }
+}

@@ -124,14 +124,16 @@ def post_grade(agg: dict, out: Path, keep: bool) -> list[dict]:
                 tmp = trace.parent.parent
                 home, ws = tmp / "home", tmp / "home" / "cwd"
                 t = read_trace(trace)
-                pkg = ws / "package.json"
+                # a monorepo case gates on its in-scope package's scripts
+                pkg = ws / spec.get("package", ".") / "package.json"
                 scripts = set(json.loads(pkg.read_text(encoding="utf-8")).get("scripts", {})) \
                     if pkg.exists() else None
                 res = structural.grade(t["final"], cap=spec["cap"], cap_multi=spec.get("cap_multi"),
                                        scripts=scripts, files=workspace_files(ws),
                                        tool_uses=t["tools"], home=home,
                                        trace_events=t["events"],
-                                       letters=meta[0], cmd=meta[1], doctor=DOCTOR)
+                                       letters=meta[0], cmd=meta[1], doctor=DOCTOR,
+                                       package=spec.get("package"), sibling=spec.get("sibling"))
                 row.update({k: t[k] for k in ("model", "cost_usd", "turns", "usage",
                                               "model_usage")})
                 row["structural"] = [r.as_dict() for r in res]
@@ -223,13 +225,15 @@ def regrade(results: Path) -> int:
         if not (d / "final.txt").exists():
             continue
         t = read_trace(d / "trace.jsonl")
-        scripts = set(json.loads((build_cases.FIXTURE / "package.json").read_text(
+        root = build_cases.VARIANT_ROOT.get(spec["variant"], build_cases.FIXTURE)
+        scripts = set(json.loads((root / spec.get("package", ".") / "package.json").read_text(
             encoding="utf-8"))["scripts"])
         res = structural.grade((d / "final.txt").read_text(encoding="utf-8"), cap=spec["cap"],
                                cap_multi=spec.get("cap_multi"), scripts=scripts,
                                files=build_cases.fixture_files(spec["variant"]),
                                tool_uses=t["tools"], home=None, trace_events=t["events"],
-                               letters=meta[0], cmd=meta[1], doctor=DOCTOR)
+                               letters=meta[0], cmd=meta[1], doctor=DOCTOR,
+                                       package=spec.get("package"), sibling=spec.get("sibling"))
         row["structural"] = [r.as_dict() for r in res]
         row["grader_version"] = structural.GRADER_VERSION
     (results / "structural.json").write_text(json.dumps(rows, indent=2), encoding="utf-8")
