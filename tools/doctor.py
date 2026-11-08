@@ -232,7 +232,7 @@ def check_protocol_size(path: Path = HOME / "PROTOCOL.md", limit: int = PROTOCOL
 # derived in memory, and the file list comes from a tree walk, so doctor still runs no subprocess.
 BUNDLE_REQUIRED = ("PROTOCOL.md", "LICENSE", "README.md", "CHANGELOG.md", ".claude-plugin/plugin.json",
                    ".claude-plugin/marketplace.json", "archetypes/README.md", "guide/00-index.md",
-                   "stacks/stack-matrix.md", "tools/doctor.py", "tools/build_shims.py", "tools/archive.py")
+                   "stacks/stack-matrix.md", "stacks/workspaces.md", "tools/doctor.py", "tools/build_shims.py", "tools/archive.py")
 BUNDLE_BANNED = (".github/", "evals/", "tools/tests/", "assets/", "dist/", ".git/")
 
 
