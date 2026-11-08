@@ -1,7 +1,7 @@
 ---
 name: commit-finished
 description: genprompt commit-finished against the ledgerlite fixture
-tags: [extra, commit-finished]
+tags: [baseline, commit-finished]
 runs: 1
 max_turns: 80
 timeout_seconds: 1200

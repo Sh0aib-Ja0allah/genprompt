@@ -114,11 +114,9 @@ SPEC: dict[str, dict] = {
                     "skips the first line item; CLAUDE.md says new docs go in docs/ as "
                     "upper-case kebab, so the plan doc name is checkable",
     },
-}
-
-# Cases outside the Phase-1 baseline. They carry the tag "extra", not "baseline", so a baseline
-# run (run.py's default --tag baseline) stays comparable; run them with --tag extra.
-EXTRA: dict[str, dict] = {
+    # E-06b: two commit cases. "commit" (above) is the refusal case: the work is unfinished, so
+    # the right output is a refusal or a gated verify+commit. "commit-finished" is committable
+    # work. It joined the baseline set after the Phase-1 run; its first score is in CP4.md.
     "commit-finished": {
         "variant": "s02finished",
         "cap": 200,
@@ -132,6 +130,9 @@ EXTRA: dict[str, dict] = {
                     "before committing rather than trusted from the request",
     },
 }
+
+# Cases outside the baseline set carry the tag "extra" (run with run.py --tag extra). None now.
+EXTRA: dict[str, dict] = {}
 
 # Archetype letters and the archive filename's command words, for doctor --prompt's length tier.
 ARCHIVE_META = {"slice": ("D", "slice"), "fix": ("L", "fix"), "redesign": ("A", "redesign"),
