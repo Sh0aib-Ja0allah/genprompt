@@ -53,9 +53,24 @@ class VerdictLine(unittest.TestCase):
         line = "Self-check: 1 PASS · 0 N/A · 0 FAIL (full table: --verbose)"
         self.assertEqual(verdict(emission(line))[0], "PASS")
 
-    def test_exact_line_without_a_table_passes(self):
-        text = emission(EXACT).split("| # | Item |")[0]
-        self.assertEqual(verdict(text)[0], "PASS")
+    def test_exact_line_without_a_table_must_cover_every_checklist_row(self):
+        n = DOC.checklist_rows()
+        self.assertGreaterEqual(n, 22)
+        good = f"Self-check: {n - 3} PASS · 3 N/A · 0 FAIL (full table in the archive file)"
+        text = emission(good).split("| # | Item |")[0]          # chat form: verdict line, no table
+        status, detail = verdict(text)
+        self.assertEqual(status, "PASS", detail)
+        self.assertIn(f"cover the {n} checklist rows", detail)
+
+    def test_counts_short_of_the_checklist_warn_without_a_table(self):
+        n = DOC.checklist_rows()
+        short = f"Self-check: {n - 5} PASS · 3 N/A · 0 FAIL (full table: --verbose)"
+        status, detail = verdict(emission(short).split("| # | Item |")[0])
+        self.assertEqual(status, "WARN")
+        self.assertIn(f"the §6 checklist has {n} rows", detail)
+
+    def test_trailing_period_warns(self):
+        self.assertEqual(verdict(emission(EXACT + "."))[0], "WARN")
 
     def test_counts_that_do_not_add_up_warn(self):
         status, detail = verdict(emission("Self-check: 20 PASS · 2 N/A · 0 FAIL (full table in the archive file)"))
