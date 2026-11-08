@@ -22,6 +22,7 @@ in CI.
 | `BASELINE.md` | The Phase-1 baseline: scores per case and grader, cost, load sizes |
 | `CP4.md` | CP4: E-09 at `4fb361a` vs the baseline; why the token gates cannot pass in this harness |
 | `CP4b.md` | CP4b: E-09's token saving, measured in real use |
+| `CP5.md` | CP5: the 1.2.0 candidate (483d021): quality gates pass, load gates fail (stack-matrix and 06-library Reads); isolation follow-ups |
 | `realuse/run.py` | The real-use load probe: `compare --base <ref> --cand <ref>` prints the CP4b table and verdict; `isolation` proves the home directory is sealed |
 | `compare.py` | Applies the CP4 acceptance gates (G1-G4) to a candidate run vs the baseline |
 | `prepare_worktree.py` | Stages another commit in a detached worktree with this `evals/` copied in |
