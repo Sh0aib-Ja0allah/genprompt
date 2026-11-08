@@ -504,18 +504,23 @@ def verdict_check(lines: list[str], block_span: tuple[int, int] | None) -> tuple
         return WARN, (f"line {i + 1} paraphrases the verdict ({s[:50]!r}); PROTOCOL Step 6 item 3 wants exactly "
                       f"'Self-check: <n> PASS · <n> N/A · <n> FAIL (full table in the archive file)'")
     i, m = exact[0]
-    total = sum(int(g) for g in m.groups())
-    rows = sum(1 for j, ln in enumerate(lines) if re.match(r"^\|\s*\d+\s*\|", ln) and not (lo <= j <= hi))
-    if rows and total != rows:
-        return WARN, f"line {i + 1}: the verdict counts add up to {total}, but the self-check table has {rows} rows"
-    if not rows:
-        # a chat emission without the table: the counts must cover every §6 row (Step 6 item 3)
-        want = checklist_rows()
-        if want and total != want:
-            return WARN, (f"line {i + 1}: the verdict counts add up to {total}, but the §6 checklist has "
-                          f"{want} rows (guide/04-checklist.md)")
-        return PASS, f"line {i + 1}: exact verdict line" + (f", counts cover the {want} checklist rows" if want else "")
-    return PASS, f"line {i + 1}: exact verdict line, counts match the {rows}-row table"
+    n_pass, n_na, n_fail = (int(g) for g in m.groups())
+    total = n_pass + n_na + n_fail
+    # With a verdict line the chat shows only the FAIL and N/A rows (PROTOCOL Step 6 item 3, E-08),
+    # so a table beside it is partial: the counts are checked against the §6 checklist, and the
+    # shown rows against N/A + FAIL (or all rows, when the full table is printed instead).
+    shown = sum(1 for j, ln in enumerate(lines) if re.match(r"^\|\s*\d+\s*\|", ln) and not (lo <= j <= hi))
+    want = checklist_rows()
+    if want and total != want:
+        return WARN, (f"line {i + 1}: the verdict counts add up to {total}, but the §6 checklist has "
+                      f"{want} rows (guide/04-checklist.md)")
+    if shown and shown not in (n_na + n_fail, total):
+        return WARN, (f"line {i + 1}: {shown} self-check rows are shown, but the verdict has "
+                      f"{n_na} N/A + {n_fail} FAIL = {n_na + n_fail} (the chat shows only those rows)")
+    detail = f"line {i + 1}: exact verdict line" + (f", counts cover the {want} checklist rows" if want else "")
+    if shown:
+        detail += f", {shown} shown row(s) match " + ("N/A + FAIL" if shown == n_na + n_fail else "the full table")
+    return PASS, detail
 
 
 def checklist_rows(root: Path = HOME) -> int:
