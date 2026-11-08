@@ -410,6 +410,36 @@ IMPERATIVE_VERBS = ("start", "begin", "continue", "proceed", "resume", "go", "st
                     "read", "run", "work", "reply", "return", "wait", "send", "do", "don't", "then",
                     "now", "confirm", "finish", "open", "fix", "implement", "write", "commit")
 GATE_LABEL_RE = re.compile(r"\((?:script|contract|derived)\b|test: NONE|no gates?\b", re.I)
+# PROTOCOL Step 6 item 3: the chat-side verdict line, exactly (archived files hold the full table
+# instead and normally have no such line, so the check only runs where a verdict-like line exists).
+VERDICT_RE = re.compile(r"^Self-check: (\d+) PASS · (\d+) N/A · (\d+) FAIL "
+                        r"\((?:full table in the archive file|full table: --verbose)\)$")
+# A verdict-like line: it names the self-check with a count, or gives pass AND N/A counts. Test
+# results ("516 passed, 2 failed") carry no N/A, so grounding notes do not match.
+VERDICT_LIKE_RE = re.compile(r"self[- ]?check\b[^\n]*\d|\b\d+\s+(?:pass(?:ed)?)\b[^\n]*\b\d+\s+"
+                             r"(?:\w+\s+)?(?:N/A|not applicable)", re.I)
+
+
+def verdict_check(lines: list[str], block_span: tuple[int, int] | None) -> tuple[str, str] | None:
+    """(status, detail) for the chat verdict line, or None when the text has no verdict-like line.
+    Table rows, headings and the fenced prompt itself are never read as a verdict line."""
+    lo, hi = block_span if block_span else (-1, -1)
+    cands = [(i, ln.strip()) for i, ln in enumerate(lines)
+             if not (lo <= i <= hi) and i > 0 and ln.strip() and not ln.lstrip().startswith(("|", "#", "<!--"))
+             and VERDICT_LIKE_RE.search(ln)]
+    if not cands:
+        return None
+    exact = [(i, VERDICT_RE.match(s)) for i, s in cands if VERDICT_RE.match(s)]
+    if not exact:
+        i, s = cands[0]
+        return WARN, (f"line {i + 1} paraphrases the verdict ({s[:50]!r}); PROTOCOL Step 6 item 3 wants exactly "
+                      f"'Self-check: <n> PASS · <n> N/A · <n> FAIL (full table in the archive file)'")
+    i, m = exact[0]
+    total = sum(int(g) for g in m.groups())
+    rows = sum(1 for j, ln in enumerate(lines) if re.match(r"^\|\s*\d+\s*\|", ln) and not (lo <= j <= hi))
+    if rows and total != rows:
+        return WARN, f"line {i + 1}: the verdict counts add up to {total}, but the self-check table has {rows} rows"
+    return PASS, f"line {i + 1}: exact verdict line" + (f", counts match the {rows}-row table" if rows else "")
 
 
 def is_placeholder(inner: str) -> bool:
@@ -580,6 +610,15 @@ def lint_prompt(text: str, filename: str | None = None,
         res.append(("report-line", PASS if has else WARN,
                     "the report spec names a GENPROMPT-REPORT line" if has else
                     "the prompt asks for a report but has no GENPROMPT-REPORT line"))
+
+    # chat verdict line (WARN; only where a verdict-like line exists, never on table-only files)
+    span = None
+    if blocks:
+        _t, b_start, b_end, _b = max(blocks, key=lambda b: len(b[3]))
+        span = (b_start, b_end)
+    vc = verdict_check(lines, span)
+    if vc:
+        res.append(("verdict-line", vc[0], vc[1]))
 
     # self-check table after the block (FAIL: row 22, §10.2)
     has_table = bool(SELF_CHECK_RE.search(tail))
