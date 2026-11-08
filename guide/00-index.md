@@ -24,7 +24,7 @@ them in v3.
 | 2.3–2.5 (expanded) | Stack detection, role labels, per-stack gate ladders | `stacks/stack-matrix.md` (ladders in `stacks/ladders/`) |
 | 3 | Core principles | `guide/02-principles.md` |
 | 4 | Building blocks 4.0–4.27 | `guide/03-blocks.md` (per-archetype excerpts in `guide/blocks/`) |
-| 5 | Archetypes A–W | `archetypes/README.md` + `archetypes/<X>-<cmd>.md` |
+| 5 | Archetypes A–X | `archetypes/README.md` + `archetypes/<X>-<cmd>.md` |
 | 6 | Emission checklist | `guide/04-checklist.md` (compact form at the end of each excerpt) |
 | 7 | Anti-patterns | `guide/05-anti-patterns.md` |
 | 8 | Request grammar and flags | `guide/08-grammar.md` |
@@ -63,8 +63,8 @@ Every change to the suite also:
 - passes `python3 tools/doctor.py --suite`
 
 Stability rules.
-- Letters A–W keep their meaning forever. Archived prompts reference them. A new archetype
-  takes the next letter (X, Y, Z, then AA…).
+- Letters A–X keep their meaning forever. Archived prompts reference them. A new archetype
+  takes the next letter (Y, Z, then AA…).
 - Section numbers are never renumbered. New blocks append (4.27…).
 - No library statistics in runtime files. Counts rot. `/genprompt:doctor` computes live
   numbers on demand.

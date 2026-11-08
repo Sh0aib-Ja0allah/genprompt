@@ -75,6 +75,7 @@ Every archetype file has the same shape:
 Common lifecycles (each arrow is a new prompt):
 - New repo: `onboard → plan → roadmap → review → commit → release`
 - Feature: `slice → next → … → review → commit`
-- Bug report: `audit or review → fix → commit`
+- Bug report: `investigate → fix → commit` (`review → fix` when the bug arrived with a specific diff;
+  `audit → roadmap` when the report is really "many things are wrong")
 - Incident: `hotfix → release → docs`
 - Maintenance: `upgrade → test → cleanup → commit`
