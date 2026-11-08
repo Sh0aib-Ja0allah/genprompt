@@ -2,7 +2,8 @@
 """Compare a candidate eval run with the baseline and apply the CP4 acceptance gates.
 
     python evals/compare.py --baseline evals/results/<ts> --baseline-ref 758e59e \
-                            --candidate <dir>/evals/results/<ts> --candidate-ref <sha>
+                            --candidate <dir>/evals/results/<ts> --candidate-ref <sha> \
+                            [--extra-baseline commit-finished=evals/results/<ts>@<sha> ...]
 
 Both result dirs must hold structural.json graded by the same grader version (re-grade the older one
 with `run.py --regrade` first) and each run's trace.jsonl. Gates (agreed for CP4):
@@ -98,26 +99,43 @@ def status_map(row: dict) -> dict[str, str]:
     return out
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--baseline", type=Path, required=True)
-    ap.add_argument("--baseline-ref", required=True)
-    ap.add_argument("--candidate", type=Path, required=True)
-    ap.add_argument("--candidate-ref", required=True)
-    args = ap.parse_args()
-    for s in (sys.stdout, sys.stderr):
-        s.reconfigure(encoding="utf-8", errors="replace")
-    base, cand = load(args.baseline), load(args.candidate)
-    gv = {r.get("grader_version") for r in [*base.values(), *cand.values()]}
+def parse_extra(specs: list[str]) -> dict[str, tuple[Path, str]]:
+    """--extra-baseline CASE=RESULTS_DIR@REF → {case: (dir, ref)}. For a case with no row in the
+    main baseline (commit-finished: compared against its CP4 run at 4fb361a)."""
+    out: dict[str, tuple[Path, str]] = {}
+    for spec in specs:
+        m = re.match(r"^([\w-]+)=(.+)@([0-9A-Za-z._/-]+)$", spec)
+        if not m:
+            raise SystemExit(f"--extra-baseline wants CASE=RESULTS_DIR@REF, got {spec!r}")
+        out[m.group(1)] = (Path(m.group(2)), m.group(3))
+    return out
+
+
+def compare(base_dir: Path, base_ref: str, cand_dir: Path, cand_ref: str,
+            extra: dict[str, tuple[Path, str]] | None = None) -> tuple[list[str], list[str], list]:
+    """Returns (table lines, notes, gates). Cases in --extra-baseline are compared with their own
+    baseline run for G1/G2/G4; they stay out of G3's median, which measures the change against the
+    main baseline. Candidate cases tagged extra in build_cases (e.g. slice-monorepo) have no
+    baseline: they are reported, not gated."""
+    extra = extra or {}
+    base, cand = load(base_dir), load(cand_dir)
+    sources: dict[str, tuple[dict, Path, str]] = {c: (r, base_dir, base_ref) for c, r in base.items()}
+    for case, (d, ref) in extra.items():
+        rows = load(d)
+        if case not in rows:
+            raise SystemExit(f"--extra-baseline {case}: no such case in {d}")
+        sources[case] = (rows[case], d, ref)
+    gv = {r.get("grader_version") for r in [*(s[0] for s in sources.values()), *cand.values()]}
     if len(gv) != 1:
-        sys.exit(f"grader versions differ {gv}: re-grade both with run.py --regrade first")
+        raise SystemExit(f"grader versions differ {gv}: re-grade with run.py --regrade first")
 
     regress, hold_fail, forbidden, drops, notes = [], [], [], [], []
-    lines = ["| Case | rule bytes base → cand (Δ) | rule Reads (cand) | cache write base → cand | "
-             "cache read base → cand | output base → cand | $ base → cand |",
-             "|---|---|---|---|---|---|---|"]
-    for case in [c for c in build_cases.SPEC if c in base and c in cand]:
-        b, c = base[case], cand[case]
+    lines = ["| Case | baseline | rule bytes base → cand (Δ) | rule Reads (cand) | "
+             "cache write base → cand | cache read base → cand | output base → cand | "
+             "$ base → cand |", "|---|---|---|---|---|---|---|---|"]
+    for case in [c for c in build_cases.SPEC if c in sources and c in cand]:
+        b, bdir, bref = sources[case]
+        c = cand[case]
         bs, cs = status_map(b), status_map(c)
         exempt: set[str] = set()
         if case == "commit":
@@ -138,23 +156,32 @@ def main() -> int:
                 if name in ("structural:cites-real", "structural:gates-exist"):
                     hold_fail.append(f"{case}: {name}")
         cmd = build_cases.ARCHIVE_META[case][1].split("+")[0]
-        bt = load_bytes(args.baseline_ref, cmd) + trace_rule_reads(
-            args.baseline / case / "run1" / "trace.jsonl")[1]
-        cpaths, cread = trace_rule_reads(args.candidate / case / "run1" / "trace.jsonl")
-        ct = load_bytes(args.candidate_ref, cmd) + cread
+        bt = load_bytes(bref, cmd) + trace_rule_reads(bdir / case / "run1" / "trace.jsonl")[1]
+        cpaths, cread = trace_rule_reads(cand_dir / case / "run1" / "trace.jsonl")
+        ct = load_bytes(cand_ref, cmd) + cread
         # Forbidden: PROTOCOL, 03-blocks and the files this shim already @-includes. Another
         # archetype a hybrid needs (next-hybrid reading D-slice.md) is reported, not failed.
-        included = set(INCLUDE_RE.findall(git_show(args.candidate_ref, f"commands/{cmd}.md")))
+        included = set(INCLUDE_RE.findall(git_show(cand_ref, f"commands/{cmd}.md")))
         forbidden += [f"{case}: {p}" for p in cpaths
                       if p in included or p in ("PROTOCOL.md", "guide/03-blocks.md")]
-        drops.append((bt - ct) / bt)
+        if case in extra:
+            notes.append(f"{case}: compared against its own baseline {bdir.name} @ {bref} "
+                         f"(--extra-baseline); not in G3's median")
+        else:
+            drops.append((bt - ct) / bt)
         bu, cu = b.get("usage") or {}, c.get("usage") or {}
         lines.append(
-            f"| {case} | {bt:,} → {ct:,} ({(ct - bt) / bt:+.0%}) | {', '.join(cpaths) or 'none'} | "
+            f"| {case} | {bref} | {bt:,} → {ct:,} ({(ct - bt) / bt:+.0%}) | "
+            f"{', '.join(cpaths) or 'none'} | "
             f"{bu.get('cache_creation_input_tokens', 0):,} → {cu.get('cache_creation_input_tokens', 0):,} | "
             f"{bu.get('cache_read_input_tokens', 0):,} → {cu.get('cache_read_input_tokens', 0):,} | "
             f"{bu.get('output_tokens', 0):,} → {cu.get('output_tokens', 0):,} | "
             f"{b.get('eval_cost_usd') or 0:.3f} → {c.get('eval_cost_usd') or 0:.3f} |")
+    for case in [c for c in cand if c not in sources]:
+        st = [g for g in cand[case]["structural"] if g["status"] != "SKIPPED"]
+        notes.append(f"{case}: no baseline, reported not gated: eval score "
+                     f"{cand[case].get('eval_score')}, structural "
+                     f"{sum(g['status'] == 'PASS' for g in st)}/{len(st)}")
     med = statistics.median(drops) if drops else 0.0
     gates = [
         ("G1 no deterministic grader PASS→FAIL", not regress, "; ".join(regress) or "none"),
@@ -163,6 +190,23 @@ def main() -> int:
         ("G4 no Read of PROTOCOL/archetype/03-blocks", not forbidden,
          "; ".join(forbidden) or "none"),
     ]
+    return lines, notes, gates
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--baseline", type=Path, required=True)
+    ap.add_argument("--baseline-ref", required=True)
+    ap.add_argument("--candidate", type=Path, required=True)
+    ap.add_argument("--candidate-ref", required=True)
+    ap.add_argument("--extra-baseline", action="append", default=[], metavar="CASE=DIR@REF",
+                    help="compare CASE against another run, e.g. "
+                         "commit-finished=evals/results/2026-11-08T17-32-10Z@4fb361a")
+    args = ap.parse_args()
+    for s in (sys.stdout, sys.stderr):
+        s.reconfigure(encoding="utf-8", errors="replace")
+    lines, notes, gates = compare(args.baseline, args.baseline_ref, args.candidate,
+                                  args.candidate_ref, parse_extra(args.extra_baseline))
     print("\n".join(lines))
     print()
     for n in notes:
@@ -170,7 +214,7 @@ def main() -> int:
     for name, ok, detail in gates:
         print(f"{'PASS' if ok else 'FAIL'}  {name}: {detail}")
     verdict = all(ok for _, ok, _ in gates)
-    print(f"\nCP4 acceptance: {'PASS' if verdict else 'FAIL'}")
+    print(f"\nacceptance: {'PASS' if verdict else 'FAIL'}")
     return 0 if verdict else 1
 
 
