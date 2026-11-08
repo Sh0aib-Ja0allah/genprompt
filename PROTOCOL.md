@@ -24,7 +24,7 @@ Read only the parts the turn needs.
 | Target resolution, profile derivation, gate rules (§0–§2) | `guide/01-target-profile.md` |
 | Stack detection → role → gate ladder, per ecosystem | `stacks/stack-matrix.md` |
 | Core principles (§3) | `guide/02-principles.md` |
-| Building blocks to copy (§4) | `guide/03-blocks.md` |
+| Building blocks to copy (§4) | `guide/03-blocks.md` (per-archetype excerpts: `guide/blocks/`) |
 | The archetype being emitted (§5.A–§5.W) | `archetypes/<letter>-<command>.md`, indexed in `archetypes/README.md` |
 | Emission checklist (§6) | `guide/04-checklist.md` |
 | Anti-patterns (§7) | `guide/05-anti-patterns.md` |
@@ -199,7 +199,10 @@ Reply "go" to accept, or correct any line.
 
 1. **Read the archetype file.** It gives you the required blocks, the template, the traps, the
    autonomy rule, the baseline direction and the length budget.
-2. **Pull blocks from §4.** Copy the wording pattern, not the example's specifics.
+2. **Pull blocks from §4.** The blocks this archetype needs are already in context: the command
+   loads its excerpt, `guide/blocks/<letter>-<command>.md`, generated from `guide/03-blocks.md`.
+   Read 03-blocks only for a block the excerpt lacks (a hybrid's extra letter, §4.27 on an occupied
+   tree), and name it in the grounding notes. Copy the wording pattern, not the example's specifics.
 3. **Carry, at minimum:**
    - the repo anchor, branch and sub-scope
    - the contract and its precedence

@@ -18,6 +18,7 @@ Usage:  python tools/build_shims.py           write any command file that differ
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 from typing import NamedTuple
@@ -246,9 +247,14 @@ def includes(files: list[str], protocol: bool = True) -> str:
                 f"This utility does not need `PROTOCOL.md`; do not Read it. If "
                 f"`{USER_HOME}/local-rules.md` exists, Read it (personal rules). Everything below "
                 f"assumes they are loaded.\n")
+    # The @-lines above expand into the files' text when the command loads (verified for plugin
+    # commands in E-09b). Re-reading them "to be safe" doubled the rule load, so Step 0 reads a
+    # file only when its text is genuinely absent.
     return (f"{inc}\n\n{paths}"
-            f"Step 0: if the line `GENPROMPT-PROTOCOL v3 LOADED` is not visible above, or any "
-            f"file listed here is missing from context, Read it now: {reads}. Then run "
+            f"Step 0: the files listed above are already in your context: their text follows the "
+            f"`@` lines, and PROTOCOL.md's third line contains `GENPROMPT-PROTOCOL v3 LOADED`. Do "
+            f"not Read them again. Read one only if its text is truly absent from your context (for "
+            f"example, the marker is nowhere above): {reads}. Then run "
             f"`ls -d ~ {USER_HOME}/local-rules.md` once: it prints your absolute home directory "
             f"(use it for every Write), and if `local-rules.md` exists, Read it (personal rules, see "
             f"PROTOCOL). Everything below assumes they are loaded.\n")
@@ -256,7 +262,7 @@ def includes(files: list[str], protocol: bool = True) -> str:
 
 def archetype_shim(letter, cmd, stem, name, desc, hint, flags: str = FLAGS) -> str:
     return (frontmatter(desc, f"{hint}   {flags}", f", {ARCHIVE}", cmd=cmd) + "\n" +
-            includes([f"archetypes/{stem}.md"]) +
+            includes([f"archetypes/{stem}.md", f"{BLOCKS_DIR}/{stem}.md"]) +
             f"\nCommand `/genprompt:{cmd}` → archetype **{letter}: {name}** (§5.{letter}). "
             f"Follow PROTOCOL Steps 1–7 with this archetype. If the request is really a different "
             f"archetype, say so in the TARGET LOCK and use the right one (hybrids are fine).\n\n"
@@ -280,7 +286,9 @@ def root_shim() -> str:
     return (frontmatter(ENTRY_DESC, f"{ENTRY_HINT}   {FLAGS}", f", {ARCHIVE}")
             + "\n" + includes(["archetypes/README.md"]) +
             f"\nEntry point `/genprompt:{ENTRY}`. Pick the archetype from the request using the picker "
-            "in `archetypes/README.md`, then Read that archetype's file and follow PROTOCOL Steps 1–7. "
+            "in `archetypes/README.md`, then Read that archetype's file and its block excerpt "
+            f"`{BLOCKS_DIR}/<letter>-<command>.md` (this entry point loads neither up front, because "
+            "it picks the archetype first), and follow PROTOCOL Steps 1–7. "
             "A pasted worker stop-report with no instruction means archetype J (`:next`). An empty "
             "request: resolve the target anyway, then, in one message and without asking twice, "
             "show the target and these six commands, each with its purpose: "
@@ -315,7 +323,79 @@ def expected() -> dict[Path, str]:
                                                        r.hint, FLAGS_RO if r.read_only else FLAGS)
     for u in UTILITIES:
         out[COMMANDS / f"{u.cmd}.md"] = utility_shim(u.cmd, u.files, u.desc, u.hint)
+    for r in ARCHETYPES:
+        out[ROOT / BLOCKS_DIR / f"{r.stem}.md"] = block_excerpt(r)
     return out
+
+
+# --- guide/blocks/<stem>.md: per-archetype excerpts of guide/03-blocks.md (E-09a) ---------------
+# 03-blocks stays the single, hand-edited source. Each archetype shim @-includes its excerpt, so a
+# generator has every block it needs without loading all of 03-blocks.
+
+BLOCKS_SRC = ROOT / "guide" / "03-blocks.md"
+BLOCKS_DIR = "guide/blocks"
+# Blocks every emission needs (PROTOCOL Step 5 "carry at minimum", Step 6): notation, header,
+# grounding, interpretations, anchor, source of truth, skepticism, stop-list, verification/report,
+# length budget, verify-at-start.
+COMMON_BLOCKS = ("4.0", "4.1", "4.2", "4.3", "4.5", "4.6", "4.7", "4.13", "4.14", "4.21", "4.22")
+_SEC_HEAD = re.compile(r"^### (4\.\d+)\b", re.M)
+_SEC_REF = re.compile(r"§(4\.\d+)")
+_INSERT_REF = re.compile(r"\[INSERT §(4\.\d+)")
+
+
+def _sec_key(s: str) -> int:
+    return int(s.split(".")[1])
+
+
+def block_sections() -> dict[str, str]:
+    """guide/03-blocks.md cut by `### 4.x` heading: {"4.14": "### 4.14 …\n…"} (verbatim)."""
+    text = BLOCKS_SRC.read_text(encoding="utf-8") if BLOCKS_SRC.exists() else ""
+    heads = list(_SEC_HEAD.finditer(text))
+    out = {}
+    for i, m in enumerate(heads):
+        end = heads[i + 1].start() if i + 1 < len(heads) else len(text)
+        out[m.group(1)] = text[m.start():end]
+    return out
+
+
+def archetype_text(r: Arch) -> str:
+    p = ROOT / "archetypes" / f"{r.stem}.md"
+    return p.read_text(encoding="utf-8") if p.exists() else ""
+
+
+def excerpt_ids(r: Arch) -> list[str]:
+    """Common blocks + every §4.x the archetype names (Required list, INSERTs, prose)."""
+    ids = set(COMMON_BLOCKS) | set(_SEC_REF.findall(archetype_text(r)))
+    return sorted(ids, key=_sec_key)
+
+
+def block_excerpt(r: Arch) -> str:
+    secs = block_sections()
+    ids = [i for i in excerpt_ids(r) if i in secs]
+    body = "".join(secs[i].rstrip("\n") + "\n\n" for i in ids).rstrip("\n") + "\n"
+    return (f"<!-- generated by tools/build_shims.py from guide/03-blocks.md: do not edit. -->\n"
+            f"# Blocks for archetype {r.letter}: {r.name} (excerpt of §4)\n\n"
+            f"Verbatim from `guide/03-blocks.md`: {', '.join('§' + i for i in ids)}. Any other §4 "
+            f"block (a hybrid's extra letter, §4.27 on an occupied tree): read it there.\n\n"
+            + body)
+
+
+def excerpt_errors() -> list[str]:
+    """A named §4.x that 03-blocks lacks, or an INSERT the excerpt would not contain."""
+    errors = []
+    secs = block_sections()
+    if not secs:
+        return ["guide/03-blocks.md: no `### 4.x` sections found"]
+    for r in ARCHETYPES:
+        ids = set(excerpt_ids(r))
+        text = archetype_text(r)
+        for ref in sorted(set(_SEC_REF.findall(text)), key=_sec_key):
+            if ref not in secs:
+                errors.append(f"archetypes/{r.stem}.md names §{ref}, which guide/03-blocks.md lacks")
+        for ref in _INSERT_REF.findall(text):
+            if ref not in ids:
+                errors.append(f"archetypes/{r.stem}.md INSERTs §{ref}, missing from its excerpt")
+    return errors
 
 
 # --- guide/08-grammar.md: the command blocks between the markers are generated -----------------
@@ -364,7 +444,7 @@ def main(argv: list[str]) -> int:
         say(f"unknown argument(s): {' '.join(unknown)}   usage: build_shims.py [--check]")
         return 2
     check = "--check" in argv
-    errors = table_errors()
+    errors = table_errors() + excerpt_errors()
     for e in errors:
         say(f"ERROR {e}")
     if errors:
@@ -382,7 +462,8 @@ def main(argv: list[str]) -> int:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(text, encoding="utf-8", newline="\n")
             say(f"wrote {path.relative_to(ROOT).as_posix()}")
-    for p in sorted(set(COMMANDS.glob("*.md")) - set(exp)):
+    generated_dirs = (COMMANDS, ROOT / BLOCKS_DIR)
+    for p in sorted({f for d in generated_dirs for f in d.glob("*.md")} - set(exp)):
         say(f"EXTRA {p.relative_to(ROOT).as_posix()} (not generated by build_shims.py)")
         bad += 1
     docs = expected_docs()
@@ -400,7 +481,9 @@ def main(argv: list[str]) -> int:
                 path.write_text(text, encoding="utf-8", newline="\n")
                 say(f"wrote {rel} (generated region)")
     if check:
-        say(f"commands: {len(exp)} expected, {bad} differ/extra")
+        n_blk = sum(1 for p in exp if p.parent == ROOT / BLOCKS_DIR)
+        say(f"commands: {len(exp) - n_blk} expected, excerpts: {n_blk} expected, "
+            f"{bad} differ/extra")
         say(f"docs: {len(docs)} with a generated region, {docs_bad} differ")
     return 1 if (check and (bad or docs_bad)) or missing else 0
 

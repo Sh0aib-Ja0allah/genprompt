@@ -50,6 +50,10 @@ has CI, a unit-test suite and an eval baseline.
 - 2026-11-08 · tools/doctor.py · Lint WARN when a chat verdict line is not exactly `Self-check: <n> PASS
   · <n> N/A · <n> FAIL (…)` or its counts miss the row count (the table's, or the §6 checklist's when
   no table is shown); never runs on table-only files.
+- 2026-11-07 · tools/build_shims.py · Step 0 no longer re-reads the @-included PROTOCOL and
+  archetype (probe showed they are already in context); saves ~20 KB per emission.
+- 2026-11-07 · tools/build_shims.py, guide/blocks/, PROTOCOL.md · Each archetype shim @-includes a
+  generated excerpt of the 03-blocks sections it needs, instead of the generator reading 03-blocks.
 
 ## 1.0.0 (2026-09-24): first public release
 
