@@ -278,7 +278,7 @@ def case_files(name: str, spec: dict) -> dict[str, str]:
         g("no-edit", "type: tool_used\ntool: Edit\nmin: 0\nmax: 0"),
         *([
             # Monorepo: the lock must say monorepo and name the sibling as out of scope.
-            g("lock-monorepo", "type: regex\npattern: 'monorepo'\nflags: i"),
+            g("lock-monorepo", "type: regex\npattern: 'monorepo|workspaces'\nflags: i"),
             g("lock-sibling-out", "type: regex\npattern: '"
               + spec["sibling"] + r"[^\n]{0,60}\bOUT\b|\bOUT\b[^\n]{0,80}" + spec["sibling"]
               + "'\nflags: i"),

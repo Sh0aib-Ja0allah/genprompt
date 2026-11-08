@@ -1,5 +1,5 @@
 ---
 type: regex
-pattern: 'monorepo'
+pattern: 'monorepo|workspaces'
 flags: i
 ---

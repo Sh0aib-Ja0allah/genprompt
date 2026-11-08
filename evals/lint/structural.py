@@ -21,7 +21,9 @@ PASS, FAIL, SKIPPED, WARN = "PASS", "FAIL", "SKIPPED", "WARN"
 # ignores a <name> that is part of a quoted path pattern (feat/<slug>, docs/<TOPIC>.md) or sits in
 # a double-quoted string; adds protocol-loaded from the trace (marker in context OR a Read).
 # v3: archive-valid runs `tools/doctor.py --prompt` (E-04a) on the emission instead of SKIPPED.
-GRADER_VERSION = 3
+# v4 (CP5b): monorepo cases add gates-scoped, and cites-real resolves package-relative paths.
+# Single-repo results are unchanged from v3; stored runs were re-graded to v4 so compare.py can mix them.
+GRADER_VERSION = 4
 PROTOCOL_MARKER = "GENPROMPT-PROTOCOL v3 LOADED"
 LINE_MAX = 100
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}

@@ -211,58 +211,82 @@ def compare(args) -> int:
     work.mkdir(parents=True)
     base, cand = stage(args.base, "gp-base", work), stage(args.cand, "gp-cand", work)
     fx = fixture(work)
-    print(f"work dir {work}\nbase {args.base} -> /gp-base:, cand {args.cand} -> /gp-cand:")
-    rows, verdict_reads, outside_bad = [], [], []
+    print(f"work dir {work}\nbase {args.base} -> /gp-base:, cand {args.cand} -> /gp-cand:"
+          f" · {args.runs} run(s) per cell")
+    # runs[case][ref] = list of analyses, one per run (each run is a fresh claude -p session)
+    runs: dict[str, dict[str, list[dict]]] = {}
+    verdict_reads, outside_bad = [], []
     for case in args.cases:
-        res = {}
+        runs[case] = {}
         for plugin in (base, cand):
-            out = work / f"{plugin.name}-{case}-{args.model}.jsonl"
-            run_claude(claude_cmd(work, plugin, args.model, args.budget,
-                                  f"/{plugin.name}:{case} {REQUESTS[case]}"), fx, out)
-            a = analyze(out, plugin, work)
-            inc = include_bytes(plugin, case)
-            a["inc"], a["rule"] = inc, inc + sum(n for _, n in a["reads"])
-            res[plugin.name] = a
-            outside_bad += [f"{plugin.name}/{case}: {t} {p} {r}" for t, p, r in a["outside"]
-                            if not r.startswith("denied")]
-        b, c = res["gp-base"], res["gp-cand"]
+            runs[case][plugin.name] = []
+            for i in range(1, args.runs + 1):
+                suffix = "" if args.runs == 1 else f"-r{i}"
+                out = work / f"{plugin.name}-{case}-{args.model}{suffix}.jsonl"
+                run_claude(claude_cmd(work, plugin, args.model, args.budget,
+                                      f"/{plugin.name}:{case} {REQUESTS[case]}"), fx, out)
+                a = analyze(out, plugin, work)
+                inc = include_bytes(plugin, case)
+                a["inc"], a["rule"] = inc, inc + sum(n for _, n in a["reads"])
+                runs[case][plugin.name].append(a)
+                outside_bad += [f"{plugin.name}/{case}/r{i}: {t} {p} {r}"
+                                for t, p, r in a["outside"] if not r.startswith("denied")]
         forbidden = set(includes(cand, case)) | {"PROTOCOL.md", "guide/03-blocks.md"}
-        verdict_reads += [f"{case}: {p}" for p, _ in c["reads"] if p in forbidden]
-        rows.append((case, b, c))
-    lines = ["| Case | first-turn ctx base → cand | @-included bytes | rule Reads base → cand | "
-             "rule bytes base → cand (Δ) | cache write | cache read | output | $ |",
+        verdict_reads += [f"{case}: {p}" for a in runs[case]["gp-cand"]
+                          for p, _ in a["reads"] if p in forbidden]
+
+    med = statistics.median
+    lines = ["| Case | first-turn ctx base → cand (median) | @-included bytes | rule Reads base → cand "
+             "(files × runs) | rule bytes base → cand (median, Δ) | per-run rule bytes base / cand | "
+             "cache write (median) | cache read (median) | $ (sum) |",
              "|---|---|---|---|---|---|---|---|---|"]
-    drops = []
-    for case, b, c in rows:
-        bu, cu = b["result"].get("usage", {}), c["result"].get("usage", {})
-        drop = (b["rule"] - c["rule"]) / b["rule"] if b["rule"] else 0.0
-        drops.append(drop)
-        names = lambda a: ", ".join(Path(p).name for p, _ in a["reads"]) or "none"  # noqa: E731
+    case_drops, run_drops, first_ok = [], [], True
+    for case in args.cases:
+        b_runs, c_runs = runs[case]["gp-base"], runs[case]["gp-cand"]
+        bm, cm = med([a["rule"] for a in b_runs]), med([a["rule"] for a in c_runs])
+        drop = (bm - cm) / bm if bm else 0.0
+        case_drops.append(drop)
+        run_drops += [(b["rule"] - c["rule"]) / b["rule"] for b in b_runs for c in c_runs
+                      if b["rule"]]
+        bf, cf = med([a["first"] or 0 for a in b_runs]), med([a["first"] or 0 for a in c_runs])
+        first_ok &= cf > bf
+
+        def files(rs):
+            seen: dict[str, int] = {}
+            for a in rs:
+                for p in {Path(p).name for p, _ in a["reads"]}:
+                    seen[p] = seen.get(p, 0) + 1
+            return ", ".join(f"{p}×{n}" for p, n in sorted(seen.items())) or "none"
+
+        u = lambda rs, k: med([a["result"].get("usage", {}).get(k, 0) or 0 for a in rs])  # noqa: E731
+        cost = lambda rs: sum(a["result"].get("total_cost_usd") or 0 for a in rs)  # noqa: E731
         lines.append(
-            f"| {case} | {b['first']:,} → {c['first']:,} | {b['inc']:,} → {c['inc']:,} | "
-            f"{names(b)} → {names(c)} | {b['rule']:,} → {c['rule']:,} ({-drop:+.1%}) | "
-            f"{bu.get('cache_creation_input_tokens', 0):,} → {cu.get('cache_creation_input_tokens', 0):,} | "
-            f"{bu.get('cache_read_input_tokens', 0):,} → {cu.get('cache_read_input_tokens', 0):,} | "
-            f"{bu.get('output_tokens', 0):,} → {cu.get('output_tokens', 0):,} | "
-            f"{b['result'].get('total_cost_usd') or 0:.4f} → {c['result'].get('total_cost_usd') or 0:.4f} |")
-    med = statistics.median(drops) if drops else 0.0
+            f"| {case} | {bf:,.0f} → {cf:,.0f} | {b_runs[0]['inc']:,} → {c_runs[0]['inc']:,} | "
+            f"{files(b_runs)} → {files(c_runs)} | {bm:,.0f} → {cm:,.0f} ({-drop:+.1%}) | "
+            f"{' '.join(f'{a['rule']:,}' for a in b_runs)} / {' '.join(f'{a['rule']:,}' for a in c_runs)} | "
+            f"{u(b_runs, 'cache_creation_input_tokens'):,.0f} → {u(c_runs, 'cache_creation_input_tokens'):,.0f} | "
+            f"{u(b_runs, 'cache_read_input_tokens'):,.0f} → {u(c_runs, 'cache_read_input_tokens'):,.0f} | "
+            f"{cost(b_runs):.4f} → {cost(c_runs):.4f} |")
+    all_med = med(run_drops) if run_drops else 0.0
     checks = [
         ("A1 no Read of an @-included file, PROTOCOL.md or 03-blocks", not verdict_reads,
          "; ".join(verdict_reads) or "none"),
-        ("A2 first-turn context larger in the candidate",
-         all(c["first"] > b["first"] for _, b, c in rows), "per case"),
-        ("A3 rule bytes lower in every case", all(d > 0 for d in drops),
-         ", ".join(f"{-d:+.1%}" for d in drops)),
-        (f"A4 median rule-byte drop ≥ {args.min_drop:.0%}", med >= args.min_drop,
-         f"median {med:.1%}"),
-        ("A5 isolation: nothing outside the work dir returned content", not outside_bad,
-         "; ".join(outside_bad) or "every outside call was denied"),
+        ("A2 first-turn context larger in the candidate (median per case)", first_ok, "per case"),
+        ("A3 median rule bytes lower in every case", all(d > 0 for d in case_drops),
+         ", ".join(f"{c} {-d:+.1%}" for c, d in zip(args.cases, case_drops))),
+        (f"A4 median rule-byte drop across all runs ≥ {args.min_drop:.0%}",
+         all_med >= args.min_drop,
+         f"all-runs median {all_med:.1%} over {len(run_drops)} base×cand pairs; "
+         f"median of per-case medians {med(case_drops):.1%}"),
+        ("A5 isolation: nothing outside the probe root returned content", not outside_bad,
+         "; ".join(outside_bad[:6]) or "every outside call was denied or harmless"),
     ]
-    cost = sum((a["result"].get("total_cost_usd") or 0) for _, b, c in rows for a in (b, c))
+    total = sum(a["result"].get("total_cost_usd") or 0
+                for case in runs.values() for rs in case.values() for a in rs)
     report = "\n".join(lines) + "\n\n" + "\n".join(
         f"{'PASS' if ok else 'FAIL'}  {n}: {d}" for n, ok, d in checks)
     report += f"\n\nverdict: {'PASS' if all(ok for _, ok, _ in checks) else 'FAIL'} · " \
-              f"model {args.model} · total ${cost:.4f}"
+              f"model {args.model} · {args.runs} run(s) per cell · total ${total:.4f}"
     (work / "report.md").write_text(report + "\n", encoding="utf-8")
     print(report)
     return 0 if all(ok for _, ok, _ in checks) else 1
@@ -329,6 +353,7 @@ def main() -> int:
     c.add_argument("--model", default="haiku")
     c.add_argument("--budget", default="0.40", help="max $ per claude -p run")
     c.add_argument("--min-drop", type=float, default=0.25)
+    c.add_argument("--runs", type=int, default=1, help="fresh runs per case per ref (gate on the median)")
     c.add_argument("--workroot")
     i = sub.add_parser("isolation")
     i.add_argument("--workroot")

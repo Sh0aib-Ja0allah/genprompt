@@ -208,3 +208,20 @@ Options for the PE and Shoaib:
     probe runs' fixture, and a Glob of `C:/` timed out without returning names.
   - A5 now treats the probe root as inside and accepts "search timed out". Re-checked offline on
     the CP5b traces: PASS.
+
+## Re-grade after the grader changes (no spend, grader version 4)
+
+- **lock-monorepo** now accepts `monorepo` or `workspaces`, because the lock's meaning ("npm
+  workspaces: … IN · … OUT") was right. I re-checked the stored final messages with the new
+  pattern: CP5 (`2026-11-08T19-29-36Z`) PASS, and it passed before too ("npm-workspaces
+  monorepo"); CP5b (`2026-11-08T20-25-36Z`) **PASS**, where it was FAIL before. slice-monorepo
+  therefore passes all three monorepo graders in both runs.
+- **Structural graders v4** (gates-scoped plus package-relative cites-real) re-graded every stored
+  run: the Phase-1 baseline, CP4, CP4 commit-finished, CP5, slice-monorepo and CP5b. Single-repo
+  results are unchanged from v3. slice-monorepo's cites-real is now PASS in both CP5 (29
+  citations) and CP5b (30); in CP5 it was FAIL under v3.
+- rubric-grounding on slice-monorepo cannot be re-judged without spend. Its FFF in CP5 and CP5b is
+  attributed to the wrong SHA fact, which is now fixed. The next slice-monorepo run will show it.
+- `realuse/run.py compare --runs N` now runs each case N times per ref in fresh sessions. A4 gates
+  on the median drop across all base×candidate run pairs, and the table also shows per-case
+  medians and per-run rule bytes. A3 requires every case's median to drop.
