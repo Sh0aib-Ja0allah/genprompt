@@ -54,7 +54,7 @@ it in the TARGET LOCK.
 ```text
 /genprompt:help       [goal, e.g. 'I need to upgrade Laravel']  "I want to X" → which command, with flags and examples
 /genprompt:history    [repo] [n]             the latest n shard rows (default 10) and the follows chain
-/genprompt:doctor     [--suite | --archive]  integrity check of the rules and the archive
+/genprompt:doctor     [--suite | --archive | --suggest-fixes]  integrity check of the rules and the archive
 /genprompt:learn      <rule or lesson>       save a lesson as a personal rule in ~/.genprompt/local-rules.md (shows the diff first)
 /genprompt:profile    [repo] [--dry-run]     derive or refresh the profile card; no prompt
 ```

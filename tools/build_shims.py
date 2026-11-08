@@ -204,7 +204,7 @@ UTILITIES = [
          "the latest n shard rows (default 10) and the follows chain"),
     Util("doctor", ["utilities/doctor.md"],
          "Check the genprompt rules suite and prompt archive for integrity errors (no prompt)",
-         "[--suite | --archive]",
+         "[--suite | --archive | --suggest-fixes]",
          "integrity check of the rules and the archive"),
     Util("learn", ["utilities/learn.md", "guide/00-index.md"],
          "Save a lesson as a personal genprompt rule in local-rules.md, diff first (no prompt)",

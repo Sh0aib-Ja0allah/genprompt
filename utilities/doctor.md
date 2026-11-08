@@ -1,11 +1,11 @@
-# Utility: `/genprompt:doctor [--suite|--archive]`
+# Utility: `/genprompt:doctor [--suite|--archive|--suggest-fixes]`
 
 Emits no worker prompt. Writes nothing.
 
 1. **Run exactly this**, with the genprompt root that the command states, written the same way
    (forward slashes; quote the path only if it contains a space). The command is pre-approved in
    exactly this form:
-   `python3 <genprompt root>/tools/doctor.py [--suite|--archive]`
+   `python3 <genprompt root>/tools/doctor.py [--suite|--archive|--suggest-fixes]`
    If `python3` is missing or is only a store alias (common on Windows), run the same command with
    `python`. Never `cd` first, and never chain it with another command.
 2. **Summarise the output:**
@@ -19,6 +19,12 @@ Emits no worker prompt. Writes nothing.
      Never edit the genprompt root.
    - an archive error means a shard fix; show the exact row change. Never edit a prompt file.
 4. **The exit code is non-zero only on ERROR.** Report it.
+5. **`--suggest-fixes`** prints a repair plan for the archive ERRORs instead of the check: per row or
+   file, the ERROR, the exact before -> after (or an instruction), and a tag: `derivable` (the right
+   value follows from the archive itself) or `manual` (it does not; nothing is invented, e.g. a
+   missing self-check "cannot be repaired automatically"). It also counts legacy label drift
+   (`--verbose` lists it). It writes nothing and always exits 0. Relay its summary and the backup
+   line; the user applies the plan, never you.
 
 **What doctor checks** (the source of truth is the script itself):
 - **Suite:**

@@ -824,6 +824,327 @@ def check_archive(letters_by_word: dict[str, str]) -> dict:
     return stats
 
 
+# ---------------------------------------------------------------------------------------------
+# --suggest-fixes: a PRINT-ONLY repair plan for the --archive ERRORs (and legacy label drift).
+# It reads exactly what --archive reads and writes nothing, ever. A fix is "derivable" only when
+# the correct value follows from the archive itself (the file's line-1 header, the shard row, a
+# file that exists); everything else is "manual" and no content is invented.
+# ---------------------------------------------------------------------------------------------
+FILE_MSG = re.compile(r"^(?P<rel>[^:]+\.md): (?P<rest>.*)$")
+ROW_MSG = re.compile(r"^(?:(?:shard fields != 5|task over \d+ chars|em-dash or middle dot in row): )?"
+                     r"(?P<shard>[a-z0-9-]+\.tsv):(?P<ln>\d+)(?:: (?P<rest>.*)| \(.*\))?$")
+
+
+def fit_task(task: str) -> str:
+    """The shard-row form of a task (§10.3): no '|', '·', em-dash or newline, at most TASK_CAP."""
+    for bad, good in (("\n", " "), ("|", "/"), ("·", "-"), ("—", "-")):
+        task = task.replace(bad, good)
+    return task if len(task) <= TASK_CAP else task[: TASK_CAP - 3].rstrip() + "..."
+
+
+def file_meta(p: Path) -> dict[str, str] | None:
+    text = read(p, "archive") if p.is_file() else None
+    first = text.splitlines()[0] if text else ""
+    meta, problems = parse_header(first)
+    return meta if meta is not None and not problems else None
+
+
+def now_line(p: Path) -> str | None:
+    """The task as the prompt states it: the NOW: line inside the fenced block."""
+    text = read(p, "archive") or ""
+    blocks = fences(text)
+    if not blocks:
+        return None
+    body = max(blocks, key=lambda b: len(b[3]))[3]
+    for ln in body:
+        m = re.match(r"^\s*NOW:\s*(.+)$", ln)
+        if m:
+            return fit_task(m.group(1).strip())
+    return None
+
+
+def shard_path_line(key: str) -> str | None:
+    """The repo path for a shard header, from the first prompt file in <key>/ with a valid header."""
+    for p in sorted((ARCHIVE / key).glob("*.md")) if (ARCHIVE / key).is_dir() else []:
+        meta = file_meta(p)
+        if meta and meta.get("path"):
+            return meta["path"]
+    return None
+
+
+def name_parts(name: str) -> tuple[str, str, str] | None:
+    """(date, cmds, slug) from <date>-<cmd>[+<cmd>]-<slug>.md."""
+    m = re.match(r"^(\d{4}-\d{2}-\d{2})-([a-z]+(?:\+[a-z]+)*)-([a-z0-9-]+)\.md$", name)
+    return m.groups() if m else None
+
+
+def plan_row(shard: str, ln: int, msgs: list[str], cmd_by_letter: dict[str, str]) -> dict:
+    path = SHARDS / shard
+    lines = (read(path, "archive") or "").splitlines()
+    raw = lines[ln - 1] if 0 < ln <= len(lines) else ""
+    sep = shard_separator(lines)
+    f = split_row(raw, sep)
+    key = shard[:-4]
+    item = {"where": f"by-repo/{shard}:{ln}", "errors": msgs, "before": raw, "kind": "manual"}
+
+    if any(m.startswith("shard fields != 5") for m in msgs):
+        tab = raw.split("\t")
+        if len(tab) == 5 and LABEL_RE.match(tab[1].strip()) and (tab[3].strip().endswith(".md") or tab[3].strip() == "-"):
+            item.update(kind="derivable", cls="tab-separated row in a ' | ' shard",
+                        after=" | ".join(x.strip() for x in tab))
+        else:
+            item.update(cls="foreign row (not a genprompt row)",
+                        fix="this row was not written by genprompt (its fields are not date, letters, slug, "
+                            "file, task). Move it out of the shard, for example into a note, or delete it.")
+        return item
+
+    if len(f) != 5:
+        item.update(cls="unparseable row", fix="the row does not split into 5 fields; rewrite it by hand.")
+        return item
+    date, label, slug, fref, task = f
+    new = list(f)
+    notes, manual, classes = [], [], []
+    if label == "none" and fref != "-":
+        if fref in {"none", "(none)", ""}:
+            new[3] = "-"
+            classes.append("status row file")
+            notes.append("status row: file 'none' becomes '-'")
+        else:
+            meta = file_meta(ARCHIVE / key / fref)
+            if meta:
+                new[1] = meta["archetype"]
+                classes.append("status row with a file")
+                notes.append(f"label 'none' becomes {meta['archetype']} (from the file's line-1 header)")
+            else:
+                manual.append("a status row names a file that does not exist or has no header: either set "
+                              "the file to '-' (a status row) or restore the file")
+    if label != "none" and fref == "-":
+        hits = sorted((ARCHIVE / key).glob(f"{date}-*-{slug}.md")) if (ARCHIVE / key).is_dir() else []
+        if len(hits) == 1:
+            new[3] = hits[0].name
+            classes.append("prompt row without a file")
+            notes.append("file '-' becomes the one archived file with this date and slug")
+        elif task.lower().startswith("status:"):
+            new[1] = "none"
+            classes.append("prompt row without a file")
+            notes.append("a 'status:' task with no file is a status row: label becomes 'none'")
+        else:
+            manual.append(f"label {label} with no file: either it is a status row (label 'none', task "
+                          f"'status: …') or its prompt file is missing; only you know which")
+    if any(m.startswith(("task over", "em-dash or middle dot")) or "'|' inside the task" in m for m in msgs):
+        fitted = fit_task(task)
+        if fitted != task:
+            new[4] = fitted
+            classes.append("task too long")
+            notes.append(f"task shortened to {len(fitted)} characters / separators replaced (the detail stays in the file)")
+    handled = ("task over", "em-dash", "row points to a missing file", "a status row must have", "file '-' is not",
+               "'|' inside")
+    other = [m for m in msgs if not any(h in m for h in handled)]
+    manual += [f"no automatic fix: {m}" for m in other]
+    if manual or not notes:
+        item.update(cls="row needs a decision", fix="; ".join(manual or ["no automatic fix known"]))
+        if notes:
+            item["partial"] = notes
+        return item
+    item.update(kind="derivable", cls=" + ".join(dict.fromkeys(classes)),
+                after=(" | " if sep != "\t" else "\t").join(new), notes=notes)
+    return item
+
+
+def plan_file(rel: str, msgs: list[str], cmd_by_letter: dict[str, str], rows_by_file: dict) -> dict:
+    p = ARCHIVE / rel
+    key = rel.split("/")[0] if "/" in rel else ""
+    item = {"where": rel, "errors": msgs, "kind": "manual"}
+    text = read(p, "archive") or ""
+    lines = text.splitlines()
+    m0 = msgs[0]
+    if m0.startswith("file with no shard row"):
+        meta = file_meta(p)
+        parts = name_parts(p.name)
+        task = now_line(p)
+        if meta and parts and task and key:
+            row = " | ".join([meta["date"], meta["archetype"], parts[2], p.name, task])
+            shard = SHARDS / f"{key}.tsv"
+            where = f"append below the last line of by-repo/{key}.tsv" if shard.exists() else \
+                f"create by-repo/{key}.tsv with the three §10 header lines (path: {meta.get('path')}), then"
+            item.update(kind="derivable", cls="file with no shard row", fix=f"{where}:", after=row,
+                        notes=["task taken from the prompt's NOW: line"])
+        else:
+            why = "no valid line-1 header" if not meta else "no NOW: line to take the task from" if not task \
+                else "the filename is not <date>-<cmd>-<slug>.md"
+            item.update(cls="file with no shard row", fix=f"write its shard row by hand ({why}).")
+            if meta and parts:
+                item["after"] = " | ".join([meta["date"], meta["archetype"], parts[2], p.name,
+                                            "<the task in one line, 200 characters at most>"])
+        return item
+    if "no self-check table" in m0 or "no fenced prompt" in m0 or "the full prompt is missing" in m0:
+        cls = "no self-check table" if "self-check" in m0 else "no fenced prompt" if "no fenced" in m0 else "stub prompt"
+        item.update(cls=cls, fix="cannot be repaired automatically (the missing content is not in the archive); "
+                                 "leave it as a flagged record, or move it to ~/.genprompt/history/ with its row.")
+        return item
+    if "3-backtick outer fence" in m0:
+        blocks = fences(text)
+        outer = max(blocks, key=lambda b: len(b[3])) if blocks else None
+        item.update(cls="3-backtick outer fence", fix="cannot be repaired automatically: the nested fence closed the "
+                    "outer one, so where the prompt really ends is a judgement. Change the outer fence to 4 "
+                    f"backticks by hand (it opens at line {outer[1] + 1 if outer else '?'}).")
+        return item
+    if "v3 file without the line-1 header" in m0:
+        row = rows_by_file.get(p.name)
+        path_ = shard_path_line(key) if key else None
+        parts = name_parts(p.name)
+        if row and parts and path_:
+            repo = Path(path_.replace("\\", "/")).name
+            hdr = (f"<!-- genprompt v3: key={key} | repo={repo} | path={path_} | date={parts[0]} | "
+                   f"archetype={row[1]} | follows=- -->")
+            item.update(kind="derivable", cls="missing line-1 header", fix="insert as the new line 1:", after=hdr,
+                        notes=["from the shard row and the shard's path; follows is unknown, so '-'"])
+        else:
+            item.update(cls="missing line-1 header", fix="write the line-1 header by hand (no shard row or path to derive it from).")
+        return item
+    m = re.search(r"header date=(\S+) does not match the filename date", m0)
+    if m:
+        row = rows_by_file.get(p.name)
+        fdate = p.name[:10]
+        if row and row[0] == fdate and lines:
+            item.update(kind="derivable", cls="header date vs filename", before=lines[0],
+                        after=lines[0].replace(f"date={m.group(1)}", f"date={fdate}"),
+                        notes=["the shard row agrees with the filename date"])
+        else:
+            item.update(cls="header date vs filename", fix="the header, filename and shard row disagree; decide which date is right.")
+        return item
+    item.update(cls="file needs a decision", fix="; ".join(f"no automatic fix: {x}" for x in msgs))
+    return item
+
+
+def plan_shard_header(shard: str, msg: str) -> dict:
+    path = SHARDS / shard
+    key = shard[:-4]
+    lines = (read(path, "archive") or "").splitlines()
+    head = []
+    for ln in lines:
+        if ln.strip() and not ln.startswith("#"):
+            break
+        head.append(ln)
+    dates = [ln[:10] for ln in lines if ln.strip() and not ln.startswith("#")]
+    path_ = shard_path_line(key)
+    item = {"where": f"by-repo/{shard}", "errors": [msg], "kind": "manual", "cls": "shard header"}
+    if dates and min(dates) >= V3_START and path_:
+        item.update(kind="derivable", before="\n".join(head),
+                    after=f"# genprompt shard: {key}  (path: {path_})\n"
+                          "# Fields: date | archetype | slug | file | task (<=200 chars)\n# schema: v3",
+                    fix=f"replace the {len(head)} comment line(s) at the top with:",
+                    notes=["every row is dated on or after the v3 start, so it is a pure v3 shard (no marker needed)"])
+    else:
+        item["fix"] = "rows predate v3 or no path is known: write the legacy header and the marker by hand (§10.3)."
+    return item
+
+
+def legacy_label_drift(letters_by_word: dict[str, str]) -> list[tuple[str, str, str]]:
+    """(where, before label, after label) for legacy rows whose label is a command word."""
+    out = []
+    for shard in sorted(SHARDS.glob("*.tsv")) if SHARDS.is_dir() else []:
+        for ln, fields, is_v3, _raw in shard_rows(shard):
+            if is_v3 or len(fields) < 2 or LABEL_RE.match(fields[1]):
+                continue
+            words = re.split(r"\s*\+\s*", fields[1].strip())
+            letters = [w if w in letters_by_word.values() else letters_by_word.get(w.lower()) for w in words]
+            if all(letters):
+                out.append((f"by-repo/{shard.name}:{ln}", fields[1], "+".join(letters)))
+    return out
+
+
+def suggest_fixes() -> int:
+    """Print the repair plan. Reads only; never writes. Always exit 0."""
+    cmd_by_letter = cmd_map()
+    letters_by_word = {cmd: letter for letter, cmd in cmd_by_letter.items()}
+    stats = check_archive(letters_by_word)
+    errors = [msg for sev, _area, msg in findings if sev == "ERROR"]
+    if stats.get("empty"):
+        say(f"No archive at {ARCHIVE}: nothing to fix.")
+        return 0
+    rows_by_file: dict[str, list[str]] = {}
+    for shard in sorted(SHARDS.glob("*.tsv")):
+        for _ln, fields, _v3, _raw in shard_rows(shard):
+            if len(fields) == 5 and fields[3].endswith(".md"):
+                rows_by_file.setdefault(fields[3].split("/")[-1], fields)
+    findings.clear()            # shard_rows() above re-added structural findings; the plan uses `errors`
+
+    by_row: dict[tuple[str, int], list[str]] = {}
+    by_file: dict[str, list[str]] = {}
+    plans, unclassified = [], []
+    for msg in errors:
+        if msg.startswith("file with no shard row: "):
+            by_file.setdefault(msg.split(": ", 1)[1], []).insert(0, msg)
+            continue
+        m = ROW_MSG.match(msg)
+        if m:
+            by_row.setdefault((m.group("shard"), int(m.group("ln"))), []).append(msg)
+            continue
+        m = re.match(r"^(?P<shard>[a-z0-9-]+\.tsv): (no '# schema:' header line|legacy shard must contain.*)$", msg)
+        if m:
+            plans.append(plan_shard_header(m.group("shard"), msg) if "no '# schema:'" in msg else
+                         {"where": f"by-repo/{m.group('shard')}", "errors": [msg], "kind": "manual",
+                          "cls": "shard marker", "fix": "fix the '# --- v3 ---' marker by hand (§10.3)."})
+            continue
+        m = FILE_MSG.match(msg)
+        if m:
+            by_file.setdefault(m.group("rel"), []).append(msg)
+            continue
+        unclassified.append(msg)
+    plans += [plan_row(s, ln, msgs, cmd_by_letter) for (s, ln), msgs in sorted(by_row.items())]
+    # one plan per file ERROR: a file with no shard row may also lack its self-check, and each
+    # needs its own verdict
+    plans += [plan_file(rel, [msg], cmd_by_letter, rows_by_file)
+              for rel, msgs in sorted(by_file.items()) for msg in msgs]
+    plans += [{"where": "-", "errors": [m], "kind": "manual", "cls": "other", "fix": "no automatic fix known."}
+              for m in unclassified]
+
+    say("genprompt doctor --suggest-fixes: a PRINT-ONLY plan. Nothing has been or will be written.")
+    say(f"Archive: {ARCHIVE}")
+    say("BACK UP FIRST: copy the whole ~/.genprompt folder to a dated folder such as "
+        f"~/.genprompt-backup-{dt.date.today().isoformat()} before applying anything.")
+    say()
+    for kind in ("derivable", "manual"):
+        group = [x for x in plans if x["kind"] == kind]
+        say(f"== {kind.upper()} ({len(group)}) ==")
+        for x in group:
+            say(f"[{kind}] {x['cls']}  {x['where']}")
+            for e in x["errors"]:
+                say(f"    error:  {e}")
+            if x.get("fix"):
+                say(f"    fix:    {x['fix']}")
+            for n in x.get("notes", []) + x.get("partial", []):
+                say(f"    note:   {n}")
+            if "before" in x and kind == "derivable":
+                for i, b in enumerate(x["before"].splitlines() or [""]):
+                    say(f"    {'before:' if i == 0 else '       '} {b}")
+            if "after" in x:
+                for i, a in enumerate(x["after"].splitlines()):
+                    say(f"    {'after: ' if i == 0 else '       '} {a}")
+        say()
+    drift = legacy_label_drift(letters_by_word)
+    say(f"== LEGACY LABEL DRIFT (INFO, optional; derivable) : {len(drift)} row(s) ==")
+    say("    Legacy rows whose label is a command word; the letter form is derivable. §10.5: normalise "
+        "shard rows only with a snapshot in ~/.genprompt/history/ first.")
+    for where, before, after in drift if VERBOSE else []:
+        say(f"    {where}: {before} -> {after}")
+    if drift and not VERBOSE:
+        say("    (add --verbose to list them)")
+    say()
+    covered = sum(len(x["errors"]) for x in plans)
+    per = Counter((x["cls"], x["kind"]) for x in plans)
+    say("Summary")
+    say(f"  doctor --archive ERRORs: {len(errors)}; covered by this plan: {covered}")
+    say(f"  fixes: {sum(1 for x in plans if x['kind'] == 'derivable')} derivable, "
+        f"{sum(1 for x in plans if x['kind'] == 'manual')} manual "
+        f"(a fix can cover several ERRORs on one row or file)")
+    for (cls, kind), n in sorted(per.items(), key=lambda kv: (kv[0][1], -kv[1], kv[0][0])):
+        say(f"    {kind:9} {n:4}  {cls}")
+    say(f"  legacy label drift (INFO, optional): {len(drift)} row(s)")
+    return 0
+
+
 def main(argv: list[str]) -> int:
     global VERBOSE
     reconfigure = getattr(sys.stdout, "reconfigure", None)
@@ -834,6 +1155,13 @@ def main(argv: list[str]) -> int:
             say("usage: doctor.py --prompt <archive file>")
             return 2
         return run_prompt_lint(argv[1])
+    if "--suggest-fixes" in argv:
+        extra = [a for a in argv if a not in ("--suggest-fixes", "--verbose")]
+        if extra:
+            say("usage: doctor.py --suggest-fixes [--verbose]")
+            return 2
+        VERBOSE = "--verbose" in argv
+        return suggest_fixes()
     allowed = {"--suite", "--archive", "--verbose"}
     unknown = [a for a in argv if a not in allowed]
     if unknown:

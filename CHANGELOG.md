@@ -25,6 +25,8 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
   their purpose, and points to :help for the rest, in one message.
 - 2026-11-07 · PROTOCOL.md, tools/doctor.py, utilities/history.md · flags/via/lock vocabulary pinned;
   lock shows landed:; doctor and :history report via/lock/flag stats; width-aware stub check.
+- 2026-11-08 · tools/doctor.py, utilities/doctor.md · doctor --suggest-fixes: a print-only repair plan
+  for archive ERRORs (derivable vs manual, nothing invented) plus legacy label drift; writes nothing.
 
 ## 1.0.0 (2026-09-24): first public release
 
