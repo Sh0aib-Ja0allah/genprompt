@@ -28,6 +28,8 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 - 2026-11-07 · evals/ · Eval fixtures, 6 cases, graders and the Phase-1 baseline.
 - 2026-11-08 · assets/, README.md · Screenshots re-rendered from the sample repo to show 1.1.0 output:
   the lock's landed check, the GENPROMPT-REPORT line, the compact self-check.
+- 2026-11-08 · tools/doctor.py, utilities/doctor.md · doctor --suggest-fixes: a print-only repair plan
+  for archive ERRORs (derivable vs manual, nothing invented) plus legacy label drift; writes nothing.
 
 ## 1.0.0 (2026-09-24): first public release
 
