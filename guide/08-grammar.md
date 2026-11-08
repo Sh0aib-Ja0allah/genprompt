@@ -73,4 +73,8 @@ it in the TARGET LOCK.
 | `--follows <file>` | Set the chain link explicitly, when it cannot be inferred |
 | `--verbose` | Print the full self-check table in chat, not just the verdict line and the FAIL/N/A rows (the archive file always has the full table) |
 
+Auto-go (no flag): with `auto-go: on` in `~/.genprompt/local-rules.md` (set it with
+`/genprompt:learn auto-go on`), the lock skips its wait like `--go`, but only when the target came
+from an explicit argument, the profile card is fresh, and nothing is unknown. Off by default.
+
 ---

@@ -28,5 +28,7 @@ The §12 fold-back loop. It emits no worker prompt. **This is the only command t
    Print a ready-to-paste issue for the genprompt repository: a title, the rule, where it belongs in
    the suite (the file and the section), and one anonymised example. Never include repo names,
    paths or code from the user's projects in that issue.
-7. Never renumber sections or re-letter archetypes, even in a personal rule. Refer to the
+7. `/genprompt:learn auto-go on` (or `off`) writes or removes the line `auto-go: on` at the top of
+   `local-rules.md`, the opt-in for PROTOCOL Step 3's auto-go, with the same diff-then-yes step.
+8. Never renumber sections or re-letter archetypes, even in a personal rule. Refer to the
    suite's existing numbers.

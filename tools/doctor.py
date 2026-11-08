@@ -374,7 +374,7 @@ HEADER_OPTIONAL = ("flags", "via", "lock")           # E-05 fields: optional, tr
 # The E-05 vocabulary (PROTOCOL Step 6 item 2). Required for new prompts (a WARN from the lint when
 # missing or unknown); files archived before it lack the fields and stay valid in --archive.
 VIA_VALUES = ("argument", "continuation", "cwd", "ask")
-LOCK_VALUES = ("go", "accepted", "corrected")
+LOCK_VALUES = ("go", "auto", "accepted", "corrected")   # go/auto skipped the wait: not confirmed locks
 STAT_FLAGS = ("--go", "--brief", "--dry-run", "--verbose", "--unattended")
 
 

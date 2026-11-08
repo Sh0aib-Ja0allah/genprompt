@@ -4,6 +4,9 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-08 · PROTOCOL.md, tools/doctor.py, utilities/learn.md, utilities/history.md, guide/08-grammar.md
+  · Opt-in auto-go (`auto-go: on` in local-rules): explicit argument + fresh card + no unknowns
+  skips the lock wait, archived as lock=auto and counted apart from confirmed locks. Off by default.
 - 2026-11-08 · tools/build_skill_bundle.py, .gitignore · The Agensi SKILL.md bundle is generated from
   plugin.json and the build_shims tables (no hand-typed counts), deterministically, into dist/.
 - 2026-11-08 · stacks/stack-matrix.md · Workspace detection (pnpm/yarn/npm/bun, Turborepo, Nx, Cargo,

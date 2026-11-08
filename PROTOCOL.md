@@ -119,6 +119,11 @@ Reply "go" to accept, or correct any line.
 - `--go` skips the wait, not the facts: print the lock block first in the preamble and continue.
   It applies when the request contains it, or when the user has said this session to stop
   confirming.
+- Auto-go is opt-in: only with the line `auto-go: on` in `~/.genprompt/local-rules.md`. When it
+  is on and all four hold (the target came from an explicit argument, the profile card is fresh
+  by its stamps, the Unknown section is empty, no Step 1 rules conflict), act as `--go` and add
+  the line `auto-go: argument + fresh card + no unknowns` to the lock. Archive it as `lock=auto`.
+  Without the opt-in, or if any condition fails, wait as usual.
 - Fill everything derivable, because the lock is for confirmation, not for facts you didn't look up.
 
 ## Step 4: Ground before you write
@@ -185,8 +190,8 @@ Reply "go" to accept, or correct any line.
      - `flags`: the request's modifiers as flag names only, space-separated, in the order given
        (`--go --brief`; `--repo` and `--follows` without their values), or `-` for none.
      - `via`: the Step 1 rule that resolved the target: `argument`, `continuation`, `cwd` or `ask`.
-     - `lock`: `go` (`--go` skipped the wait), `accepted` (the user said go and changed nothing)
-       or `corrected` (the user changed at least one lock line before go).
+     - `lock`: `go` (`--go` skipped the wait), `auto` (opt-in auto-go skipped it), `accepted`
+       (the user said go and changed nothing) or `corrected` (the user changed a lock line).
    - Run it (`python3`, or `python` if `python3` fails, as on Windows where `python3` can be a
      Store alias): `python3 "${CLAUDE_PLUGIN_ROOT}/tools/archive.py" --dry-run <parts.json>`
      first. Cite its PASS/WARN/FAIL lines as the evidence for self-check rows 8, 15, 16, 21 and 22

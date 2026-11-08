@@ -67,6 +67,10 @@ class PassingFile(Base):
         self.assertStatus(old, "header", "PASS")
         self.assertStatus(old, "header-vocab", "WARN")
 
+    def test_lock_auto_is_a_valid_value(self):
+        # E-11b: opt-in auto-go archives lock=auto
+        self.assertStatus(BASE.replace("lock=accepted", "lock=auto", 1), "header-vocab", "PASS")
+
     def test_full_vocabulary_passes(self):
         text = BASE.replace("flags=- | via=cwd | lock=accepted", "flags=--go --brief | via=argument | lock=go", 1)
         self.assertStatus(text, "header-vocab", "PASS")

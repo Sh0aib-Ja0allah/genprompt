@@ -18,7 +18,8 @@ Emits no worker prompt. Read-only.
 6. Show this repo's measures, read from the line-1 headers of its prompt files (the same three
    counts `/genprompt:doctor` prints for the whole archive, PROTOCOL Step 6 item 2 vocabulary):
    - `via`: argument / continuation / cwd / ask
-   - `lock`: go / accepted / corrected, with the correction rate (corrected ÷ (accepted + corrected))
+   - `lock`: go / auto / accepted / corrected, with the correction rate (corrected ÷ (accepted +
+     corrected); go and auto skipped the wait, so they are counted apart)
    - flag use: how many prompts carried `--go`, `--brief`, `--dry-run`, `--verbose`, `--unattended`
 
    Count only files whose header has `flags`, `via` or `lock`, and say how many older files predate

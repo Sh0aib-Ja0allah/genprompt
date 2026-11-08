@@ -206,6 +206,13 @@ class ArchiveWriter(unittest.TestCase):
         self.assertIn("flags: --go 1/4, --brief 1/4, --dry-run 0/4, --verbose 1/4, --unattended 1/4", out)
         self.assertNotIn("WARN", out.split("Summary:")[0])         # old headers are never flagged
 
+    def test_auto_go_is_counted_apart_from_confirmed_locks(self):
+        for slug, lock in (("s20-a", "auto"), ("s21-b", "auto"), ("s22-c", "accepted"), ("s23-d", "corrected")):
+            self.assertEqual(self.run_archive(parts(slug=slug, flags="-", via="argument", lock=lock))[0], 0)
+        code, out = run_tool(DOCTOR, "--archive", home=self.home)
+        self.assertEqual(error_lines(out), [], out)
+        self.assertIn("lock:  auto 2, accepted 1, corrected 1; correction rate 50% of 2 confirmed locks", out)
+
     def test_optional_header_fields_are_written_in_order(self):
         code, out = self.run_archive(parts(lock="go", flags="--go", via="cwd"))
         self.assertEqual(code, 0, out)
