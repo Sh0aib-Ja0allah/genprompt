@@ -25,6 +25,7 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
   their purpose, and points to :help for the rest, in one message.
 - 2026-11-07 · PROTOCOL.md, tools/doctor.py, utilities/history.md · flags/via/lock vocabulary pinned;
   lock shows landed:; doctor and :history report via/lock/flag stats; width-aware stub check.
+- 2026-11-07 · evals/ · Eval fixtures, 6 cases, graders and the Phase-1 baseline.
 
 ## 1.0.0 (2026-09-24): first public release
 

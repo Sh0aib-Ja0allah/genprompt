@@ -1,0 +1,8 @@
+{
+  "discountPct": 10,
+  "lines": [
+    { "label": "Widget", "qty": 2, "unitCents": 1250 },
+    { "label": "Gadget, large", "qty": 1, "unitCents": 4000 },
+    { "label": "Shipping", "qty": 1, "unitCents": 500 }
+  ]
+}
