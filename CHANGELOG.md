@@ -47,6 +47,9 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 - 2026-11-08 · PROTOCOL.md, guide/, archetypes/, utilities/ · Tone pass: bold kept only on the six
   invariants and structural table labels (626 to ~190 markers); PROTOCOL wording compressed 16,548
   to 15,747 bytes with every tool-matched literal unchanged.
+- 2026-11-08 · PROTOCOL.md, guide/01-target-profile.md · Read pointers state a testable condition: a
+  fresh card means no profile reads, archive.py exit 0 means no §10 read, stacks/workspaces.md only
+  for multi-manifest or workspace repos (CP5 showed reads leaking past them).
 
 ## 1.1.0 (2026-11-08): archive written and checked by a tool, a measurable workflow
 
