@@ -144,6 +144,19 @@ class BundleCurrency(unittest.TestCase):
         self.assertTrue(any(f"'## The {n} archetypes'" in e for e in errs), errs)
         self.assertTrue(any("archetype table differs" in e for e in errs), errs)
 
+    def test_every_ladder_file_ships_and_is_routed(self):
+        ladders = sorted(p.relative_to(ROOT).as_posix() for p in (ROOT / "stacks" / "ladders").glob("*.md"))
+        self.assertGreaterEqual(len(ladders), 16)
+        matrix = (ROOT / "stacks" / "stack-matrix.md").read_text(encoding="utf-8")
+        for rel in ladders:
+            self.assertIn(rel, self.names)
+            self.assertIn(f"`{rel}`", matrix)
+
+    def test_missing_ladder_file_is_an_error(self):
+        names = [n for n in self.names if n != "stacks/ladders/node.md"]
+        errs = self.errors(skill=self.skill, names=names)
+        self.assertTrue(any("ladder stacks/ladders/node.md would be missing" in e for e in errs), errs)
+
     def test_missing_workspaces_file_is_an_error(self):
         names = [n for n in self.names if n != "stacks/workspaces.md"]
         errs = self.errors(skill=self.skill, names=names)

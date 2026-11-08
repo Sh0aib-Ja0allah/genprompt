@@ -82,132 +82,28 @@ repo's contract tells you to run it, or `(derived)` when it comes from a proven 
 `, no baseline` if nothing shows it was ever run). `–` means there is no default: omit the gate,
 and name the gap only if it matters. In a workspace, apply `stacks/workspaces.md` first.
 
-### Node (the package manager `<pm>` comes from the lockfile)
+Read only the ladder file for the stack you detected (section 1). A monorepo reads one ladder
+per in-scope code root.
 
-| Gate | Command |
+| Stack | Ladder file |
 |---|---|
-| format | `<pm> run format:check` / `format` (script) → `<pm> exec prettier --check .` if prettier is a dependency and has a config |
-| lint | `<pm> run lint` (script) → `<pm> exec eslint .` if eslint is a dependency and has a config |
-| typecheck | `typecheck` / `type-check` / `tsc` (script) → `<pm> exec tsc --noEmit` if a `tsconfig.json` exists and typescript is a dependency |
-| test | `<pm> test` / `<pm> run test` (script) → `<pm> exec vitest run` or `jest` if it is a dependency and a test file exists |
-| build | `<pm> run build` (script) |
-| smoke / e2e | `test:e2e` / `e2e` (script), `playwright test` if configured, `.maestro/*.yaml`, `scripts/smoke-*` |
-
-### Bun
-
-| Gate | Command |
-|---|---|
-| format / lint / typecheck | the `package.json` scripts through `bun run <script>` (script); the derived fallbacks are the Node ones with `bunx` in place of `<pm> exec` |
-| test | `bun run test` (script) → `bun test` (derived: built in, zero-config) only if `*.test.*` / `*.spec.*` files exist |
-| build | `bun run build` (script) |
-
-### Deno
-
-| Gate | Command |
-|---|---|
-| format | `deno task fmt` (script, from `deno.json` `tasks`) → `deno fmt --check` (derived: built in) |
-| lint | `deno task lint` (script) → `deno lint` (derived: built in) |
-| typecheck | `deno task check` (script) → `deno check <entry>` with the entry named in `deno.json` (`exports` or the main task) |
-| test | `deno task test` (script) → `deno test` (derived) only if `*_test.ts` / `*.test.ts` files exist; add the `--allow-*` permissions the existing tasks use, never `-A` on your own |
-| build | `deno task build` (script) |
-
-### PHP / Laravel (Composer may not be on PATH; see `guide/07-environment.md`)
-
-| Gate | Command |
-|---|---|
-| format | `composer run <format-script>` (script) → `vendor/bin/pint --test` if `laravel/pint` is in require-dev (zero-config) |
-| lint / static | `vendor/bin/phpstan analyse` if phpstan or larastan is present with a config |
-| typecheck | – |
-| test | `composer test` (script) → `php artisan test` (Laravel) → `vendor/bin/pest` / `vendor/bin/phpunit` if present |
-| build | the asset build from the Node side of the same root (`<pm> run build`), if one exists |
-| smoke | `php artisan route:list` count; a `tests/Browser` Dusk suite if present |
-| ⚠ destructive | `migrate:fresh`, `migrate:refresh`, `migrate:reset`, `migrate:rollback`, `db:wipe`, and every variant the contract warns about (e.g. `--env=testing` with no `.env.testing` hits the dev DB): always ⚠, always behind confirmation, and quote the contract's guard |
-
-### .NET
-
-| Gate | Command |
-|---|---|
-| format | `dotnet format --verify-no-changes` |
-| lint | `dotnet build -warnaserror` only if the repo already treats warnings as errors; otherwise – |
-| typecheck / build | `dotnet build` |
-| test | `dotnet test` only if a test project exists |
-| smoke | – |
-
-### Flutter / Dart
-
-| Gate | Command |
-|---|---|
-| codegen | `dart run build_runner build --delete-conflicting-outputs` if `build_runner` is a dev dependency (run before analyze and test) |
-| format | `dart format --set-exit-if-changed .` |
-| lint / typecheck | `flutter analyze` (`dart analyze` for a pure Dart package) |
-| test | `flutter test` if `test/` has tests |
-| build | `flutter build <apk\|appbundle\|ios\|web>`: the target is named by the contract or CI; otherwise ask |
-| smoke | `flutter test integration_test/` if present |
-
-### Go
-
-| Gate | Command |
-|---|---|
-| format | `gofmt -l .` must print nothing |
-| lint | `go vet ./...` → `golangci-lint run` if `.golangci.y*ml` exists |
-| typecheck / build | `go build ./...` |
-| test | `go test ./...` if `*_test.go` files exist |
-
-### Python (the prefix `<run>` comes from the lockfile: `uv run`, `poetry run`, `pipenv run`, or nothing)
-
-| Gate | Command |
-|---|---|
-| format | `<run> ruff format --check .` if ruff is configured → `<run> black --check .` |
-| lint | `<run> ruff check .` → `<run> flake8` |
-| typecheck | `<run> mypy .` or `<run> pyright` if configured |
-| test | `<run> pytest` if tests exist → `python manage.py test` (Django) |
-
-### Elixir / Phoenix
-
-| Gate | Command |
-|---|---|
-| format | `mix format --check-formatted` (derived: built in; uses `.formatter.exs`) |
-| lint | `mix credo --strict` only if `:credo` is a dependency |
-| typecheck / build | `mix compile --warnings-as-errors` only if the repo or CI already compiles that way → otherwise `mix compile`; `mix dialyzer` only if `:dialyxir` is a dependency (slow: name it, do not make it the default gate) |
-| test | `mix test` if `test/` has tests (Phoenix with Ecto needs the test database the contract describes) |
-| smoke | `mix phx.routes` count (Phoenix) |
-| ⚠ destructive | `mix ecto.reset`, `mix ecto.drop`, `mix ecto.rollback`, `mix ecto.migrate` against a non-test database: always ⚠, always behind confirmation |
-
-### C/C++ (CMake; the build dir is the one the presets or CI use, `build/` otherwise)
-
-| Gate | Command |
-|---|---|
-| configure | `cmake --preset <preset>` if `CMakePresets.json` names one → `cmake -S . -B build` |
-| build | `cmake --build --preset <preset>` → `cmake --build build` |
-| format | `clang-format --dry-run --Werror <files>` only if `.clang-format` exists and clang-format is proven present (a verify-at-start check; it does not ship with CMake) |
-| lint | `clang-tidy -p build <files>` only if `.clang-tidy` exists and the configure step exports `compile_commands.json` |
-| test | `ctest --preset <preset>` → `ctest --test-dir build --output-on-failure`, only if `enable_testing()` / `add_test(` exists |
-
-### Terraform
-
-| Gate | Command |
-|---|---|
-| format | `terraform fmt -check -recursive` (derived: built in) |
-| validate | `terraform init -backend=false` then `terraform validate`: `-backend=false` downloads providers but never touches remote state |
-| lint | `tflint` only if `.tflint.hcl` exists and tflint is proven present |
-| plan | `terraform plan` is not a default gate: it reads remote state and needs cloud credentials. Emit it only when the contract or CI names it, as read-only evidence, with its credential needs stated |
-| ⚠ destructive | `terraform apply`, `terraform destroy`, `terraform import`, `terraform state rm`/`mv`, `terraform force-unlock`: never a gate. Always ⚠, run only by the user, after a reviewed plan |
-
-### Pulumi
-
-| Gate | Command |
-|---|---|
-| format / lint / typecheck / test | the program language's own ladder (Node, Python, Go or .NET above), run in the program dir |
-| preview | `pulumi preview --stack <stack>` is not a default gate: it reads the stack's state and needs credentials. Emit it only when the contract or CI names it, as read-only evidence |
-| ⚠ destructive | `pulumi up`, `pulumi destroy`, `pulumi refresh --yes`, `pulumi state delete`, `pulumi cancel`: never a gate. Always ⚠, run only by the user |
-
-### Rails, JVM, Rust, Swift
-
-- Rails: `bundle exec rubocop` (if configured) · `bin/rails test` or `bundle exec rspec`
-- JVM: `./gradlew check` / `./gradlew test` / `./gradlew assembleDebug` · or `./mvnw -q verify`
-- Rust: `cargo fmt --check` · `cargo clippy -- -D warnings` · `cargo test` · `cargo build` (a Cargo
-  workspace adds `-p <crate>` or `--workspace`, per `stacks/workspaces.md`)
-- Swift: `swift build` / `swift test`, or `xcodebuild … test` with the scheme named by CI
+| Node (Next.js, Nuxt/Vue, SvelteKit/Astro/Angular, Vite SPA, Expo/RN, Node API) | `stacks/ladders/node.md` |
+| Bun | `stacks/ladders/bun.md` |
+| Deno | `stacks/ladders/deno.md` |
+| PHP (Laravel, Symfony, plain PHP) | `stacks/ladders/php-laravel.md` |
+| .NET / ASP.NET Core | `stacks/ladders/dotnet.md` |
+| Flutter / Dart | `stacks/ladders/flutter-dart.md` |
+| Go | `stacks/ladders/go.md` |
+| Python (Django, FastAPI, Flask) | `stacks/ladders/python.md` |
+| Ruby / Rails | `stacks/ladders/rails.md` |
+| Elixir / Phoenix | `stacks/ladders/elixir-phoenix.md` |
+| JVM (Spring Boot, Android) | `stacks/ladders/jvm.md` |
+| Rust | `stacks/ladders/rust.md` |
+| C/C++ (CMake) | `stacks/ladders/cpp-cmake.md` |
+| Swift / iOS | `stacks/ladders/swift.md` |
+| Terraform | `stacks/ladders/terraform.md` |
+| Pulumi | `stacks/ladders/pulumi.md` |
+| Orchestration root | the ladders of its services' stacks |
 
 ### Unknown stack
 

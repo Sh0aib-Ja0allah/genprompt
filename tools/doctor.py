@@ -267,6 +267,20 @@ def check_bundle(root: Path = HOME, skill: str | None = None, names: list[str] |
     for rel in BUNDLE_REQUIRED:
         if rel not in have:
             add("ERROR", "suite", f"bundle: {rel} would be missing from the bundle")
+    # every ladder file the stack matrix routes to must exist and ship (stacks/ladders/<stack>.md)
+    matrix = root / "stacks" / "stack-matrix.md"
+    named = set(re.findall(r"`(stacks/ladders/[\w.-]+\.md)`", matrix.read_text(encoding="utf-8"))) \
+        if matrix.is_file() else set()
+    if not named:
+        add("ERROR", "suite", "bundle: stacks/stack-matrix.md names no stacks/ladders/<stack>.md file")
+    for rel in sorted(named):
+        if not (root / rel).is_file():
+            add("ERROR", "suite", f"bundle: stacks/stack-matrix.md routes to {rel}, which does not exist")
+        elif rel not in have:
+            add("ERROR", "suite", f"bundle: ladder {rel} would be missing from the bundle")
+    for p in sorted((root / "stacks" / "ladders").glob("*.md")):
+        if p.relative_to(root).as_posix() not in named:
+            add("ERROR", "suite", f"bundle: {p.relative_to(root).as_posix()} is not routed from stacks/stack-matrix.md")
     for sub in ("commands", "archetypes", "guide", "utilities", "stacks"):
         for p in sorted((root / sub).rglob("*.md")):
             rel = p.relative_to(root).as_posix()

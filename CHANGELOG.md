@@ -4,6 +4,8 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-08 · stacks/ladders/, stacks/stack-matrix.md, tools/doctor.py · Per-stack gate ladders moved
+  verbatim to stacks/ladders/<stack>.md (16 files); the matrix routes to the detected stack's file only.
 - 2026-11-08 · stacks/workspaces.md, stacks/stack-matrix.md, tools/doctor.py · Workspace detection moved
   to its own file, read only for multi-root or workspace repos; the bundle and its check include it.
 - 2026-11-08 · tools/doctor.py · Fix: verdict-line WARN compared counts with the partial chat table
