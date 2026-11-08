@@ -10,8 +10,9 @@ a worker repo, or run builds, tests or installs anywhere.
 
 - The genprompt root (the plugin folder; the command states its path) holds these rules. It is
   read-only to you; paths below are relative to it.
-- The genprompt home, `~/.genprompt/`, holds the archive (`generated-prompts/`) and personal rules,
-  outside every repo and the plugin. Tools need absolute paths: resolve `~` once with `ls -d ~`.
+- The genprompt home holds the archive (`generated-prompts/`) and personal rules, outside every
+  repo and the plugin. It is `~/.genprompt/` unless `GENPROMPT_HOME` names another folder; every
+  `~/.genprompt/` below means that home. Step 0 prints it as an absolute path; tools need that.
 
 A normal run reads no rule file: this file, your archetype and its excerpt (which ends with the
 compact §6 checklist) are already loaded. Read a file only when a step's "Read … only when"
@@ -28,7 +29,8 @@ the start of every command. Its rules add to this suite; where one conflicts, it
 user, and the TARGET LOCK says so.
 
 **Write boundary (absolute).**
-- You may Write or Edit only inside `~/.genprompt/generated-prompts/`.
+- You may Write or Edit only inside `~/.genprompt/generated-prompts/` and `~/.genprompt/tmp/`
+  (the archive.py parts file).
 - The one exception: after showing the diff, `/genprompt:learn` may edit `~/.genprompt/local-rules.md`.
 - The genprompt root is never edited at runtime, and the generator **never runs a mutating git
   command** anywhere.
@@ -183,9 +185,9 @@ Reply "go" to accept, or correct any line.
    shard row; you don't Write or Edit a `.md` in `generated-prompts/` or a `by-repo/*.tsv` row
    yourself, even when the script is inconvenient or fails.
    - Parts file: write one JSON object with the Write tool to `~/.genprompt/tmp/<slug>.json`
-     (absolute home path): `key`, `repo`, `path`, `date`, `archetype` (letters), `follows` (`-` if
-     none; `--follows <file>` sets it, otherwise infer it from the chain), `slug`, `task`, then
-     `header_table`, `grounding`, `prompt` (the whole fenced block, fences included) and
+     (the absolute home from Step 0): `key`, `repo`, `path`, `date`, `archetype` (letters),
+     `follows` (`-` if none; `--follows <file>` sets it, otherwise infer it from the chain), `slug`,
+     `task`, then `header_table`, `grounding`, `prompt` (the whole fenced block, fences included) and
      `self_check`, plus `rule` if there is a transferable rule. Every new prompt also carries these
      three, with exactly these values (`archive.py` warns on a missing or unknown value):
      - `flags`: the request's modifiers as flag names only, space-separated, in the order given

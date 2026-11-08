@@ -189,6 +189,21 @@ class BuildShims(unittest.TestCase):
         self.assertEqual(code, 1, out)
         self.assertIn("the EXCLUDE copy differs from §2.1", out)
 
+    # E-09e: shims with the ARCHIVE grant (archetypes, :auto) read the home from archive.py --where
+    # (GENPROMPT_HOME or ~/.genprompt); learn/profile/history have no such grant and keep ls -d ~.
+    def test_step0_home_comes_from_archive_where_under_the_archive_grant(self):
+        bs = load_build_shims()
+        where = "`python3 ${CLAUDE_PLUGIN_ROOT}/tools/archive.py --where` once"
+        for cmd in [r.cmd for r in bs.ARCHETYPES] + [bs.ENTRY]:
+            shim = (ROOT / "commands" / f"{cmd}.md").read_text(encoding="utf-8")
+            self.assertIn(where, shim, cmd)
+            self.assertIn("Bash(python3 ${CLAUDE_PLUGIN_ROOT}/tools/archive.py:*)", shim, cmd)
+            self.assertNotIn("ls -d ~", shim, cmd)
+        for cmd in ("learn", "profile", "history"):
+            shim = (ROOT / "commands" / f"{cmd}.md").read_text(encoding="utf-8")
+            self.assertIn("`ls -d ~ ~/.genprompt/local-rules.md` once", shim, cmd)
+            self.assertNotIn("archive.py --where", shim, cmd)
+
     def test_every_archetype_shim_includes_its_excerpt(self):
         bs = load_build_shims()
         for r in bs.ARCHETYPES:

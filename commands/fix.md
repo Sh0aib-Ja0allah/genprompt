@@ -8,9 +8,9 @@ allowed-tools: Read, Glob, Grep, Write(~/.genprompt/**), Edit(~/.genprompt/**), 
 @${CLAUDE_PLUGIN_ROOT}/archetypes/L-fix.md
 @${CLAUDE_PLUGIN_ROOT}/guide/blocks/L-fix.md
 
-Paths for this run: the genprompt root (these rules, read-only) is `${CLAUDE_PLUGIN_ROOT}`. The genprompt home (the archive and your personal rules) is `~/.genprompt/`.
+Paths for this run: the genprompt root (these rules, read-only) is `${CLAUDE_PLUGIN_ROOT}`. The genprompt home (the archive and your personal rules) is `~/.genprompt/` unless Step 0's `archive.py --where` prints another.
 
-Step 0: the files listed above are already in your context: their text follows the `@` lines, and PROTOCOL.md's third line contains `GENPROMPT-PROTOCOL v3 LOADED`. Do not Read them again. Read one only if its text is truly absent from your context (for example, the marker is nowhere above): `${CLAUDE_PLUGIN_ROOT}/PROTOCOL.md`, `${CLAUDE_PLUGIN_ROOT}/archetypes/L-fix.md`, `${CLAUDE_PLUGIN_ROOT}/guide/blocks/L-fix.md`. Then run `ls -d ~ ~/.genprompt/local-rules.md` once: it prints your absolute home directory (use it for every Write), and if `local-rules.md` exists, Read it (personal rules, see PROTOCOL). Everything below assumes they are loaded.
+Step 0: the files listed above are already in your context: their text follows the `@` lines, and PROTOCOL.md's third line contains `GENPROMPT-PROTOCOL v3 LOADED`. Do not Read them again. Read one only if its text is truly absent from your context (for example, the marker is nowhere above): `${CLAUDE_PLUGIN_ROOT}/PROTOCOL.md`, `${CLAUDE_PLUGIN_ROOT}/archetypes/L-fix.md`, `${CLAUDE_PLUGIN_ROOT}/guide/blocks/L-fix.md`. Then run `python3 ${CLAUDE_PLUGIN_ROOT}/tools/archive.py --where` once (if `python3` is missing or only a store alias, run the same command with `python`). Its `home` line is the genprompt home as an absolute path: use it wherever these rules write `~/.genprompt/`, and for every Write. If its `local-rules` line says `present`, Read that file (personal rules, see PROTOCOL). Everything below assumes they are loaded.
 
 Command `/genprompt:fix` → archetype **L: Defect-driven fix slice** (§5.L). Follow PROTOCOL Steps 1–7 with this archetype. If the request is really a different archetype, say so in the TARGET LOCK and use the right one (hybrids are fine).
 

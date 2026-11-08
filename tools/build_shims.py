@@ -233,12 +233,15 @@ def frontmatter(desc: str, hint: str, extra: str = "", cmd: str = "") -> str:
             f"allowed-tools: {ALLOWED_TOOLS}{extra}\n{fm}---\n")
 
 
-def includes(files: list[str], protocol: bool = True) -> str:
+def includes(files: list[str], protocol: bool = True, where: bool = False) -> str:
+    """where: the shim carries the ARCHIVE grant, so Step 0 asks `archive.py --where` for the
+    home (GENPROMPT_HOME or ~/.genprompt, E-09e); other shims keep `ls -d ~`."""
     load = ["PROTOCOL.md", *files] if protocol else list(files)
     inc = "\n".join(f"@{PLUGIN_ROOT}/{f}" for f in load)
     reads = ", ".join(f"`{PLUGIN_ROOT}/{f}`" for f in load)
     paths = (f"Paths for this run: the genprompt root (these rules, read-only) is `{PLUGIN_ROOT}`. "
-             f"The genprompt home (the archive and your personal rules) is `{USER_HOME}/`.\n\n")
+             f"The genprompt home (the archive and your personal rules) is `{USER_HOME}/`"
+             + (" unless Step 0's `archive.py --where` prints another" if where else "") + ".\n\n")
     if not protocol:
         # Protocol-free utilities: they emit no prompt, need no TARGET LOCK and write nothing, so
         # Step 0 must not send the model to PROTOCOL.md (that would undo the saving).
@@ -254,15 +257,20 @@ def includes(files: list[str], protocol: bool = True) -> str:
             f"Step 0: the files listed above are already in your context: their text follows the "
             f"`@` lines, and PROTOCOL.md's third line contains `GENPROMPT-PROTOCOL v3 LOADED`. Do "
             f"not Read them again. Read one only if its text is truly absent from your context (for "
-            f"example, the marker is nowhere above): {reads}. Then run "
-            f"`ls -d ~ {USER_HOME}/local-rules.md` once: it prints your absolute home directory "
-            f"(use it for every Write), and if `local-rules.md` exists, Read it (personal rules, see "
-            f"PROTOCOL). Everything below assumes they are loaded.\n")
+            f"example, the marker is nowhere above): {reads}. Then run " + (
+                f"`python3 {PLUGIN_ROOT}/tools/archive.py --where` once (if `python3` is missing or "
+                f"only a store alias, run the same command with `python`). Its `home` line is the "
+                f"genprompt home as an absolute path: use it wherever these rules write "
+                f"`{USER_HOME}/`, and for every Write. If its `local-rules` line says `present`, "
+                f"Read that file (personal rules, see PROTOCOL). " if where else
+                f"`ls -d ~ {USER_HOME}/local-rules.md` once: it prints your absolute home directory "
+                f"(use it for every Write), and if `local-rules.md` exists, Read it (personal rules, "
+                f"see PROTOCOL). ") + "Everything below assumes they are loaded.\n")
 
 
 def archetype_shim(letter, cmd, stem, name, desc, hint, flags: str = FLAGS) -> str:
     return (frontmatter(desc, f"{hint}   {flags}", f", {ARCHIVE}", cmd=cmd) + "\n" +
-            includes([f"archetypes/{stem}.md", f"{BLOCKS_DIR}/{stem}.md"]) +
+            includes([f"archetypes/{stem}.md", f"{BLOCKS_DIR}/{stem}.md"], where=True) +
             f"\nCommand `/genprompt:{cmd}` → archetype **{letter}: {name}** (§5.{letter}). "
             f"Follow PROTOCOL Steps 1–7 with this archetype. If the request is really a different "
             f"archetype, say so in the TARGET LOCK and use the right one (hybrids are fine).\n\n"
@@ -284,7 +292,7 @@ ENTRY_TAGLINE = "pick the archetype from the request and emit its prompt, or off
 
 def root_shim() -> str:
     return (frontmatter(ENTRY_DESC, f"{ENTRY_HINT}   {FLAGS}", f", {ARCHIVE}")
-            + "\n" + includes(["archetypes/README.md"]) +
+            + "\n" + includes(["archetypes/README.md"], where=True) +
             f"\nEntry point `/genprompt:{ENTRY}`. Pick the archetype from the request using the picker "
             "in `archetypes/README.md`, then Read that archetype's file and its block excerpt "
             f"`{BLOCKS_DIR}/<letter>-<command>.md` (this entry point loads neither up front, because "
