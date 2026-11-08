@@ -119,4 +119,29 @@ by file mtime, because legacy backfilled rows are not strictly ordered.
 - **The integrity check is `tools/doctor.py`** (`/genprompt:doctor`). v3 rules are enforced from
   2026-09-23; earlier drift is reported as legacy INFO.
 
+### 10.6 archive.py exit codes (moved here from PROTOCOL Step 6)
+
+`archive.py` writes first, then validates, so a printed prompt is never missing from the archive.
+- **0:** archived. WARN lines are advisory; mention them.
+- **1:** archived with errors. Show its FAIL lines, mark self-check row 22 FAIL, fix the prompt and
+  re-run with `--replace` (same file, shard row rewritten in place).
+- **3:** the file already exists. Use `--replace` only if it is the same prompt; otherwise pick a
+  new slug.
+- **2:** a structural field (key, date, slug, letters, repo, path) is wrong and nothing was
+  written. Fix it and re-run.
+
+The file it produces and the shard row are specified in §10.1–§10.3. Since 2026-11-07 the line-1
+header also carries `flags`, `via` and `lock` after `follows`; older files lack them.
+
+The parts file in `~/.genprompt/tmp/` is scratch: it is not deleted, because a `--replace` re-run
+needs it and the generator has no delete permission; the next run with the same slug overwrites it.
+
+### 10.7 Status rows for no-prompt turns (moved here from PROTOCOL Step 6)
+
+When the work is verified done, or parked, and no prompt is emitted: write a §4.26 closeout in chat,
+then archive a status row through `tools/archive.py`. The parts file has `key`, `path`, `date`,
+`"archetype": "none"`, `slug` and a `task` of the form
+`status: <verified|closed|parked>, no prompt emitted; <reason and the landed SHA>`. It writes only
+the row (file `-`).
+
 ---

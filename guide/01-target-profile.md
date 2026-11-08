@@ -39,13 +39,25 @@ ask, and offer the most recent targets from `by-repo/`.
 prompt anchored there has no stack, no gates and no role. Resolve to the nearest manifest. When
 nothing points inside, ask which sub-project, and name the siblings as out of scope.
 
+**Narrow to a code root** (moved here from PROTOCOL Step 1). Count **manifest directories** below
+the repo root, honouring EXCLUDE (§2.1). Two manifests in the same directory, such as
+`composer.json` + `package.json`, are one root.
+- **One directory:** that is the scope.
+- **Several, and cwd or the target file is inside one:** the nearest wins. Name the siblings as out
+  of scope.
+- **Several, and nothing points inside:** ask which sub-project. Never anchor a prompt at a root
+  with no manifest of its own.
+
 **Multi-repo prompts are a real shape** (a mobile app and its API, with different branches and
-commit permissions). Resolve both and give each its own lock row. Add the paired-change rule: *a
-change to a response shape, route path or status code is a paired slice on both sides, never a
-one-sided edit.*
+commit permissions). Resolve both and give each its own lock row, branch, gates and commit
+permission. Add the paired-change rule: *a change to a response shape, route path or status code is
+a paired slice on both sides, never a one-sided edit.* **Archive under the primary repo**: the one
+where the first change lands. The other repo's shard gets a row whose file field is
+`<primary-key>/<file>`.
 
 **Non-git and non-code targets.**
-- A folder with no git or zero commits is legal: its git posture is "no git operations".
+- A folder with no git or zero commits is legal: say so in the lock; its git posture is "no git
+  operations".
 - A deliverable with no repo (a presentation, a research doc) archives under the key `unsorted`.
 
 **Facts that cannot be derived. Ask, never guess:**
@@ -77,6 +89,15 @@ This is the **single** exclusion list; the protocol and every archetype refer to
 Only agent-rule files **at or below the repo root** describe the repo. If there is no in-root
 contract, the contract is *unstated*, never the ancestor's. The protocol's ancestor scan lists what
 it found above the root, so the lock can say `Ancestors: none found` or name them as non-governing.
+
+**The ancestor scan** (moved here from PROTOCOL Step 2; it runs whenever the card is derived):
+- In every directory from the repo root's parent up to the drive root, check four names:
+  `CLAUDE.md`, `AGENTS.md`, `.claude/CLAUDE.md` and `CLAUDE.local.md`. Use `ls` or Glob.
+- What you find describes **other** projects. It does not govern this one unless the repo's own
+  contract explicitly adopts it.
+- Separately, check the user-level `~/.claude/CLAUDE.md`. Claude Code loads it into **every**
+  session, including the worker's, so report it as `user-level: <path>`, not as an ancestor.
+- Record the literal result, e.g. `none found`. **Never assume a file exists.**
 
 ### 2.2 Conventions layer
 

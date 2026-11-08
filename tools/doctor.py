@@ -171,6 +171,7 @@ def check_suite() -> None:
     protocol = read(HOME / "PROTOCOL.md", "suite")
     if protocol is not None and "GENPROMPT-PROTOCOL v3 LOADED" not in protocol:
         add("ERROR", "suite", "PROTOCOL.md lost its load marker line")
+    check_protocol_size()
 
     picker = read(HOME / "archetypes" / "README.md", "suite") or ""
     grammar = read(HOME / "guide" / "08-grammar.md", "suite") or ""
@@ -209,6 +210,20 @@ def check_suite() -> None:
             if not (HOME / rel).exists():
                 add("ERROR", "suite", f"{where}: file reference {rel} does not exist")
         scan_banned(text, where, "suite", (PERSONAL_PATH,))
+
+
+# E-09c: every archetype command @-includes PROTOCOL.md, so its size is paid on every emission.
+PROTOCOL_MAX_BYTES = 14_336
+
+
+def check_protocol_size(path: Path = HOME / "PROTOCOL.md", limit: int = PROTOCOL_MAX_BYTES) -> None:
+    """WARN when PROTOCOL.md grows past the core budget; move read-on-demand detail to its section."""
+    if not path.is_file():
+        return
+    size = path.stat().st_size
+    if size > limit:
+        add("WARN", "suite", f"PROTOCOL.md is {size} bytes, over the {limit}-byte core budget: move "
+                             f"read-on-demand detail to its owning section with a 'Read only when' pointer")
 
 
 def check_release(root: Path = HOME, archetype_count: int | None = None) -> None:

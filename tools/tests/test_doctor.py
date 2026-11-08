@@ -192,6 +192,32 @@ class ReleaseSync(unittest.TestCase):
         self.assertIn(f"says {self.count + 1} archetypes", errs[0])
 
 
+class ProtocolSize(unittest.TestCase):
+    """E-09c: a suite WARN once PROTOCOL.md passes the core budget."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.path = Path(self._tmp.name) / "PROTOCOL.md"
+        self.doc = load_doctor()
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def warns(self, size: int) -> list[str]:
+        self.path.write_bytes(b"x" * size)
+        self.doc.findings.clear()
+        self.doc.check_protocol_size(self.path)
+        return [msg for sev, _area, msg in self.doc.findings if sev == "WARN"]
+
+    def test_at_the_budget_is_quiet(self):
+        self.assertEqual(self.warns(self.doc.PROTOCOL_MAX_BYTES), [])
+
+    def test_over_the_budget_warns(self):
+        msgs = self.warns(self.doc.PROTOCOL_MAX_BYTES + 1)
+        self.assertEqual(len(msgs), 1, msgs)
+        self.assertIn("core budget", msgs[0])
+
+
 class Suite(unittest.TestCase):
     def test_suite_passes_on_this_repo(self):
         code, out = run_tool(DOCTOR, "--suite")

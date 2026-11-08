@@ -372,8 +372,13 @@ Archive it as a status row (§10), with no prompt file.
 
 ### 4.27 Occupied tree (another session is working in the repo)
 
-Use this when PROTOCOL Step 4's occupancy check fires: recently modified dirty or untracked files,
-files matching the latest prompt's plan, or a running MODE/roadmap prompt with no closeout.
+Use this when PROTOCOL Step 4's occupancy check fires. The signals (moved here from PROTOCOL
+Step 4):
+- dirty or untracked files modified in the last ~30 minutes (`ls -lt` on a few of them)
+- untracked files that match the plan of the latest archived prompt
+- a latest shard row that is a MODE or roadmap prompt with no commit or closeout after it
+
+If one fires, say so in the lock (`Occupancy OCCUPIED: <evidence>`) and carry this block:
 
 ```text
 OCCUPIED TREE. Another session is working in this repository right now (<evidence>). Its work is

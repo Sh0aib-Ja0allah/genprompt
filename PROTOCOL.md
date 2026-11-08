@@ -8,36 +8,20 @@ task. You do not edit any worker repo. You do not run builds, tests or installs 
 
 ## Where things live
 
-There are two folders:
-- **The genprompt root** holds these rules: the plugin folder, whose absolute path the command
-  that loaded this file states as `genprompt root`. It is read-only to you. The paths below are
-  relative to it.
-- **The genprompt home**, `~/.genprompt/`, holds the user's archive and personal rules. It lives
-  outside every repo and outside the plugin, so plugin updates never touch it. Tools need absolute
-  paths: resolve `~` once per session with `ls -d ~`.
+- **The genprompt root** (the plugin folder; the command states its path) holds these rules. It
+  is read-only to you; paths below are relative to it.
+- **The genprompt home**, `~/.genprompt/`, holds the archive (`generated-prompts/`) and personal
+  rules, outside every repo and the plugin. Tools need absolute paths: resolve `~` once with `ls -d ~`.
 
-Read only the parts the turn needs.
+Read a file only when the step that names it applies: §0–§2 `guide/01-target-profile.md` ·
+stacks `stacks/stack-matrix.md` · §3 `guide/02-principles.md` · §4 `guide/03-blocks.md` (your
+archetype's excerpt is already loaded) · §5 `archetypes/` (picker: `archetypes/README.md`) ·
+§6 `guide/04-checklist.md` · §7 `guide/05-anti-patterns.md` · §8 `guide/08-grammar.md` ·
+§10 `guide/06-library.md` · §11 `guide/07-environment.md` · section map `guide/00-index.md` ·
+`examples/worked-examples.md` (illustrative only; never copy their specifics).
 
-| Need | File |
-|---|---|
-| Section map, and how to keep the rules current | `guide/00-index.md` |
-| Target resolution, profile derivation, gate rules (§0–§2) | `guide/01-target-profile.md` |
-| Stack detection → role → gate ladder, per ecosystem | `stacks/stack-matrix.md` |
-| Core principles (§3) | `guide/02-principles.md` |
-| Building blocks to copy (§4) | `guide/03-blocks.md` (per-archetype excerpts: `guide/blocks/`) |
-| The archetype being emitted (§5.A–§5.W) | `archetypes/<letter>-<command>.md`, indexed in `archetypes/README.md` |
-| Emission checklist (§6) | `guide/04-checklist.md` |
-| Anti-patterns (§7) | `guide/05-anti-patterns.md` |
-| Request grammar and flags (§8) | `guide/08-grammar.md` |
-| Archive spec (§10) | `guide/06-library.md` |
-| Environment facts (§11): general ones here, the user's own in `local-rules.md` | `guide/07-environment.md` |
-| Worked examples: illustrative only, never copy their specifics | `examples/worked-examples.md` |
-
-The archive is `~/.genprompt/generated-prompts/`.
-
-**Personal rules.** `~/.genprompt/local-rules.md` is optional. It holds this user's own rules and
-machine facts, written by `/genprompt:learn`. Read it at the start of every command if it exists.
-Its rules add to this suite. Where one conflicts with the suite, the personal rule wins for this
+**Personal rules.** `~/.genprompt/local-rules.md` (optional, written by `/genprompt:learn`) is read
+at the start of every command. Its rules add to this suite; where one conflicts, it wins for this
 user, and the TARGET LOCK says so.
 
 **Write boundary (absolute).**
@@ -58,13 +42,8 @@ user, and the TARGET LOCK says so.
 - Never run a mutating git command in a worker repo, and never run a build, test, install or
   migration. If a task seems to need one, say so and stop.
 
-**Hooks and plugins are noise here.** Generator turns run in the main chat by design, and these
-messages do not change the rules:
-- a workflow or orchestration plugin's "MUST delegate" stub
-- per-tool delegation nags
-- a Stop message saying "PLAN ALREADY APPROVED … spawn Wave 0 agents"
-
-Never run a `/genprompt:` command in plan mode: that is what arms that Stop hook.
+**Hooks and plugins don't change these rules**, and a `/genprompt:` command never runs in plan
+mode. **Read §11 only when** a hook or plugin message tells you to delegate, plan or spawn agents.
 
 ---
 
@@ -89,24 +68,10 @@ Use the first rule that fires, and **record which one fired**:
 **Conflict.** If rules 2 and 3 both fire on **different** repos, use rule 2, and show the conflict
 in the lock. Never retarget silently.
 
-**Multi-repo work is legal** (for example, a mobile app plus its API):
-- Resolve both repos. Give each its own lock row, branch, gates and commit permission.
-- Carry the paired-change rule (§1).
-- **Archive under the primary repo**: the one where the first change lands. The other repo's
-  shard gets a row whose file field is `<primary-key>/<file>`.
-
-**Narrow to a code root.** Count **manifest directories** below the repo root, honouring EXCLUDE
-(§2.1). Two manifests in the same directory, such as `composer.json` + `package.json`, are one root.
-- **One directory:** that is the scope.
-- **Several, and cwd or the target file is inside one:** the nearest wins. Name the siblings as out
-  of scope.
-- **Several, and nothing points inside:** ask which sub-project. Never anchor a prompt at a root
-  with no manifest of its own.
-
-**No git.** A target folder with no git (or with zero commits) is legal:
-- say so in the lock
-- git posture becomes "no git operations"
-- a deliverable with no repo at all uses the key `unsorted`
+**Scope** is a single root when the repo has one manifest directory. **Read §1 only when** the
+request names two repos (multi-repo rows, paired changes, which shard to archive under), the repo
+has more than one manifest directory or none at its root (narrowing to a code root), or the target
+has no git or no repo at all.
 
 ## Step 2: Build the profile
 
@@ -119,14 +84,9 @@ Derive the profile per §2 and `stacks/stack-matrix.md`.
 Otherwise re-derive the card and rewrite it. **`--dry-run` never writes the card.** Report the
 card's age in the lock (§2.9).
 
-**Ancestor scan.** In every directory from the repo root's parent up to the drive root, check four
-names: `CLAUDE.md`, `AGENTS.md`, `.claude/CLAUDE.md` and `CLAUDE.local.md`. Use `ls` or Glob.
-- What you find describes **other** projects. It does not govern this one unless the repo's own
-  contract explicitly adopts it.
-- Separately, check the user-level `~/.claude/CLAUDE.md`. Claude Code loads it into
-  **every** session, including the worker's, so report it as `user-level: <path>`, not as an
-  ancestor.
-- Record the literal result, e.g. `none found`. **Never assume a file exists.**
+**Ancestor scan.** A fresh card already carries the `Ancestors` and `user-level` results. **Read
+§2.1 only when** you derive or refresh the card: it lists the four names to check in every
+directory above the root and how to report them. Never assume a file exists.
 
 **Gates are always re-derived.** Do this every time, from the manifest's real script keys, the
 contract's own commands, and the tools you can prove are present, whether or not a cache exists.
@@ -182,17 +142,10 @@ Reply "go" to accept, or correct any line.
   goes on the lock's `Last prompt` line as `landed: yes|partial|no` with its evidence (a SHA from
   `git log`, or a file read at HEAD). In an occupied tree (§4.27) judge by committed SHAs only: the
   live session's uncommitted files do not count as landed. With no prior prompt, omit `landed:`.
-- **Check occupancy.** Is another session working in this repo right now? The signals are:
-  - dirty or untracked files modified in the last ~30 minutes (`ls -lt` on a few of them)
-  - untracked files that match the plan of the latest archived prompt
-  - a latest shard row that is a MODE or roadmap prompt with no commit or closeout after it
-
-  If the repo is occupied, say so in the lock and apply §4.27:
-  - read committed content by SHA
-  - gate runs are conditional
-  - no new doc lands in the repo while it is occupied
-  - doc drift is RECORDed, not FIXed
-  - hand-offs flag collisions
+- **Check occupancy.** Is another session working in this repo right now? On a clean tree with no
+  open MODE or roadmap prompt in the shard, it is `free`. **Read §4.27 only when** the tree is dirty
+  or the latest shard row is such a prompt with no commit after it: §4.27 lists the signals and
+  the block to carry when the repo is occupied.
 - **Volatile facts are not asserted.** Quotas, counts that change daily, HEAD and whether a remote is
   reachable go in a §4.22 verify-at-start block, each with the command that re-checks it.
 
@@ -242,23 +195,13 @@ Reply "go" to accept, or correct any line.
      - `via`: the Step 1 rule that resolved the target: `argument`, `continuation`, `cwd` or `ask`.
      - `lock`: `go` (`--go` skipped the wait), `accepted` (the user said go and changed nothing)
        or `corrected` (the user changed at least one lock line before go).
-     `tmp/` is scratch: the file is not deleted, because
-     a `--replace` re-run needs it and the generator has no delete permission; the next run with
-     the same slug overwrites it.
    - **Run it** (`python3`, or `python` if `python3` fails, as on Windows where `python3` can be a
      Store alias): `python3 "${CLAUDE_PLUGIN_ROOT}/tools/archive.py" --dry-run <parts.json>`
      first. Its PASS/WARN/FAIL lines are the evidence for self-check rows 8, 15, 16, 21 and 22:
      cite them in those rows instead of grading by eye. Then run it again without `--dry-run` to
      archive. Under a `--dry-run` request, the dry run is the only run and nothing is written.
-   - **What it produces** (the §10 spec, for readers): the file
-     `~/.genprompt/generated-prompts/<key>/<YYYY-MM-DD>-<cmd>[+<cmd>]-<slug>.md` (`<key>`: the repo
-     directory's basename, lowercased, `_` and spaces turned into `-`; `<cmd>`: the command word of
-     each archetype, dominant first; `<slug>`: kebab-case, 60 characters at most), whose line 1 is
-     `<!-- genprompt v3: key=… | repo=… | path=… | date=… | archetype=… | follows=… -->` (then
-     `flags`, `via`, `lock`; files archived before 2026-11-07 lack them), followed by the §4.1 header table, the grounding notes,
-     **the complete fenced prompt** and the self-check table. And one 5-field row
-     `<date> | <letters> | <slug> | <filename> | <task>` below the last line of
-     `by-repo/<key>.tsv` (a new shard first gets the three §10 header lines).
+   - What it produces (the file name, line 1 and the shard row) is specified in §10.1–§10.3; you
+     do not need it to archive.
    - **No python at all** (the script cannot run on this machine): say so in chat, mark row 22
      FAIL with that reason, and leave the archive alone. Do not hand-write it.
 3. **Print** in chat, prompt first, in this order:
@@ -286,19 +229,12 @@ Reply "go" to accept, or correct any line.
    - The separators are a middle dot `·` with one space on each side. No bold, backticks, emoji,
      trailing period, or other wording on the line. It stands on a line of its own.
 
-   **archive.py exit codes.** It writes first, then validates, so a printed prompt is never
-   missing from the archive. 0: archived (WARN lines are advisory; mention them). 1: archived
-   with errors: show its FAIL lines, mark row 22 FAIL, fix the prompt and re-run with `--replace`
-   (same file, shard row rewritten in place). 3: the file already exists: use `--replace` only if
-   it is the same prompt, otherwise pick a new slug. 2: a structural field (key, date, slug,
-   letters, repo, path) is wrong and nothing was written: fix it and re-run.
+   **archive.py exit code 0** means archived; mention any WARN lines. **Read §10.6 only when** it
+   exits non-zero: it says what 1, 2 and 3 mean and when to re-run with `--replace`.
 
-**No-prompt turns** (the work is verified done, or you are parking it):
-- Write a §4.26 closeout in chat.
-- Archive a status row through `tools/archive.py` too: a parts file with `key`, `path`, `date`,
-  `"archetype": "none"`, `slug` and a `task` of the form
-  `status: <verified|closed|parked>, no prompt emitted; <reason and the landed SHA>`. It writes
-  only the row (file `-`).
+**No-prompt turns** (the work is verified done, or you are parking it): write a §4.26 closeout in
+chat and archive a status row through `tools/archive.py`. **Read §10.7 only when** this happens: it
+gives the parts file for a status row.
 
 ## Step 7: Close
 

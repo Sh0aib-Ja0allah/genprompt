@@ -17,6 +17,9 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
   Real-use check (evals/CP4b.md): median rule bytes −26.5%.
 - 2026-11-08 · PROTOCOL.md · Step 2's card rule follows §2.9 (90-day ceiling, freshness is the
   stamps) and the lock's Stack line reports the card's age.
+- 2026-11-08 · PROTOCOL.md, guide/01, 03, 06, 07, tools/doctor.py · PROTOCOL core 19.9 → 16.5 KB:
+  read-on-demand detail moved to its owning section behind "Read only when" pointers; doctor WARNs
+  past 14,336 bytes.
 
 ## 1.1.0 (2026-11-08): archive written and checked by a tool, a measurable workflow
 
