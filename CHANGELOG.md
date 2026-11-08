@@ -4,6 +4,9 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-08 · stacks/stack-matrix.md · Workspace detection (pnpm/yarn/npm/bun, Turborepo, Nx, Cargo,
+  go.work, Elixir umbrella) with per-package vs orchestrator gate rules; Bun, Deno, Elixir/Phoenix,
+  C/C++ (CMake), Terraform and Pulumi rows (apply/destroy/up never gates); plainer tone.
 - 2026-11-08 · guide/01-target-profile.md, utilities/profile.md, tools/doctor.py · A profile card is
   fresh while its file@sha stamps hold (no 14-day TTL), with a 90-day ceiling; age shown; first use
   writes the card. Gates stay uncached. PROTOCOL Step 2's wording follows in E-11 part 2.
