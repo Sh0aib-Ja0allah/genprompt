@@ -20,12 +20,12 @@ them in v3.
 | § | Topic | File |
 |---|---|---|
 | — | Runtime steps (was §9) | `PROTOCOL.md` |
-| 0–2 | Invariants, target resolution, profile derivation, gates, truth, naming, branch, profile card | `guide/01-target-profile.md` |
+| 0–2 | Invariants, target resolution, profile derivation, gates, truth, naming, branch, profile card | `guide/01-target-profile.md` (card-less runs read `guide/blocks/derive.md`: §2.0 and the card template) |
 | 2.3–2.5 (expanded) | Stack detection, role labels, per-stack gate ladders | `stacks/stack-matrix.md` (ladders in `stacks/ladders/`) |
 | 3 | Core principles | `guide/02-principles.md` |
-| 4 | Building blocks 4.0–4.27 | `guide/03-blocks.md` |
+| 4 | Building blocks 4.0–4.27 | `guide/03-blocks.md` (per-archetype excerpts in `guide/blocks/`) |
 | 5 | Archetypes A–W | `archetypes/README.md` + `archetypes/<X>-<cmd>.md` |
-| 6 | Emission checklist | `guide/04-checklist.md` |
+| 6 | Emission checklist | `guide/04-checklist.md` (compact form at the end of each excerpt) |
 | 7 | Anti-patterns | `guide/05-anti-patterns.md` |
 | 8 | Request grammar and flags | `guide/08-grammar.md` |
 | 10 | Prompt library (archive spec) | `guide/06-library.md` |
