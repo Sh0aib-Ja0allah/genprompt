@@ -32,6 +32,9 @@ What doctor checks (the source of truth is the script itself):
   - the command files match `tools/build_shims.py`, so the `allowed-tools` baseline is identical
     and the extra frontmatter (`EXTRA_FM`: `disable-model-invocation` on doctor, learn, history and
     profile, which stay typeable but leave the model's skill listing) is exactly as generated
+  - each command's Write/Edit grants match PROTOCOL's write boundary exactly: prompt commands
+    `~/.genprompt/generated-prompts/**` and `~/.genprompt/tmp/**`, `:learn` only
+    `local-rules.md`, `:profile` only `generated-prompts/by-repo/**`, the rest none
   - § references resolve
   - the help table lists every command
   - letters are unique

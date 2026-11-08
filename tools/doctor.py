@@ -182,8 +182,9 @@ def check_suite() -> None:
     if protocol is not None and "GENPROMPT-PROTOCOL v3 LOADED" not in protocol:
         add("ERROR", "suite", "PROTOCOL.md lost its load marker line")
     check_protocol_size()
+    check_write_grants([cmd for _l, cmd, *_ in bs.ARCHETYPES] + [bs.ENTRY])
 
-    picker = read(HOME / "archetypes" / "README.md", "suite") or ""
+    picker =read(HOME / "archetypes" / "README.md", "suite") or ""
     grammar = read(HOME / "guide" / "08-grammar.md", "suite") or ""
     for _letter, cmd, *_ in bs.ARCHETYPES:
         if f"`:{cmd}`" not in picker:
@@ -224,6 +225,41 @@ def check_suite() -> None:
 
 # E-09c: every archetype command @-includes PROTOCOL.md, so its size is paid on every emission.
 # Final 1.2.0 budget (E-11b): 16,212 bytes achieved + ~600 B headroom. Raise it only with a reason.
+# E-22: PROTOCOL's write boundary, kept here independently of tools/build_shims.py so that widening
+# a shim's Write/Edit scope in the generator alone fails the suite. Paths are under ~/.genprompt/.
+# Prompt-emitting commands (every archetype and :auto) write the archive and the archive.py parts
+# file; :learn only its personal rules; :profile only the card; every other command writes nothing.
+WRITE_BOUNDARY_EMIT = ("generated-prompts/**", "tmp/**")
+WRITE_BOUNDARY = {"learn": ("local-rules.md",), "profile": ("generated-prompts/by-repo/**",)}
+WRITE_TOOL_RE = re.compile(r"\b(Write|Edit|MultiEdit|NotebookEdit)\b(?:\(([^)]*)\))?")
+
+
+def write_grants_of(text: str) -> set[str]:
+    """The write-capable grants in a command file's allowed-tools line, e.g. 'Write(~/x/**)'."""
+    m = re.search(r"^allowed-tools:(.*)$", text, re.M)
+    if not m:
+        return set()
+    return {f"{tool}({path})" if path else tool for tool, path in WRITE_TOOL_RE.findall(m.group(1))}
+
+
+def expected_write_grants(cmd: str, emitters: list[str]) -> set[str]:
+    scopes = WRITE_BOUNDARY_EMIT if cmd in emitters else WRITE_BOUNDARY.get(cmd, ())
+    return {f"{tool}(~/.genprompt/{s})" for s in scopes for tool in ("Write", "Edit")}
+
+
+def check_write_grants(emitters: list[str], commands: Path = COMMANDS) -> None:
+    for p in sorted(commands.glob("*.md")):
+        text = read(p, "suite")
+        if text is None:
+            continue
+        got, want = write_grants_of(text), expected_write_grants(p.stem, emitters)
+        for g in sorted(got - want):
+            add("ERROR", "suite", f"commands/{p.name}: write grant {g} is outside PROTOCOL's write "
+                                  f"boundary for :{p.stem} (allowed: {', '.join(sorted(want)) or 'none'})")
+        for g in sorted(want - got):
+            add("ERROR", "suite", f"commands/{p.name}: write grant {g} is missing for :{p.stem}")
+
+
 PROTOCOL_MAX_BYTES = 16_800
 
 

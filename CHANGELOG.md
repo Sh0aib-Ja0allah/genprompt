@@ -4,6 +4,9 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-09 · tools/build_shims.py, commands/, tools/doctor.py · Security: Write/Edit grants narrowed
+  from all of ~/.genprompt to PROTOCOL's boundary per command (prompts: generated-prompts/, tmp/;
+  :learn: local-rules.md; :profile: by-repo/; others none); doctor --suite fails any widening.
 - 2026-11-09 · PROTOCOL.md, tools/build_shims.py, commands/ · E-09e: the home is `~/.genprompt/` unless `GENPROMPT_HOME` names another; archetype and `:auto` shims read it in Step 0 with `archive.py --where` (existing ARCHIVE grant), while learn/profile/history keep `ls -d ~`. The write boundary now names `~/.genprompt/tmp/` (the parts file Step 6 writes) next to `generated-prompts/`; allowed-tools unchanged.
 - 2026-11-09 · tools/doctor.py, tools/archive.py · Every tool resolves the genprompt home through
   doctor.genprompt_home() (GENPROMPT_HOME, absolute); archive.py --where prints it, read-only.
