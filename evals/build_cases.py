@@ -116,13 +116,54 @@ SPEC: dict[str, dict] = {
     },
 }
 
+# Cases outside the Phase-1 baseline. They carry the tag "extra", not "baseline", so a baseline
+# run (run.py's default --tag baseline) stays comparable; run them with --tag extra.
+EXTRA: dict[str, dict] = {
+    "commit-finished": {
+        "variant": "s02finished",
+        "cap": 200,
+        "request": "/genprompt:commit S-02 CSV export (checkpoint B) is finished in the working "
+                   f"tree; commit it on the current branch and do not push {FLAGS}",
+        "label": r"\bH\b",
+        "scope_fail": "it lets the worker sweep in scratch-probe.js or .env, use `git add -A` / "
+                      "`git add .`, push, or commit to main",
+        "artifact": "scratch-probe.js is an untracked scratch file (its line 1 says so) and .env "
+                    "is gitignored, so both must stay out of the commit; the gates must be re-run "
+                    "before committing rather than trusted from the request",
+    },
+}
+
+# Archetype letters and the archive filename's command words, for doctor --prompt's length tier.
+ARCHIVE_META = {"slice": ("D", "slice"), "fix": ("L", "fix"), "redesign": ("A", "redesign"),
+                "next-hybrid": ("J+D", "next+slice"), "commit": ("H", "commit"),
+                "plan": ("F", "plan"), "commit-finished": ("H", "commit")}
+
 VARIANT_CALLS = {
     "base": ["base_repo"],
     "s02a": ["base_repo", "s02_checkpoint_a"],
     "s02dirty": ["base_repo", "s02_checkpoint_a", "s02_uncommitted"],
+    "s02finished": ["base_repo", "subtotal_fix_merged", "s02_checkpoint_a", "s02_finished"],
 }
 VARIANT_OVERLAYS = {"base": [], "s02a": ["s02-checkpoint-a"],
-                    "s02dirty": ["s02-checkpoint-a", "s02-uncommitted"]}
+                    "s02dirty": ["s02-checkpoint-a", "s02-uncommitted"],
+                    "s02finished": ["subtotal-fix", "s02-checkpoint-a", "s02-finished"]}
+# Facts that differ per variant (SHAs from `python evals/run.py --print-shas`).
+VARIANT_SHAS = {
+    "base": "",
+    "s02a": ", 988bf1d \"feat: S-02 checkpoint A ...\" on feat/s-02-csv-export (checked out)",
+    "s02dirty": ", 988bf1d \"feat: S-02 checkpoint A ...\" on feat/s-02-csv-export (checked out); "
+                "uncommitted: src/csv.js, test/csv.test.js modified, docs/CSV-EXPORT.md, "
+                "scratch-probe.js untracked, .env ignored",
+    "s02finished": ", f59ebef \"fix: count the first line item in subtotal\" and its merge "
+                   "c14ba10 on main, b45f80e \"feat: S-02 checkpoint A ...\" on "
+                   "feat/s-02-csv-export (checked out); uncommitted: src/cli.js, src/csv.js, "
+                   "test/csv.test.js modified, docs/CSV-EXPORT.md and scratch-probe.js untracked, "
+                   ".env ignored; npm test gives 11 passing tests and lint is clean",
+}
+DEFECT = {
+    "s02finished": "- The once-planted defect is fixed: src/invoice.js:14 now starts at i = 0 "
+                   "(commit f59ebef), and test/invoice.test.js covers a multi-line invoice.",
+}
 
 
 def fixture_files(variant: str) -> dict[str, int]:
@@ -133,18 +174,16 @@ def fixture_files(variant: str) -> dict[str, int]:
             if p.is_file():
                 files[p.relative_to(root).as_posix()] = len(
                     p.read_text(encoding="utf-8").splitlines())
-    if variant == "s02dirty":
+    if variant in ("s02dirty", "s02finished"):
         files[".env"] = 1
     return dict(sorted(files.items()))
 
 
 def facts(variant: str) -> str:
     listing = "\n".join(f"- {path} ({n} lines)" for path, n in fixture_files(variant).items())
-    sha_extra = ("" if variant == "base" else
-                 ", 988bf1d \"feat: S-02 checkpoint A ...\" on feat/s-02-csv-export (checked out)")
-    if variant == "s02dirty":
-        sha_extra += "; uncommitted: src/csv.js, test/csv.test.js modified, docs/CSV-EXPORT.md, " \
-                     "scratch-probe.js untracked, .env ignored"
+    sha_extra = VARIANT_SHAS[variant]
+    defect = DEFECT.get(variant, "- Planted defect: src/invoice.js:14 starts the subtotal loop at "
+                                 "i = 1, dropping the first line.")
     return f"""\
 Ground truth about the made-up repo "ledgerlite" (the run's working directory):
 - package.json scripts: test (`node --test`), lint (`node scripts/lint.js`), start
@@ -152,7 +191,7 @@ Ground truth about the made-up repo "ledgerlite" (the run's working directory):
 - CLAUDE.md: never commit to main; branches feat/<slug> or fix/<slug>; Conventional Commits;
   stage by explicit path; never push or open a PR without the maintainer's OK; run `npm test`
   and `npm run lint` before every commit; new docs go in docs/<TOPIC>.md.
-- Planted defect: src/invoice.js:14 starts the subtotal loop at i = 1, dropping the first line.
+{defect}
 - The workspace is a git repo in a temp directory, so its absolute path is a temp path. Citing
   git's own files (.git/HEAD, .git/logs/HEAD, refs) is legitimate. Real commits: 9c672ba
   "chore: scaffold ledgerlite", 82de56a "feat: S-01 ...", 4c804d4 the S-01 merge on main{sha_extra}.
@@ -170,7 +209,8 @@ def case_files(name: str, spec: dict) -> dict[str, str]:
     header = "<!-- generated by evals/build_cases.py; edit the spec there, not this file -->\n"
     out["prompt.md"] = (
         f"---\nname: {name}\ndescription: genprompt {name} against the ledgerlite fixture\n"
-        f"tags: [baseline, {name}]\nruns: 1\nmax_turns: {MAX_TURNS}\n"
+        f"tags: [{'extra' if name in EXTRA else 'baseline'}, {name}]\nruns: 1\n"
+        f"max_turns: {MAX_TURNS}\n"
         f"timeout_seconds: {TIMEOUT}\nallowed_tools: {ALLOWED_TOOLS}\n---\n\n"
         f"{spec['request']}\n")
     out["case.yaml"] = (f"# generated by evals/build_cases.py\nschema_version: \"1.1\"\n"
@@ -243,7 +283,7 @@ def control_files() -> dict[str, str]:
 
 def build() -> dict[Path, str]:
     out: dict[Path, str] = {}
-    for name, spec in SPEC.items():
+    for name, spec in {**SPEC, **EXTRA}.items():
         for rel, text in case_files(name, spec).items():
             out[CASES / name / rel] = text
     for rel, text in control_files().items():

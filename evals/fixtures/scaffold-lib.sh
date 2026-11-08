@@ -44,6 +44,21 @@ s02_checkpoint_a() {
   commit_at "2026-10-05T09:00:00+00:00" "feat: S-02 checkpoint A, CSV rows for line items"
 }
 
+subtotal_fix_merged() {  # the planted defect, fixed on a fix/ branch and merged to main
+  g checkout -q -b fix/subtotal-first-line
+  cp -r "$FIXTURES/overlays/subtotal-fix/." .
+  g add src/invoice.js test/invoice.test.js
+  commit_at "2026-10-03T09:00:00+00:00" "fix: count the first line item in subtotal"
+  g checkout -q main
+  GIT_AUTHOR_DATE="2026-10-03T10:00:00+00:00" GIT_COMMITTER_DATE="2026-10-03T10:00:00+00:00" \
+    g merge -q --no-ff fix/subtotal-first-line -m "Merge branch 'fix/subtotal-first-line'"
+}
+
+s02_finished() {  # S-02 done and green in the working tree, plus two files that must stay out
+  cp -r "$FIXTURES/overlays/s02-finished/." .
+  printf 'API_TOKEN=fake-fixture-value-not-a-secret\n' > .env
+}
+
 s02_uncommitted() {
   cp -r "$FIXTURES/overlays/s02-uncommitted/." .
   printf 'API_TOKEN=fake-fixture-value-not-a-secret\n' > .env
