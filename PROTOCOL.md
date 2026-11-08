@@ -13,7 +13,9 @@ a worker repo, or run builds, tests or installs anywhere.
 - The genprompt home, `~/.genprompt/`, holds the archive (`generated-prompts/`) and personal rules,
   outside every repo and the plugin. Tools need absolute paths: resolve `~` once with `ls -d ~`.
 
-Read a file only when the step that names it applies: §0–§2 `guide/01-target-profile.md` ·
+A normal run reads only `guide/04-checklist.md` (Step 6): this file, your archetype and its excerpt
+are already loaded. Read another file only when a step's "Read … only when" condition holds:
+§0–§2 `guide/01-target-profile.md` ·
 stacks `stacks/stack-matrix.md` · §3 `guide/02-principles.md` · §4 `guide/03-blocks.md` (your
 archetype's excerpt is already loaded) · §5 `archetypes/` (picker: `archetypes/README.md`) ·
 §6 `guide/04-checklist.md` · §7 `guide/05-anti-patterns.md` · §8 `guide/08-grammar.md` ·
@@ -72,25 +74,22 @@ git or no repo at all.
 
 ## Step 2: Build the profile
 
-Derive the profile per §2 and `stacks/stack-matrix.md` (in a workspace, its section 1b decides
-per-package vs orchestrator gates).
-
-Cached profile card: reuse `~/.genprompt/generated-prompts/by-repo/<key>.profile.md` only when
-both hold:
+Cached profile card: reuse `~/.genprompt/generated-prompts/by-repo/<key>.profile.md` when both
+hold, and then read no profile rules at all:
 - every `stamp:` entry still matches `git log -1 --format=%h -- <file>`, and no stamped file is dirty
-- `derived:` is at most 90 days old (the §2.9 ceiling; freshness itself is the stamps)
+- `derived:` is at most 90 days old (freshness itself is the stamps)
 
-Otherwise re-derive the card and rewrite it; `--dry-run` never writes it. Report the card's age in
-the lock (§2.9).
-
-Ancestor scan: a fresh card already carries the `Ancestors` and `user-level` results. Read §2.1
-only when you derive or refresh the card: it lists the four names to check in every directory above
-the root and how to report them. Don't assume a file exists.
+Report the card's age (today − `derived`, in days) on the lock's Stack line. Only when the card is
+missing, stale or older than 90 days: read §2 and `stacks/stack-matrix.md`, derive the profile and
+rewrite the card (`--dry-run` never writes it). §2.1 holds the ancestor scan that derivation runs.
+Read `stacks/workspaces.md` only when the repo has more than one manifest directory or a workspace
+file (pnpm-workspace.yaml, a `workspaces` key, turbo.json, nx.json, go.work, a Cargo `[workspace]`).
+Don't assume a file exists.
 
 Re-derive the gates every time, cache or not, from the manifest's real script keys, the contract's
 own commands and the tools you can prove present, because gates are the field that rots and a
 wrong gate is the most expensive thing you can emit. State `test: NONE` as a finding; don't fill
-the gap. **Label each gate** `(script)`, `(contract)` or `(derived)` (§2.5).
+the gap. **Label each gate** `(script)`, `(contract)` or `(derived)`.
 
 ## Step 3: TARGET LOCK (one message, then wait)
 
@@ -197,8 +196,7 @@ Reply "go" to accept, or correct any line.
      first. Cite its PASS/WARN/FAIL lines as the evidence for self-check rows 8, 15, 16, 21 and 22
      instead of grading them by eye. Then run it again without `--dry-run` to archive. Under a
      `--dry-run` request, the dry run is the only run and nothing is written.
-   - The file name, line 1 and the shard row it writes are specified in §10.1–§10.3; you don't need
-     them to archive.
+   - archive.py builds the file name, line 1 and the shard row itself; don't read §10 to archive.
    - No python at all: say so in chat, mark row 22 FAIL with that reason, and leave the archive
      alone rather than hand-writing it.
 3. Print in chat, prompt first, in this order:
@@ -226,12 +224,11 @@ Reply "go" to accept, or correct any line.
    - The separators are a middle dot `·` with one space on each side. No bold, backticks, emoji,
      trailing period or other wording on the line, which stands on its own.
 
-   archive.py exit code 0 means archived; mention any WARN lines. Read §10.6 only when it exits
-   non-zero: it says what 1, 2 and 3 mean and when to re-run with `--replace`.
+   archive.py exit 0 → done: mention any WARN lines, and do not read §10. Read §10.6 only when it
+   exits non-zero.
 
 No-prompt turns (the work is verified done, or you are parking it): write a §4.26 closeout in chat
-and archive a status row through `tools/archive.py`. Read §10.7 only when this happens: it gives
-the parts file for a status row.
+and archive a status row through `tools/archive.py`. Read §10.7 only for a no-prompt turn.
 
 ## Step 7: Close
 
