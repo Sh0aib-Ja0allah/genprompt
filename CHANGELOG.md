@@ -32,6 +32,8 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
   for archive ERRORs (derivable vs manual, nothing invented) plus legacy label drift; writes nothing.
 - 2026-11-08 · PROTOCOL.md, guide/04-checklist.md · The chat verdict line is pinned as an exact
   string (two forms, dry-run included) because tools and evals match it literally.
+- 2026-11-08 · tools/doctor.py · Lint WARN when a chat verdict line is not exactly `Self-check: <n> PASS
+  · <n> N/A · <n> FAIL (…)` or its counts miss the table's row count; never runs on table-only files.
 
 ## 1.0.0 (2026-09-24): first public release
 
