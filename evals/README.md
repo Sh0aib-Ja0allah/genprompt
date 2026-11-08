@@ -20,7 +20,8 @@ in CI.
 | `run.py` | Runs the eval, then applies `lint/structural.py` to each run's final message and workspace |
 | `BASELINE.md` | The Phase-1 baseline: scores per case and grader, cost, load sizes |
 | `CP4.md` | CP4: E-09 at `4fb361a` vs the baseline; why the token gates cannot pass in this harness |
-| `CP4b.md`, `realuse/run.py` | CP4b: E-09 token saving measured with `claude -p` (where @-includes expand), and its harness |
+| `CP4b.md` | CP4b: E-09's token saving, measured in real use |
+| `realuse/run.py` | The real-use load probe: `compare --base <ref> --cand <ref>` prints the CP4b table and verdict; `isolation` proves the home directory is sealed |
 | `compare.py` | Applies the CP4 acceptance gates (G1-G4) to a candidate run vs the baseline |
 | `prepare_worktree.py` | Stages another commit in a detached worktree with this `evals/` copied in |
 
@@ -28,7 +29,7 @@ Everything in `fixtures/` is invented. Nothing comes from `~/.genprompt` or any 
 
 ## Cases
 
-All six run with `--go --dry-run`, so the generator never waits and never writes the archive.
+All seven run with `--go --dry-run`, so the generator never waits and never writes the archive. The Phase-1 baseline (BASELINE.md) has the first six. commit-finished joined later (E-06b), and its first score is in CP4.md.
 
 | Case | Request | Scaffold state | Length cap (block lines) |
 |---|---|---|---|
@@ -36,8 +37,8 @@ All six run with `--go --dry-run`, so the generator never waits and never writes
 | fix | `/genprompt:fix` totals too low | main, clean | 200 |
 | redesign | `/genprompt:redesign src/cli.js` | main, clean | 200 |
 | next-hybrid | `/genprompt:next` + a pasted J+D stop-report | S-02 checkpoint A committed | 260 (see below) |
-| commit | `/genprompt:commit` S-02 | checkpoint A + uncommitted work, a scratch file and `.env` | 200 |
-| commit-finished (tag `extra`, not in the baseline) | `/genprompt:commit` S-02 | subtotal fix merged, checkpoint A, then S-02 finished and green (11 tests, `--csv` wired), plus a scratch file and `.env` that must stay out | 200 |
+| commit (the refusal case: unfinished work) | `/genprompt:commit` S-02 | checkpoint A + uncommitted work, a scratch file and `.env` | 200 |
+| commit-finished (the second commit case: committable work) | `/genprompt:commit` S-02 | subtotal fix merged, checkpoint A, then S-02 finished and green (11 tests, `--csv` wired), plus a scratch file and `.env` that must stay out | 200 |
 | plan | `/genprompt:plan` S-03 tax lines | main, clean | 350 |
 
 The next-hybrid report says 10 tests pass, but the test files declare 9. The generator should
@@ -97,9 +98,9 @@ python evals/build_cases.py --check          # cases match the spec
 python -m unittest discover -s evals/lint    # graders fail on what they should
 python evals/run.py --validate               # every case loads; no model spend
 python evals/run.py --case slice             # one case, one run (smoke)
-python evals/run.py                          # all six cases
+python evals/run.py                          # all seven baseline cases
 python evals/run.py --controls               # negative control (cheap, haiku)
-python evals/run.py --tag extra              # cases outside the baseline (commit-finished)
+python evals/run.py --tag extra              # cases tagged extra (none at present)
 python evals/run.py --regrade evals/results/<timestamp>   # re-grade stored runs, no spend
 ```
 
@@ -115,6 +116,38 @@ baseline. Copy `evals/results/` back, then run `python evals/prepare_worktree.py
 `run.py` passes `--scaffold` (it runs our own `scaffold.sh`), `--trust-plugin`, `--ablation none`
 (a no-plugin arm says nothing useful about a prompt generator, and it doubles the cost) and
 `--no-publish`. Results go to `evals/results/<timestamp>/`, which is gitignored.
+
+## The eval harness is not real use: which gate comes from where
+
+`claude plugin eval` **does not expand the shims' `@${CLAUDE_PLUGIN_ROOT}/…` lines** (Claude Code
+2.1.318; the docs say `@path` mentions are not expanded). In real use (an interactive session or
+`claude -p`), they do expand. CP4 measured it: the first-turn context stayed the same when the
+@-included bytes grew by about 15 KB, and every generator said the protocol marker was missing and
+Read the files itself. CP4b measured real use: the first-turn context grew by about 6k tokens, and
+the @-included files were never Read.
+
+Two consequences:
+- **Quality gates come from `claude plugin eval`** (`run.py` + `compare.py` G1/G2): the
+  deterministic graders, cites-real, gates-exist and the rubrics. The emission's quality does not
+  depend on how the rules arrived.
+- **Token and load gates come from the real-use probe** (`realuse/run.py compare`): first-turn
+  context, rule-file Reads, rule bytes, cache write and read. In the eval, the generator must Read
+  every rule file, so a change that moves text into @-includes looks *worse* there (CP4 G3/G4)
+  while it is better in real use (CP4b: −26.5% median rule bytes).
+
+| Question | Measure it with |
+|---|---|
+| Did the prompts get worse? | `python evals/run.py` (+ `--controls`), then `compare.py` G1/G2 against the stored baseline |
+| Did the rules load get smaller? | `python evals/realuse/run.py compare --base <ref> --cand <ref>` (haiku by default, about $0.03 per case per ref) |
+| Is the probe still sealed? | `python evals/realuse/run.py isolation` (under $0.01) |
+
+The probe keeps the real HOME, because sign-in needs it; credentials are never copied. It is sealed
+by flags instead: `--setting-sources local`, `--strict-mcp-config`, `--permission-mode dontAsk`
+with only the work dir added, and deny rules on Read, Glob and Grep for the whole home directory
+and `~/.genprompt`. The work dir (fixture and plugin copies) lives outside the home directory, in
+`C:/tmp` on Windows. Its check A5 fails the verdict if any call outside the work dir returns
+anything but a denial. Under CP4b's original flags, A5 would have caught the Glob name-listing
+gap.
 
 ## Sandbox facts (measured on this suite)
 
