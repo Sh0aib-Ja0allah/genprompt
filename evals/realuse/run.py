@@ -221,6 +221,12 @@ def compare(args) -> int:
         for plugin in (base, cand):
             runs[case][plugin.name] = []
             for i in range(1, args.runs + 1):
+                # Spend guard: never start a run that could push the total past --max-total.
+                spent = sum(a["result"].get("total_cost_usd") or 0
+                            for cr in runs.values() for rs in cr.values() for a in rs)
+                if args.max_total is not None and spent + float(args.budget) > args.max_total:
+                    sys.exit(f"STOP: ${spent:.4f} spent; another run (cap ${args.budget}) could pass "
+                             f"--max-total ${args.max_total}. Partial traces are in {work}")
                 suffix = "" if args.runs == 1 else f"-r{i}"
                 out = work / f"{plugin.name}-{case}-{args.model}{suffix}.jsonl"
                 run_claude(claude_cmd(work, plugin, args.model, args.budget,
@@ -354,6 +360,7 @@ def main() -> int:
     c.add_argument("--budget", default="0.40", help="max $ per claude -p run")
     c.add_argument("--min-drop", type=float, default=0.25)
     c.add_argument("--runs", type=int, default=1, help="fresh runs per case per ref (gate on the median)")
+    c.add_argument("--max-total", type=float, help="stop before a run could push total $ past this")
     c.add_argument("--workroot")
     i = sub.add_parser("isolation")
     i.add_argument("--workroot")
