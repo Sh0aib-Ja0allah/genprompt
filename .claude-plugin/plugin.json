@@ -1,6 +1,6 @@
 {
   "name": "genprompt",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Generates grounded, ready-to-paste Claude Code prompts for a separate worker chat: 23 archetypes (slice, fix, audit, review, commit, release, ...), a target lock derived from the repo, literal quality gates, and a self-check on every prompt. Read-only on your repos.",
   "author": {
     "name": "Sh0aib-Ja0allah",

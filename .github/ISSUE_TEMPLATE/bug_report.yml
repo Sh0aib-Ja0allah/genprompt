@@ -37,6 +37,6 @@ body:
     attributes:
       label: Versions
       description: genprompt version (from /plugin), Claude Code version (claude --version), and OS.
-      placeholder: genprompt 1.0.0 · Claude Code 2.1.x · Windows 11 / macOS 15 / Ubuntu 24.04
+      placeholder: genprompt 1.1.0 · Claude Code 2.1.x · Windows 11 / macOS 15 / Ubuntu 24.04
     validations:
       required: true

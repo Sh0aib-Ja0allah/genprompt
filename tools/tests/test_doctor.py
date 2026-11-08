@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import shutil
 import sys
 import tempfile
@@ -145,10 +146,11 @@ class ReleaseSync(unittest.TestCase):
 
     def test_changelog_mismatch_is_an_error(self):
         log = self.root / "CHANGELOG.md"
-        log.write_text(log.read_text(encoding="utf-8").replace("## 1.0.0", "## 1.0.1", 1),
-                       encoding="utf-8")
+        # bump the top released heading, whatever the current release is
+        log.write_text(re.sub(r"^## \d+\.\d+\.\d+", "## 9.9.9", log.read_text(encoding="utf-8"), count=1,
+                              flags=re.M), encoding="utf-8")
         errs = self.errors()
-        self.assertTrue(any("CHANGELOG.md top released heading is 1.0.1" in e for e in errs), errs)
+        self.assertTrue(any("CHANGELOG.md top released heading is 9.9.9" in e for e in errs), errs)
 
     def test_archetype_count_claim_must_match_table(self):
         self.edit_json("plugin.json",

@@ -4,6 +4,17 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+## 1.1.0 (2026-11-08): archive written and checked by a tool, a measurable workflow
+
+The generator now archives every prompt through `tools/archive.py`, which writes the file and the
+shard row and then lints them, so a broken record is flagged instead of silently saved; doctor also
+prints a print-only repair plan for older archive errors (`--suggest-fixes`). The chat output is
+shorter: the prompt comes first and the self-check is one exact verdict line plus its FAIL/N/A rows.
+Worker reports start with a GENPROMPT-REPORT line, the TARGET LOCK shows whether the last prompt
+landed, and each archived prompt records its flags, how the repo was found and the lock outcome.
+Commands lead with what they are for, utilities stay out of the model's listing, and the plugin now
+has CI, a unit-test suite and an eval baseline.
+
 - 2026-11-07 · tools/build_shims.py · Trigger-first descriptions; help/doctor skip PROTOCOL.
 - 2026-11-07 · tools/doctor.py, tools/tests/, .github/workflows/ · CI, unit tests, version-sync check.
 - 2026-11-07 · tools/build_shims.py, guide/08-grammar.md · Grammar table generated; 5 hint drifts
@@ -33,7 +44,8 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 - 2026-11-08 · PROTOCOL.md, guide/04-checklist.md · The chat verdict line is pinned as an exact
   string (two forms, dry-run included) because tools and evals match it literally.
 - 2026-11-08 · tools/doctor.py · Lint WARN when a chat verdict line is not exactly `Self-check: <n> PASS
-  · <n> N/A · <n> FAIL (…)` or its counts miss the table's row count; never runs on table-only files.
+  · <n> N/A · <n> FAIL (…)` or its counts miss the row count (the table's, or the §6 checklist's when
+  no table is shown); never runs on table-only files.
 
 ## 1.0.0 (2026-09-24): first public release
 
