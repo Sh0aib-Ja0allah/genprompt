@@ -235,6 +235,52 @@ def check_self_check(text: str) -> Result:
     return Result("self-check", PASS, f"full table, {len(rows)} rows (≥{REQUIRED_ROWS})")
 
 
+NEGATION_RE = re.compile(r"\b(not|never|don't|do not|avoid|instead of|OUT|forbidden|banned)\b",
+                         re.I)
+
+
+def check_gates_scoped(text: str, package: str | None, sibling: str | None) -> Result:
+    """Monorepo cases: every npm/pnpm/yarn gate in the prompt block runs only the in-scope
+    package (`-w <pkg>`, `--workspace[=| ]<pkg>`, `--filter <pkg>`, `--prefix <dir>`, or after a
+    `cd <package dir>` in the block), and no gate touches the sibling. Lines that forbid a
+    command (not / never / do not / OUT ...) are ignored."""
+    if not package:
+        return Result("gates-scoped", SKIPPED, "not a monorepo case")
+    block, _ = prompt_block(text)
+    if block is None:
+        return Result("gates-scoped", FAIL, "no prompt block")
+    name = package.rstrip("/").rsplit("/", 1)[-1]
+    scoped_re = re.compile(
+        rf"(-w|--workspace[= ]|--filter[= ]|--prefix[= ])\s*(\./)?({re.escape(package)}|{re.escape(name)})\b")
+    cd_re = re.compile(rf"\bcd\s+(\./)?{re.escape(package)}\b")
+    # Only command lines count: inside a nested fence, or a line (or list item) that starts with
+    # the command. A mention mid-sentence ("`npm test` is green today") is prose, not a gate.
+    starts_cmd = re.compile(r"^\s*(?:[-*]|\d+[.)])?\s*`?\s*(?:\(?cd\s|npm\b|pnpm\b|yarn\b)")
+    in_pkg_dir, bad, ok, in_fence = False, [], 0, False
+    for line in block["lines"]:
+        if FENCE_RE.match(line):
+            in_fence = not in_fence
+            continue
+        if not (in_fence or starts_cmd.match(line)):
+            continue
+        if cd_re.search(line):
+            in_pkg_dir = True
+        for m in GATE_RE.finditer(line):
+            if NEGATION_RE.search(line) or (not m.group(2) and m.group(3) in NPM_BUILTINS):
+                continue
+            if sibling and sibling in line:
+                bad.append(f"touches {sibling}: {line.strip()[:70]}")
+            elif scoped_re.search(line) or cd_re.search(line) or in_pkg_dir:
+                ok += 1
+            else:
+                bad.append(f"unscoped: {line.strip()[:70]}")
+    if bad:
+        return Result("gates-scoped", FAIL, "; ".join(bad[:4]))
+    if not ok:
+        return Result("gates-scoped", FAIL, f"no gate scoped to {name}")
+    return Result("gates-scoped", PASS, f"{ok} gate line(s), all scoped to {name}")
+
+
 def check_writes(tool_uses: list[str] | None, home: Path | None) -> Result:
     if tool_uses is None:
         return Result("no-writes", SKIPPED, "no trace given")
@@ -339,7 +385,11 @@ def check_archive(text: str, letters: str = "", cmd: str = "",
 def grade(text: str, *, cap: int, cap_multi: int | None = None, scripts: set[str] | None = None,
           files: dict[str, int] | None = None, tool_uses: list[str] | None = None,
           home: Path | None = None, trace_events: list[dict] | None = None,
-          letters: str = "", cmd: str = "", doctor: Path | None = None) -> list[Result]:
-    return (check_prompt_text(text, cap, cap_multi, scripts, files)
-            + [check_self_check(text), check_protocol_loaded(trace_events, text),
-               check_writes(tool_uses, home), check_archive(text, letters, cmd, doctor)])
+          letters: str = "", cmd: str = "", doctor: Path | None = None,
+          package: str | None = None, sibling: str | None = None) -> list[Result]:
+    res = (check_prompt_text(text, cap, cap_multi, scripts, files)
+           + [check_self_check(text), check_protocol_loaded(trace_events, text),
+              check_writes(tool_uses, home), check_archive(text, letters, cmd, doctor)])
+    if package:  # monorepo cases only, so single-repo results keep their shape
+        res.append(check_gates_scoped(text, package, sibling))
+    return res

@@ -157,6 +157,24 @@ class Variants(unittest.TestCase):
                                          Path("no/such/doctor.py")).status, s.SKIPPED)
         self.assertEqual(s.check_archive(self.GOOD).status, s.SKIPPED)
 
+    def test_gates_scoped_monorepo(self):
+        pkg, sib = "packages/ledger-core", "ledger-web"
+        good = self.GOOD.replace("npm test\nnpm run lint",
+                                 "npm test -w ledger-core\nnpm run lint --workspace=ledger-core")
+        self.assertEqual(s.check_gates_scoped(good, pkg, sib).status, s.PASS)
+        cd = self.GOOD.replace("npm test\nnpm run lint",
+                               "cd packages/ledger-core\nnpm test\nnpm run lint")
+        self.assertEqual(s.check_gates_scoped(cd, pkg, sib).status, s.PASS)
+        root = s.check_gates_scoped(self.GOOD, pkg, sib)  # bare root scripts run every workspace
+        self.assertEqual(root.status, s.FAIL)
+        self.assertIn("unscoped", root.detail)
+        sibling = self.GOOD.replace("npm test\nnpm run lint", "npm run build -w ledger-web")
+        self.assertIn("touches ledger-web", s.check_gates_scoped(sibling, pkg, sib).detail)
+        negated = good.replace("Begin with the branch.",
+                               "Do not run the root `npm test`; it also runs ledger-web.")
+        self.assertEqual(s.check_gates_scoped(negated, pkg, sib).status, s.PASS)
+        self.assertEqual(s.check_gates_scoped(self.GOOD, None, None).status, s.SKIPPED)
+
     def test_dry_run_archive_write_fails(self):
         with tempfile.TemporaryDirectory() as home:
             p = Path(home) / ".genprompt" / "generated-prompts" / "x.md"

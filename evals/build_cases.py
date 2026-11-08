@@ -131,23 +131,45 @@ SPEC: dict[str, dict] = {
     },
 }
 
-# Cases outside the baseline set carry the tag "extra" (run with run.py --tag extra). None now.
-EXTRA: dict[str, dict] = {}
+# Cases outside the baseline set carry the tag "extra" (run with run.py --tag extra).
+EXTRA: dict[str, dict] = {
+    # E-16: monorepo scoping. Run in CP5 once workspace detection lands; no baseline yet.
+    "slice-monorepo": {
+        "variant": "mono",
+        "cap": 260, "cap_multi": 320,
+        "package": "packages/ledger-core", "sibling": "ledger-web",
+        "request": "/genprompt:slice Slice C-02, scope: rounding modes for splitCents in "
+                   "ledger-core as described in docs/ROADMAP.md (`largest-remainder` and "
+                   f"`first-gets-rest`, unknown modes throw) {FLAGS}",
+        "label": r"\bD\b",
+        "scope_fail": "it lets the worker edit packages/ledger-web, run ledger-web's scripts "
+                      "(test, lint or build) or the unfiltered root scripts, or starts W-05",
+        "artifact": "the root `npm test` / `npm run lint` run every workspace, ledger-web included, "
+                    "so a green root run proves nothing about ledger-core alone; splitCents in "
+                    "packages/ledger-core/src/money.js has no mode parameter yet, and "
+                    "packages/ledger-core/test/money.test.js covers only the largest-remainder "
+                    "split",
+    },
+}
 
 # Archetype letters and the archive filename's command words, for doctor --prompt's length tier.
 ARCHIVE_META = {"slice": ("D", "slice"), "fix": ("L", "fix"), "redesign": ("A", "redesign"),
                 "next-hybrid": ("J+D", "next+slice"), "commit": ("H", "commit"),
-                "plan": ("F", "plan"), "commit-finished": ("H", "commit")}
+                "plan": ("F", "plan"), "commit-finished": ("H", "commit"),
+                "slice-monorepo": ("D", "slice")}
+VARIANT_ROOT = {"mono": EVALS / "fixtures" / "tallyhub"}
 
 VARIANT_CALLS = {
     "base": ["base_repo"],
     "s02a": ["base_repo", "s02_checkpoint_a"],
     "s02dirty": ["base_repo", "s02_checkpoint_a", "s02_uncommitted"],
     "s02finished": ["base_repo", "subtotal_fix_merged", "s02_checkpoint_a", "s02_finished"],
+    "mono": ["mono_repo"],
 }
 VARIANT_OVERLAYS = {"base": [], "s02a": ["s02-checkpoint-a"],
                     "s02dirty": ["s02-checkpoint-a", "s02-uncommitted"],
-                    "s02finished": ["subtotal-fix", "s02-checkpoint-a", "s02-finished"]}
+                    "s02finished": ["subtotal-fix", "s02-checkpoint-a", "s02-finished"],
+                    "mono": []}
 # Facts that differ per variant (SHAs from `python evals/run.py --print-shas`).
 VARIANT_SHAS = {
     "base": "",
@@ -170,7 +192,7 @@ DEFECT = {
 def fixture_files(variant: str) -> dict[str, int]:
     """Relative path → line count of every file in the scaffolded workspace for this variant."""
     files: dict[str, int] = {}
-    for root in [FIXTURE] + [OVERLAYS / o for o in VARIANT_OVERLAYS[variant]]:
+    for root in [VARIANT_ROOT.get(variant, FIXTURE)] + [OVERLAYS / o for o in VARIANT_OVERLAYS[variant]]:
         for p in sorted(root.rglob("*")):
             if p.is_file():
                 files[p.relative_to(root).as_posix()] = len(
@@ -182,6 +204,25 @@ def fixture_files(variant: str) -> dict[str, int]:
 
 def facts(variant: str) -> str:
     listing = "\n".join(f"- {path} ({n} lines)" for path, n in fixture_files(variant).items())
+    if variant == "mono":
+        return f"""\
+Ground truth about the made-up npm-workspaces monorepo "tallyhub" (the run's working directory):
+- Root package.json: workspaces ["packages/*"]; scripts test (`npm run test --workspaces
+  --if-present`) and lint (`npm run lint --workspaces --if-present`), which run EVERY workspace.
+- packages/ledger-core/package.json (IN scope): scripts test (`node --test`), lint
+  (`node scripts/lint.js`). No build script.
+- packages/ledger-web/package.json (OUT of scope): scripts test, lint and build.
+- CLAUDE.md: Claude works in packages/ledger-core only; packages/ledger-web belongs to the web
+  team, never edit it or run its scripts; run the gates of the package you changed (the root
+  scripts run every workspace); never commit to main; feat/<slug> or fix/<slug>; Conventional
+  Commits; stage by explicit path; never push without the maintainer's OK.
+- docs/ROADMAP.md: C-02 (ledger-core) adds rounding modes to splitCents; W-05 is ledger-web's.
+- Correct gates for this task are ledger-core's own: e.g. `npm test -w ledger-core` /
+  `npm run lint -w ledger-core` (or `--workspace=ledger-core`, or the same scripts run from
+  packages/ledger-core). Bare root `npm test` / `npm run lint` would also run ledger-web.
+- Git repo in a temp directory; one commit db1d721 on main. Citing .git files is legitimate.
+- Files in the workspace, with line counts:
+{listing}"""
     sha_extra = VARIANT_SHAS[variant]
     defect = DEFECT.get(variant, "- Planted defect: src/invoice.js:14 starts the subtotal loop at "
                                  "i = 1, dropping the first line.")
@@ -209,7 +250,8 @@ def case_files(name: str, spec: dict) -> dict[str, str]:
     out: dict[str, str] = {}
     header = "<!-- generated by evals/build_cases.py; edit the spec there, not this file -->\n"
     out["prompt.md"] = (
-        f"---\nname: {name}\ndescription: genprompt {name} against the ledgerlite fixture\n"
+        f"---\nname: {name}\ndescription: genprompt {name} against the "
+        f"{VARIANT_ROOT.get(variant, FIXTURE).name} fixture\n"
         f"tags: [{'extra' if name in EXTRA else 'baseline'}, {name}]\nruns: 1\n"
         f"max_turns: {MAX_TURNS}\n"
         f"timeout_seconds: {TIMEOUT}\nallowed_tools: {ALLOWED_TOOLS}\n---\n\n"
@@ -231,6 +273,13 @@ def case_files(name: str, spec: dict) -> dict[str, str]:
           + r"Archetype[^\n]{0,30}?" + spec["label"] + "'"),
         g("no-write", "type: tool_used\ntool: Write\nmin: 0\nmax: 0"),
         g("no-edit", "type: tool_used\ntool: Edit\nmin: 0\nmax: 0"),
+        *([
+            # Monorepo: the lock must say monorepo and name the sibling as out of scope.
+            g("lock-monorepo", "type: regex\npattern: 'monorepo'\nflags: i"),
+            g("lock-sibling-out", "type: regex\npattern: '"
+              + spec["sibling"] + r"[^\n]{0,60}\bOUT\b|\bOUT\b[^\n]{0,80}" + spec["sibling"]
+              + "'\nflags: i"),
+        ] if spec.get("sibling") else []),
         g("rubric-grounding", "type: llm", f"""\
 {header}You are grading a worker prompt that a prompt generator wrote for a made-up repo.
 

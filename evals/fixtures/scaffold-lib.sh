@@ -37,6 +37,14 @@ base_repo() {
     g merge -q --no-ff feat/s-01-line-totals -m "Merge branch 'feat/s-01-line-totals'"
 }
 
+mono_repo() {  # tallyhub: npm-workspaces monorepo, ledger-core IN, ledger-web OUT (CLAUDE.md)
+  local src="$FIXTURES/tallyhub"
+  g init -q .
+  cp -r "$src/." .
+  g add .gitignore CLAUDE.md README.md package.json docs packages
+  commit_at "2026-10-10T09:00:00+00:00" "feat: tallyhub workspaces, ledger-core C-01 and ledger-web"
+}
+
 s02_checkpoint_a() {
   g checkout -q -b feat/s-02-csv-export
   cp -r "$FIXTURES/overlays/s02-checkpoint-a/." .
