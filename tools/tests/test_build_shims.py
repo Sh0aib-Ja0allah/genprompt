@@ -104,12 +104,90 @@ class BuildShims(unittest.TestCase):
                 self.assertIn(sec, heads, f"{r.stem}: §{sec} missing from its excerpt")
 
     def test_excerpt_sections_match_03_blocks_byte_for_byte(self):
+        # Verbatim, except §4.20 (named rows only) and §4.21 (own tier row only): those keep every
+        # other line byte for byte, and each kept row is a line of 03-blocks.
         bs = load_build_shims()
         src = bs.block_sections()
         for r in bs.ARCHETYPES:
             excerpt = (ROOT / "guide" / "blocks" / f"{r.stem}.md").read_text(encoding="utf-8")
             for sec in bs.excerpt_ids(r):
-                self.assertIn(src[sec].rstrip("\n") + "\n", excerpt, f"{r.stem}: §{sec} differs")
+                if sec in (bs.SITUATIONAL, bs.LENGTH):
+                    part = bs.excerpt_section(r, sec, src[sec])
+                    self.assertIn(part.rstrip("\n") + "\n", excerpt, f"{r.stem}: §{sec} differs")
+                    self.assertTrue(set(part.splitlines()) <= set(src[sec].splitlines()), r.stem)
+                else:
+                    self.assertIn(src[sec].rstrip("\n") + "\n", excerpt, f"{r.stem}: §{sec} differs")
+
+    # E-09d: §4.20 rows and §4.21 tiers are cut per archetype.
+    def test_situational_rows_and_tier_are_per_archetype(self):
+        bs = load_build_shims()
+        by_stem = {r.stem: r for r in bs.ARCHETYPES}
+        fix = (ROOT / "guide" / "blocks" / "L-fix.md").read_text(encoding="utf-8")
+        self.assertIn("| **RECORD, DO NOT ACT** |", fix)
+        self.assertNotIn("| **STANDING RULES** |", fix)
+        self.assertIn("| Focused | 200 |", fix)
+        self.assertNotIn("| Program | 350 |", fix)
+        self.assertIn("STANDING RULES", bs.situational_rows(by_stem["I-roadmap"]))
+        slice_ = (ROOT / "guide" / "blocks" / "D-slice.md").read_text(encoding="utf-8")
+        self.assertIn("| Slice | 260 |", slice_)
+        self.assertNotIn("| Focused | 200 |", slice_)
+
+    def test_check_fails_when_an_archetype_names_no_420_row(self):
+        arch = self.copy / "archetypes" / "H-commit.md"
+        text = arch.read_text(encoding="utf-8")
+        arch.write_text(text.replace("§4.20 commit-staging manifest", "§4.20 something unlisted"),
+                        encoding="utf-8", newline="\n")
+        code, out = run_tool(self.script, "--check", cwd=self.copy)
+        self.assertEqual(code, 1, out)
+        self.assertIn("H-commit.md names §4.20 but none of its rows", out)
+
+    # E-09d: the compact §6 checklist at the end of every excerpt keeps every row ID of the full
+    # table, so the verdict counts (doctor's checklist_rows) stay tied to guide/04-checklist.md.
+    def test_compact_checklist_row_ids_equal_the_full_table(self):
+        bs = load_build_shims()
+        full = bs.checklist_ids()
+        self.assertEqual(full, list(range(1, 24)))
+        self.assertEqual(sorted(bs.CHECK_COMPACT), full)
+        for r in bs.ARCHETYPES:
+            excerpt = (ROOT / "guide" / "blocks" / f"{r.stem}.md").read_text(encoding="utf-8")
+            tail = excerpt[excerpt.index("## §6 Emission checklist (compact"):]
+            ids = [int(n) for n in re.findall(r"^\|\s*(\d+)\s*\|", tail, re.M)]
+            self.assertEqual(ids, full, r.stem)
+
+    def test_doctor_checklist_rows_still_counts_23(self):
+        spec = importlib.util.spec_from_file_location("doctor_under_test", ROOT / "tools" / "doctor.py")
+        doc = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(doc)
+        self.assertEqual(doc.checklist_rows(), 23)
+
+    def test_check_fails_when_compact_checklist_drifts(self):
+        full = self.copy / "guide" / "04-checklist.md"
+        text = full.read_text(encoding="utf-8")
+        full.write_text(text.replace("| 23 | Every TRAP", "| 24 | Every TRAP"), encoding="utf-8", newline="\n")
+        code, out = run_tool(self.script, "--check", cwd=self.copy)
+        self.assertEqual(code, 1, out)
+        self.assertIn("CHECK_COMPACT rows", out)
+
+    # E-09d: card-less derivation reads guide/blocks/derive.md (§2.0 + the §2.9 card template).
+    def test_derive_excerpt_carries_20_and_the_card_template(self):
+        bs = load_build_shims()
+        self.assertEqual(bs.derive_errors(), [])
+        derive = (ROOT / "guide" / "blocks" / "derive.md").read_text(encoding="utf-8")
+        secs = bs.profile_sections()
+        self.assertIn(secs["2.0"].rstrip("\n") + "\n", derive)
+        self.assertIn("```markdown\n---\nrepo:", derive)
+        for later in ("### 2.5 ", "### 2.6 ", "### 2.7 "):
+            self.assertNotIn(later, derive)
+        self.assertLess(len(derive.encode("utf-8")), 6_000)
+
+    def test_check_fails_when_20_exclude_copy_drifts(self):
+        prof = self.copy / "guide" / "01-target-profile.md"
+        text = prof.read_text(encoding="utf-8")
+        prof.write_text(text.replace("test-results\n   storage/framework`", "test-results`", 1),
+                        encoding="utf-8", newline="\n")
+        code, out = run_tool(self.script, "--check", cwd=self.copy)
+        self.assertEqual(code, 1, out)
+        self.assertIn("the EXCLUDE copy differs from §2.1", out)
 
     def test_every_archetype_shim_includes_its_excerpt(self):
         bs = load_build_shims()

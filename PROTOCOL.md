@@ -13,8 +13,9 @@ a worker repo, or run builds, tests or installs anywhere.
 - The genprompt home, `~/.genprompt/`, holds the archive (`generated-prompts/`) and personal rules,
   outside every repo and the plugin. Tools need absolute paths: resolve `~` once with `ls -d ~`.
 
-A normal run reads only `guide/04-checklist.md` (Step 6): this file, your archetype and its excerpt
-are already loaded. Read another file only when a step's "Read … only when" condition holds:
+A normal run reads no rule file: this file, your archetype and its excerpt (which ends with the
+compact §6 checklist) are already loaded. Read a file only when a step's "Read … only when"
+condition holds:
 §0–§2 `guide/01-target-profile.md` ·
 stacks `stacks/stack-matrix.md` · §3 `guide/02-principles.md` · §4 `guide/03-blocks.md` (your
 archetype's excerpt is already loaded) · §5 `archetypes/` (picker: `archetypes/README.md`) ·
@@ -80,10 +81,9 @@ hold, and then read no profile rules at all:
 - `derived:` is at most 90 days old (freshness itself is the stamps)
 
 Report the card's age (today − `derived`, in days) on the lock's Stack line. Only when the card is
-missing, stale or older than 90 days: read §2 and `stacks/stack-matrix.md`, derive the profile and
-rewrite the card (`--dry-run` never writes it). §2.1 holds the ancestor scan that derivation runs.
-Read `stacks/workspaces.md` only when the repo has more than one manifest directory or a workspace
-file (pnpm-workspace.yaml, a `workspaces` key, turbo.json, nx.json, go.work, a Cargo `[workspace]`).
+missing, stale or older than 90 days: read `guide/blocks/derive.md` (§2.0, the derivation path, and
+the card template), derive the profile and rewrite the card (`--dry-run` never writes it). It
+names the only cases that need the rest of §2, `stacks/stack-matrix.md` or `stacks/workspaces.md`.
 Don't assume a file exists.
 
 Re-derive the gates every time, cache or not, from the manifest's real script keys, the contract's
@@ -153,8 +153,9 @@ Reply "go" to accept, or correct any line.
    direction and length budget.
 2. Pull blocks from §4. The blocks this archetype needs are already in context: the command loads
    its excerpt, `guide/blocks/<letter>-<command>.md`, generated from `guide/03-blocks.md`. Read
-   03-blocks only for a block the excerpt lacks (a hybrid's extra letter, §4.27 on an occupied
-   tree), and name it in the grounding notes. Copy the wording pattern, not the example's specifics.
+   03-blocks only for a hybrid's extra letter or §4.27 on an occupied tree, and name it in the
+   grounding notes; compose any other item below in your own words. Copy the wording pattern, not
+   the example's specifics.
 3. Carry, at minimum:
    - the repo anchor, branch and sub-scope
    - the contract and its precedence
@@ -175,8 +176,9 @@ Reply "go" to accept, or correct any line.
 
 ## Step 6: Self-check, archive, print
 
-1. Self-check. Run the §6 checklist as a table with `| # | Item | Verdict | Reason |`. Every row
-   carries a reason, and N/A always explains why. No bare `✓ passed`.
+1. Self-check. Run the §6 checklist (compact, at the end of your excerpt) as a table with
+   `| # | Item | Verdict | Reason |`. Every row carries a reason, and N/A always explains why. No
+   bare `✓ passed`.
 2. Archive through `tools/archive.py`, never by hand. The script writes the prompt file and the
    shard row; you don't Write or Edit a `.md` in `generated-prompts/` or a `by-repo/*.tsv` row
    yourself, even when the script is inconvenient or fails.

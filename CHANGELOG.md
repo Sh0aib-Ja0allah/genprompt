@@ -6,6 +6,7 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 - 2026-11-09 · tools/doctor.py, tools/archive.py · Every tool resolves the genprompt home through
   doctor.genprompt_home() (GENPROMPT_HOME, absolute); archive.py --where prints it, read-only.
+- 2026-11-09 · tools/build_shims.py, guide/01-target-profile.md, guide/blocks/, PROTOCOL.md, guide/00-index.md · E-09d load cut. Excerpts carry only the blocks PROTOCOL uses on every run (§4.0–§4.3, §4.14, §4.21, §4.22) plus those the archetype names; §4.20 keeps only the named rows and §4.21 only the archetype's tier. Each excerpt ends with a compact §6 checklist (all 23 row IDs, one line each), so a normal run reads no rule file. New §2.0 is the card-less derivation path; `guide/blocks/derive.md` (§2.0 + the card template, generated) replaces reading guide/01 and stack-matrix in full.
 
 ## 1.2.0 (2026-11-09): rules loaded per archetype and per stack, a profile card that stays fresh
 
