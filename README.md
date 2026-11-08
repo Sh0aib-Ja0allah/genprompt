@@ -32,20 +32,21 @@ Every prompt it writes:
 A security prompt for a made-up sample repo, `shopfront`. Every repo detail in these screenshots is
 invented; the structure is the real output.
 
-**1. The TARGET LOCK.** genprompt reads the repo and shows what it found. Nothing is written until
-you reply `go`.
+**1. The TARGET LOCK.** genprompt reads the repo and shows what it found, including whether the
+last prompt actually landed. Nothing is written until you reply `go`.
 
-![TARGET LOCK for the sample repo: repo, branch, stack, contract, gates and archetype](assets/screenshot-1-target-lock.png)
+![TARGET LOCK for the sample repo: repo, branch, stack, contract, gates, archetype and the last prompt checked as landed](assets/screenshot-1-target-lock.png)
 
-**2. The prompt.** One fenced block to paste into the worker chat, with `file:line` citations and
-literal gates.
+**2. The prompt.** It prints first: one fenced block to paste into the worker chat, with
+`file:line` citations, literal gates, and a report spec that starts with a `GENPROMPT-REPORT` line.
 
 ![The generated security prompt for the sample repo](assets/screenshot-2-prompt.png)
 
-**3. Grounding and self-check.** The findings that shaped the prompt, then the 23-row self-check
+**3. Self-check and grounding.** A one-line verdict for the 23-row self-check and only the rows that
+need attention (the full table goes to the archive file), then the findings that shaped the prompt
 and the archive path.
 
-![Grounding notes and the self-check table](assets/screenshot-3-self-check.png)
+![The compact 23-row self-check verdict, grounding notes and the archive path](assets/screenshot-3-self-check.png)
 
 ## Install
 
