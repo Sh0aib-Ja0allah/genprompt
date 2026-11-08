@@ -4,6 +4,8 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-08 · tools/build_skill_bundle.py, .gitignore · The Agensi SKILL.md bundle is generated from
+  plugin.json and the build_shims tables (no hand-typed counts), deterministically, into dist/.
 - 2026-11-08 · stacks/stack-matrix.md · Workspace detection (pnpm/yarn/npm/bun, Turborepo, Nx, Cargo,
   go.work, Elixir umbrella) with per-package vs orchestrator gate rules; Bun, Deno, Elixir/Phoenix,
   C/C++ (CMake), Terraform and Pulumi rows (apply/destroy/up never gates); plainer tone.
