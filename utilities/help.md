@@ -22,4 +22,4 @@ The continue path (route these without asking, because they are the most common 
 - a prompt already sent to the worker needs a change → `/genprompt:approve amend <prior prompt>`
 - the worker lost its context mid-slice → `/genprompt:resume`
 
-Never start generating a prompt from `:help`. The user runs the recommended command.
+Don't start generating a prompt from `:help`: the user runs the recommended command.

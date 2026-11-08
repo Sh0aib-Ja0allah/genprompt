@@ -23,8 +23,8 @@ From `guide/03-blocks.md` (§4.20: named rows only; §4.21: tier N only).
 | Follows | <prior prompt filename>   (or Amends / Depends on / Re-issues / Reviews) |
 ```
 
-`Follows`, `Amends`, `Depends on`, `Re-issues` and `Reviews` make the library a chain; never
-omit one that applies (archive.py orders the file).
+`Follows`, `Amends`, `Depends on`, `Re-issues` and `Reviews` make the library a chain, so
+include every one that applies (archive.py orders the file).
 
 ### 4.2 Grounding notes (above the block; never sent to the worker)
 
@@ -95,8 +95,8 @@ DECISIONS ALREADY MADE: implement exactly these, do not re-litigate:
 ```
 
 Include the negative decisions, and give every decision a one-clause reason ("…, because
-…"): a worker that knows why a decision holds applies it to the case the prompt did not foresee. An unattended worker meeting an open
-question either stalls or guesses.
+…"): a worker that knows why a decision holds applies it to the case the prompt did not foresee. An
+unattended worker meeting an open question either stalls or guesses.
 
 ### 4.14 Verification, DO/DON'T, DEFINITION OF DONE, REPORT
 

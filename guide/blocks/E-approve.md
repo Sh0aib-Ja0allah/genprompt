@@ -23,8 +23,8 @@ From `guide/03-blocks.md` (§4.20: named rows only; §4.21: tier E only).
 | Follows | <prior prompt filename>   (or Amends / Depends on / Re-issues / Reviews) |
 ```
 
-`Follows`, `Amends`, `Depends on`, `Re-issues` and `Reviews` make the library a chain; never
-omit one that applies (archive.py orders the file).
+`Follows`, `Amends`, `Depends on`, `Re-issues` and `Reviews` make the library a chain, so
+include every one that applies (archive.py orders the file).
 
 ### 4.2 Grounding notes (above the block; never sent to the worker)
 

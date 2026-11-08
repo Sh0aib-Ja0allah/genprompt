@@ -4,7 +4,7 @@
 |---|---|
 | **Use when** | Drive one vertical slice (a feature or change set) through checkpoints |
 | **Not when** | The scope is a list of confirmed defects → `:fix`. A whole backlog → `:roadmap` |
-| **Autonomy** | Code-writing: §4.8 MODE (unattended) or §4.19 gate (attended), never neither |
+| **Autonomy** | Code-writing: §4.8 MODE (unattended) or §4.19 gate (attended), one of the two |
 | **Baseline delta** | Up (new behaviour needs new tests); state the expected numbers |
 | **Length tier** | Slice (260; 320 with several checkpoints) |
 | **Deliverable** | The slice, green at every checkpoint, with a report |

@@ -15,8 +15,9 @@
 
 Ancestor files are discovered, never assumed. A `CLAUDE.md` or `AGENTS.md` above the repo root
 describes a different project and governs nothing here, unless the repo's own contract adopts it.
-The protocol scans for them on every run (Step 2) and records the literal result. Never hardcode
-one, never derive a profile from one, and never tell a worker to ignore a file you did not find.
+The protocol scans for them on every run (Step 2) and records the literal result. Don't hardcode
+one, derive a profile from one, or tell a worker to ignore a file you did not find, because the next
+machine may not have it.
 
 ---
 
@@ -45,8 +46,8 @@ the repo root, honouring EXCLUDE (§2.1). Two manifests in the same directory, s
 - One directory: that is the scope.
 - Several, and cwd or the target file is inside one: the nearest wins. Name the siblings as out
   of scope.
-- Several, and nothing points inside: ask which sub-project. Never anchor a prompt at a root
-  with no manifest of its own.
+- Several, and nothing points inside: ask which sub-project. Don't anchor a prompt at a root
+  with no manifest of its own, because it has no stack, gates or role.
 
 Multi-repo prompts are a real shape (a mobile app and its API, with different branches and
 commit permissions). Resolve both and give each its own lock row, branch, gates and commit
@@ -60,7 +61,7 @@ Non-git and non-code targets.
   operations".
 - A deliverable with no repo (a presentation, a research doc) archives under the key `unsorted`.
 
-Facts that cannot be derived. Ask, never guess:
+Facts that cannot be derived. Ask rather than guess:
 - which branch work lands on, when `origin/HEAD`, the checkout and the CI triggers disagree
 - priority among several open items
 - anything on the repo's own blocker list
@@ -143,7 +144,7 @@ The ancestor scan (moved here from PROTOCOL Step 2; it runs whenever the card is
   contract explicitly adopts it.
 - Separately, check the user-level `~/.claude/CLAUDE.md`. Claude Code loads it into every
   session, including the worker's, so report it as `user-level: <path>`, not as an ancestor.
-- Record the literal result, e.g. `none found`. Never assume a file exists.
+- Record the literal result, e.g. `none found`, rather than assuming a file exists.
 
 ### 2.2 Conventions layer
 
@@ -194,7 +195,8 @@ every stack:
 - A lockfile with no manifest is debris, not a code root.
 - Versions come from the manifest or lockfile, never from memory.
 - Append dependency modifiers that change the review lens: `+ Supabase/RLS`,
-  `+ TanStack Query`, `+ i18n/RTL`, `+ Stripe`, `+ Filament`, `+ Sanctum`, `+ MSW`, `+ GSAP/Three.js`.
+  `+ TanStack Query`, `+ i18n/RTL`, `+ Stripe`, `+ Filament`, `+ Sanctum`, `+ MSW`,
+  `+ GSAP/Three.js`.
 - A persona stated in the contract overrides the role table.
 
 ### 2.5 Verification gates: the field that must never be stale
@@ -240,7 +242,8 @@ Re-derive the gates on every invocation, whether or not a cache exists.
      an `--env=testing` that silently hits the dev database. Quote the contract's own warning.
 6. Gates have side effects. Build output, caches, and a test database migrated or seeded. A
    prompt that is otherwise read-only must list those side effects as its only permitted writes.
-   Never let two sessions run a suite against the same test database at once (§4.27).
+   Don't let two sessions run a suite against the same test database at once, because each
+   corrupts the other's state (§4.27).
 7. The package manager comes from the lockfile, not habit: `pnpm-lock.yaml` → pnpm,
    `yarn.lock` → yarn, `bun.lockb`/`bun.lock` → bun, otherwise npm.
 8. The generator never runs gates. It emits them for the worker, and it verifies the worker's
@@ -310,13 +313,14 @@ Judge only against files the repo has actually produced.
   | T | `release-runbook` |
   | U | `incident-<YYYY-MM-DD>-<topic>` |
   | W | named by the request |
-- N7 Never rename or renumber existing artifacts. History docs are append-only, everywhere.
+- N7 Don't rename or renumber existing artifacts, because other docs cite them. History docs are
+  append-only, everywhere.
 
 ### 2.8 Code root, forbidden trees, branch
 
 Code roots are per stack (see `stacks/stack-matrix.md`). For example, a Laravel root is
-`app routes database resources tests config`, not `app/` alone. Never narrow to one folder when the
-stack's convention spans several.
+`app routes database resources tests config`, not `app/` alone. Don't narrow to one folder when the
+stack's convention spans several, because the rest of the stack then goes unread.
 
 Forbidden is the union of:
 - EXCLUDE

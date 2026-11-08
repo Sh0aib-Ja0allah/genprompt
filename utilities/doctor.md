@@ -7,7 +7,8 @@ Emits no worker prompt. Writes nothing.
    exactly this form:
    `python3 <genprompt root>/tools/doctor.py [--suite|--archive|--suggest-fixes]`
    If `python3` is missing or is only a store alias (common on Windows), run the same command with
-   `python`. Never `cd` first, and never chain it with another command.
+   `python`. Don't `cd` first or chain it with another command, because only this exact form is
+   pre-approved.
 2. Summarise the output:
    - the ERROR count, with every ERROR line
    - the WARN count, with the top 10

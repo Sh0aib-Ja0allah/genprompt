@@ -13,8 +13,9 @@
 
 - Read the target file. The prompt names what is actually wrong with it (`file:line`), not
   generic advice.
-- Take the role from the NEAREST manifest to the file (never the git root), and never blend
-  two stacks in one role. If the contract states a persona, use it verbatim.
+- Take the role from the NEAREST manifest to the file (not the git root), and keep
+  one stack per role, because a blended role advises for neither. If the contract states a persona,
+  use it verbatim.
 - Pull the contract's rules for this kind of artifact: design-system components, tokens,
   typing, RTL, accessibility, naming.
 - Decide UI versus non-UI. A UI artifact gets the UI/UX step. A module or controller gets the

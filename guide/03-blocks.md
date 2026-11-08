@@ -27,8 +27,8 @@ or 4.19. The archetype file lists what else it requires. The rest are situationa
 | Follows | <prior prompt filename>   (or Amends / Depends on / Re-issues / Reviews) |
 ```
 
-`Follows`, `Amends`, `Depends on`, `Re-issues` and `Reviews` make the library a chain; never
-omit one that applies (archive.py orders the file).
+`Follows`, `Amends`, `Depends on`, `Re-issues` and `Reviews` make the library a chain, so
+include every one that applies (archive.py orders the file).
 
 ### 4.2 Grounding notes (above the block; never sent to the worker)
 
@@ -112,7 +112,7 @@ MODE FOR THIS SESSION
   or the contract.
 ```
 
-Use this or the §4.19 approval gate in a code-writing prompt, never neither and never both.
+Use this or the §4.19 approval gate in a code-writing prompt: one of them, not both.
 Read-only and commit-only archetypes state `Autonomy: N/A` in the lock instead.
 
 ### 4.9 The defect: mechanism, chain, consequence
@@ -134,8 +134,8 @@ DECISIONS ALREADY MADE: implement exactly these, do not re-litigate:
 ```
 
 Include the negative decisions, and give every decision a one-clause reason ("…, because
-…"): a worker that knows why a decision holds applies it to the case the prompt did not foresee. An unattended worker meeting an open
-question either stalls or guesses.
+…"): a worker that knows why a decision holds applies it to the case the prompt did not foresee. An
+unattended worker meeting an open question either stalls or guesses.
 
 ### 4.11 ⚠ TRAPS: per-item landmines
 

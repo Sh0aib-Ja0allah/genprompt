@@ -10,6 +10,9 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 - 2026-11-09 · archetypes/, guide/00-index.md, README.md · Bug-report lifecycle becomes investigate
   → fix → commit; fix, audit and hotfix point to :investigate with reasons; letters A–X; README
   lists :investigate.
+- 2026-11-09 · guide/, archetypes/, utilities/ · Editorial never pass: imperative never outside the
+  six invariants becomes a plain statement with a one-clause reason; descriptive uses, headings and
+  worker-facing labels stay.
 - 2026-11-09 · PROTOCOL.md, guide/03-blocks.md, tools/build_shims.py, tools/doctor.py · E-09f floor
   cut: every archetype's always-loaded rules shrink ~5.2 KB (plan 35,081 → 29,853 B) by cutting
   wording and duplication in PROTOCOL, the common §4 blocks, the compact checklist and the shims;

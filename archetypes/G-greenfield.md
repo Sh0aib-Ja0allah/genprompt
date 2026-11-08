@@ -16,7 +16,8 @@
 - Name the specific reason cloning is wrong here (a different framework major, routing model or
   conventions). "Reference, not template" is only credible with a concrete reason.
 - Name the three docs by §2.7 (the repo's convention, or N6 with a declared new convention).
-  Never use a filename left over from another project.
+  Don't reuse a filename left over from another project, because it carries that project's
+  convention.
 - Take Phase 1's study list from the reference's stack (`stacks/stack-matrix.md`), not from a
   React-shaped default.
 

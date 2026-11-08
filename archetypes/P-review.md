@@ -11,7 +11,7 @@
 
 ## Generator: before emitting
 
-- Pin the range by SHA: `<base_sha>..<head_sha>`, never `HEAD~N`. A live repo moves, and a
+- Pin the range by SHA: `<base_sha>..<head_sha>`, not `HEAD~N`. A live repo moves, and a
   relative range slides under the reviewer. Read `git diff --stat <base>..<head>`. Name the 5–8
   files that matter most, and the bulk to skip (generated assets, lockfiles, captures).
 - Compare the range with the working tree: `git diff --name-only <base> <head>` against
@@ -28,7 +28,8 @@
   if the change were reverted?), security, performance, data/migrations, UX/RTL/a11y, docs drift.
   Drop the lenses that cannot apply, and say why.
 - Gates: the full derived list (§2.5), run only under the HEAD-and-clean condition, with their
-  side effects listed. Never run a suite that shares a test database with a live session.
+  side effects listed. Don't run a suite that shares a test database with a live session, because
+  the runs corrupt each other.
 - Report destination: a review doc named per §2.7 (default `code-review-<date>` in the repo's
   case style), or chat-only when the tree is occupied or a doc would land in someone else's
   commit.
