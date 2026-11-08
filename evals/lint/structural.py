@@ -15,12 +15,13 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-PASS, FAIL, SKIPPED = "PASS", "FAIL", "SKIPPED"
+PASS, FAIL, SKIPPED, WARN = "PASS", "FAIL", "SKIPPED", "WARN"
 # v1: the Phase-1 baseline run as first graded. v2 (re-grade of the same stored runs, no model
 # spend): cites-real resolves a bare basename that is unique in the workspace; no-placeholders
 # ignores a <name> that is part of a quoted path pattern (feat/<slug>, docs/<TOPIC>.md) or sits in
 # a double-quoted string; adds protocol-loaded from the trace (marker in context OR a Read).
-GRADER_VERSION = 2
+# v3: archive-valid runs `tools/doctor.py --prompt` (E-04a) on the emission instead of SKIPPED.
+GRADER_VERSION = 3
 PROTOCOL_MARKER = "GENPROMPT-PROTOCOL v3 LOADED"
 LINE_MAX = 100
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
@@ -72,6 +73,27 @@ def top_level_blocks(text: str) -> list[dict]:
 def is_lock_block(block: dict) -> bool:
     hits = {LOCK_LINE_RE.match(l).group(1) for l in block["lines"] if LOCK_LINE_RE.match(l)}
     return len(hits) >= 2 or any(l.startswith("TARGET LOCK") for l in block["lines"][:2])
+
+
+def strip_lock_blocks(text: str) -> str:
+    """The text with every fenced TARGET LOCK block (fences included) removed."""
+    out, cur, cur_lines = [], None, []
+    for line in text.splitlines():
+        m = FENCE_RE.match(line)
+        if cur is None:
+            if m:
+                cur, cur_lines = len(m.group(1)), [line]
+            else:
+                out.append(line)
+            continue
+        cur_lines.append(line)
+        if m and len(m.group(1)) >= cur and not m.group(2).strip():
+            if not is_lock_block({"lines": cur_lines[1:-1]}):
+                out.extend(cur_lines)
+            cur = None
+    if cur is not None:
+        out.extend(cur_lines)
+    return "\n".join(out) + "\n"
 
 
 def prompt_block(text: str) -> tuple[dict | None, list[dict]]:
@@ -260,13 +282,64 @@ def check_protocol_loaded(trace_events: list[dict] | None, text: str = "") -> Re
                   "protocol-shaped lock in the emission")
 
 
-def check_archive() -> Result:
-    return Result("archive-valid", SKIPPED, "skipped: needs tools/archive.py (E-04)")
+# doctor --prompt checks that need a real archive record. Under --dry-run the generator writes
+# nothing, so the header is synthetic and the self-check table is legitimately absent from chat
+# (E-08 prints only a verdict line there); these are reported but never graded.
+ARCHIVE_ONLY_CHECKS = {"header", "filename-words", "header-vocab", "self-check"}
+DOCTOR = Path(__file__).resolve().parents[2] / "tools" / "doctor.py"
+DOCTOR_LINE_RE = re.compile(r"^(PASS|WARN|FAIL)\s+(\S+)\s+(.*)$")
+
+
+def check_archive(text: str, letters: str = "", cmd: str = "",
+                  doctor: Path | None = None) -> Result:
+    """archive-valid: run `python tools/doctor.py --prompt` on the emission, outside the sandbox.
+
+    The emission is wrapped in a temp archive-shaped file: a synthetic v3 line-1 header (so the
+    lint picks the archetype's length tier) followed by the chat text. FAIL if any graded check
+    FAILs; WARNs are listed in the detail but do not fail (doctor's own severity)."""
+    import subprocess
+    import sys
+    import tempfile
+
+    doctor = doctor or DOCTOR
+    if not doctor.exists():
+        return Result("archive-valid", SKIPPED, f"skipped: needs {doctor.as_posix()} --prompt")
+    if not letters:
+        return Result("archive-valid", SKIPPED, "skipped: no archetype given")
+    # A fenced TARGET LOCK is not the prompt. doctor would take it as the block (and WARN about
+    # an extra block in every emission), so lock blocks are removed before the lint sees the text.
+    if prompt_block(text)[0] is None:
+        return Result("archive-valid", FAIL, "no prompt block to archive (only a lock block, or "
+                                             "no fence at all)")
+    text = strip_lock_blocks(text)
+    date = "2026-01-01"
+    header = (f"<!-- genprompt v3: key=ledgerlite | repo=ledgerlite | path=/eval/ledgerlite | "
+              f"date={date} | archetype={letters} | follows=- | flags=--go --dry-run | via=cwd | "
+              f"lock=go -->")
+    with tempfile.TemporaryDirectory() as d:
+        f = Path(d) / f"{date}-{cmd or 'eval'}-eval-case.md"
+        f.write_text(header + "\n" + text, encoding="utf-8")
+        proc = subprocess.run([sys.executable, str(doctor), "--prompt", str(f)],
+                              capture_output=True, text=True, encoding="utf-8", errors="replace")
+    rows = [m.groups() for m in map(DOCTOR_LINE_RE.match, proc.stdout.splitlines()) if m]
+    if not rows:
+        return Result("archive-valid", FAIL, f"doctor --prompt gave no result (exit "
+                                             f"{proc.returncode}): {proc.stdout[-200:]!r}")
+    graded = [(c, s, det) for s, c, det in rows if c not in ARCHIVE_ONLY_CHECKS]
+    fails = [f"{c}: {det}" for c, s, det in graded if s == FAIL]
+    warns = [c for c, s, _ in graded if s == WARN]
+    summary = (f"doctor --prompt: {sum(s == PASS for _, s, _ in graded)} PASS, {len(warns)} WARN, "
+               f"{len(fails)} FAIL of {len(graded)} graded"
+               + (f"; WARN {', '.join(warns)}" if warns else "")
+               + (f"; FAIL {'; '.join(fails)}" if fails else "")
+               + "; not graded under --dry-run: " + ", ".join(sorted(ARCHIVE_ONLY_CHECKS)))
+    return Result("archive-valid", FAIL if fails else PASS, summary)
 
 
 def grade(text: str, *, cap: int, cap_multi: int | None = None, scripts: set[str] | None = None,
           files: dict[str, int] | None = None, tool_uses: list[str] | None = None,
-          home: Path | None = None, trace_events: list[dict] | None = None) -> list[Result]:
+          home: Path | None = None, trace_events: list[dict] | None = None,
+          letters: str = "", cmd: str = "", doctor: Path | None = None) -> list[Result]:
     return (check_prompt_text(text, cap, cap_multi, scripts, files)
             + [check_self_check(text), check_protocol_loaded(trace_events, text),
-               check_writes(tool_uses, home), check_archive()])
+               check_writes(tool_uses, home), check_archive(text, letters, cmd, doctor)])

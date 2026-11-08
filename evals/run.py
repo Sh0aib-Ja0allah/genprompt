@@ -31,6 +31,11 @@ sys.path.insert(0, str(EVALS / "lint"))
 import build_cases  # noqa: E402
 import structural  # noqa: E402
 
+# The lint archive-valid calls, pinned to this tree so a run against another branch (CP4) is
+# graded by the same doctor. --doctor overrides it; --plugin picks the plugin under test.
+DOCTOR = ROOT / "tools" / "doctor.py"
+PLUGIN = ROOT
+
 
 def claude() -> str:
     exe = shutil.which("claude")
@@ -40,7 +45,7 @@ def claude() -> str:
 
 
 def eval_cmd(args, out: Path, tag: str) -> list[str]:
-    cmd = [claude(), "plugin", "eval", str(ROOT), "--tag", tag, "--ablation", "none",
+    cmd = [claude(), "plugin", "eval", str(PLUGIN), "--tag", tag, "--ablation", "none",
            "--scaffold", "--no-publish", "--trust-plugin", "--runs", str(args.runs),
            "--threshold", "0", "--json", str(out / "aggregate.json"), "--output-dir", str(out)]
     if not args.validate:
@@ -104,7 +109,8 @@ def post_grade(agg: dict, out: Path, keep: bool) -> list[dict]:
     rows = []
     for case in agg.get("cases", []):
         name = case["name"]
-        spec = build_cases.SPEC.get(name) or build_cases.SPEC["slice"]
+        spec = {**build_cases.SPEC, **build_cases.EXTRA}.get(name) or build_cases.SPEC["slice"]
+        meta = build_cases.ARCHIVE_META.get(name, ("D", "slice"))
         control = name.startswith("control-")
         for i, run in enumerate(case.get("arms", {}).get("with", [])):
             row = {"case": name, "run": i + 1, "control": control,
@@ -124,7 +130,8 @@ def post_grade(agg: dict, out: Path, keep: bool) -> list[dict]:
                 res = structural.grade(t["final"], cap=spec["cap"], cap_multi=spec.get("cap_multi"),
                                        scripts=scripts, files=workspace_files(ws),
                                        tool_uses=t["tools"], home=home,
-                                       trace_events=t["events"])
+                                       trace_events=t["events"],
+                                       letters=meta[0], cmd=meta[1], doctor=DOCTOR)
                 row.update({k: t[k] for k in ("model", "cost_usd", "turns", "usage",
                                               "model_usage")})
                 row["structural"] = [r.as_dict() for r in res]
@@ -163,10 +170,13 @@ def summary(rows: list[dict], agg: dict) -> str:
         if r["control"]:
             passed = [g["name"] for g in r["eval_graders"] if g["passed"]] + \
                      [g["name"] for g in r["structural"] if g["status"] == structural.PASS]
-            # The control cannot exercise these two; each is shown failing elsewhere.
+            # The control cannot exercise these; each is shown failing elsewhere.
             unexercised = {"no-edit": "same tool_used check as no-write, which fails here",
                            "length-cap": "the sample is short; lint/test_structural.py "
-                                         "test_length_cap_fails_when_over shows it failing"}
+                                         "test_length_cap_fails_when_over shows it failing",
+                           "archive-valid": "doctor --prompt grades this sample's defects as "
+                                            "WARN, not FAIL; test_archive_valid_fails_bad_and_stub "
+                                            "shows a stub and an unclosed fence failing"}
             broken = [n for n in passed if n not in unexercised]
             notes = "; ".join(f"{n}: {why}" for n, why in unexercised.items() if n in passed)
             out.append(f"\nCONTROL {'OK' if not broken else 'BROKEN'}: "
@@ -207,7 +217,8 @@ def regrade(results: Path) -> int:
     agg = json.loads((results / "aggregate.json").read_text(encoding="utf-8"))
     rows = json.loads((results / "structural.json").read_text(encoding="utf-8"))
     for row in rows:
-        spec = build_cases.SPEC.get(row["case"]) or build_cases.SPEC["slice"]
+        spec = {**build_cases.SPEC, **build_cases.EXTRA}.get(row["case"]) or build_cases.SPEC["slice"]
+        meta = build_cases.ARCHIVE_META.get(row["case"], ("D", "slice"))
         d = results / row["case"] / f"run{row['run']}"
         if not (d / "final.txt").exists():
             continue
@@ -217,7 +228,8 @@ def regrade(results: Path) -> int:
         res = structural.grade((d / "final.txt").read_text(encoding="utf-8"), cap=spec["cap"],
                                cap_multi=spec.get("cap_multi"), scripts=scripts,
                                files=build_cases.fixture_files(spec["variant"]),
-                               tool_uses=t["tools"], home=None, trace_events=t["events"])
+                               tool_uses=t["tools"], home=None, trace_events=t["events"],
+                               letters=meta[0], cmd=meta[1], doctor=DOCTOR)
         row["structural"] = [r.as_dict() for r in res]
         row["grader_version"] = structural.GRADER_VERSION
     (results / "structural.json").write_text(json.dumps(rows, indent=2), encoding="utf-8")
@@ -238,9 +250,17 @@ def main() -> int:
     ap.add_argument("--keep", action="store_true", help="keep the eval temp dirs")
     ap.add_argument("--print-shas", action="store_true")
     ap.add_argument("--regrade", type=Path, help="re-grade a finished results dir")
+    ap.add_argument("--tag", default="baseline", help="case tag to run: baseline | extra")
+    ap.add_argument("--plugin", type=Path, default=ROOT,
+                    help="plugin root under test (default: this tree; CP4 points elsewhere)")
+    ap.add_argument("--doctor", type=Path, help="doctor.py for archive-valid (default: this tree)")
     args = ap.parse_args()
     for stream in (sys.stdout, sys.stderr):
         stream.reconfigure(encoding="utf-8", errors="replace")
+    global DOCTOR, PLUGIN
+    if args.doctor:
+        DOCTOR = args.doctor.resolve()
+    PLUGIN = args.plugin.resolve()
     if args.print_shas:
         return print_shas()
     if args.regrade:
@@ -252,7 +272,7 @@ def main() -> int:
     stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
     out = EVALS / "results" / stamp
     out.mkdir(parents=True, exist_ok=True)
-    tag = "control" if args.controls else "baseline"
+    tag = "control" if args.controls else args.tag
     cmd = eval_cmd(args, out, tag)
     print("$ " + " ".join(cmd[1:]), flush=True)
     if args.validate:

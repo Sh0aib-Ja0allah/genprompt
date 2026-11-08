@@ -38,10 +38,14 @@ class GoodSample(unittest.TestCase):
                      "length-cap", "gates-exist", "cites-real", "self-check", "no-writes"):
             self.assertEqual(r[name].status, s.PASS, f"{name}: {r[name].detail}")
 
-    def test_archive_grader_is_skipped_not_passed(self):
+    def test_archive_grader_without_archetype_is_skipped_not_passed(self):
         r = grade((SAMPLES / "good-emission.md").read_text(encoding="utf-8"))
         self.assertEqual(r["archive-valid"].status, s.SKIPPED)
-        self.assertIn("needs tools/archive.py (E-04)", r["archive-valid"].detail)
+
+    def test_archive_grader_with_archetype_runs_doctor(self):
+        r = grade((SAMPLES / "good-emission.md").read_text(encoding="utf-8"),
+                  letters="D", cmd="slice")
+        self.assertEqual(r["archive-valid"].status, s.PASS, r["archive-valid"].detail)
 
 
 class BadSample(unittest.TestCase):
@@ -131,6 +135,27 @@ class Variants(unittest.TestCase):
         self.assertIn("inferred", s.check_protocol_loaded(none, lock).detail)
         self.assertEqual(s.check_protocol_loaded(none, "no lock here").status, s.FAIL)
         self.assertEqual(s.check_protocol_loaded(None).status, s.SKIPPED)
+
+    def test_archive_valid_runs_doctor_and_passes_good(self):
+        r = s.check_archive(self.GOOD, "D", "slice")
+        self.assertEqual(r.status, s.PASS, r.detail)
+        self.assertIn("doctor --prompt", r.detail)
+
+    def test_archive_valid_fails_bad_and_stub(self):
+        # doctor's calibration: an extra block, long lines and placeholders are WARN, not FAIL,
+        # so the bad sample fails only this module's stricter checks; archive-valid lists WARNs.
+        bad = (SAMPLES / "bad-emission.md").read_text(encoding="utf-8")
+        r = s.check_archive(bad, "D", "slice")
+        self.assertIn("WARN one-fence", r.detail)
+        stub = "TARGET LOCK\n\n```text\nDo the slice.\nBegin now.\n```\n"
+        self.assertEqual(s.check_archive(stub, "D", "slice").status, s.FAIL)
+        unclosed = self.GOOD.rsplit("````", 1)[0]  # truncated prompt: the fence never closes
+        self.assertEqual(s.check_archive(unclosed, "D", "slice").status, s.FAIL)
+
+    def test_archive_valid_skips_without_doctor_or_archetype(self):
+        self.assertEqual(s.check_archive(self.GOOD, "D", "slice",
+                                         Path("no/such/doctor.py")).status, s.SKIPPED)
+        self.assertEqual(s.check_archive(self.GOOD).status, s.SKIPPED)
 
     def test_dry_run_archive_write_fails(self):
         with tempfile.TemporaryDirectory() as home:
