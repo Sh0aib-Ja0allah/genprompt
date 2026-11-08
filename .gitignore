@@ -5,3 +5,5 @@ generated-prompts/
 .DS_Store
 # Test fixtures are sample archives on purpose; keep them tracked.
 !tools/tests/fixtures/**
+# Generated release bundles (tools/build_skill_bundle.py); never committed.
+dist/
