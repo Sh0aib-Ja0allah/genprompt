@@ -60,7 +60,8 @@ STAGE n: remove deprecations and shims. GATE + commit.
 
 [INSERT §4.20 STOP/DEFER with revert: if a stage cannot go green, revert it, log it, stop and report]
 [INSERT §4.19 approval gate after the stage plan, or §4.8 MODE]
-[INSERT §4.14: gates <literal>; baseline <n> unchanged at every stage (list any rewritten tests)]
+[INSERT §4.14: gates <literal, each labelled>; baseline <n> unchanged at every stage (list any
+ rewritten tests); REPORT starting with the GENPROMPT-REPORT line]
 FINAL: `<PROFILE.docnaming: upgrade notes>`: breaking changes hit, codemods run, manual fixes, rollback path.
 Start by reading the guides and presenting the stage plan.
 ```

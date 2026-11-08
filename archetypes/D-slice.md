@@ -51,7 +51,7 @@ GATE: <literal commands>. All green before you continue. Baseline <n> → expect
 
 OUT OF SCOPE: do not start these, do not drift into them: <named items, by path, each with "because <reason>">.
 [INSERT §4.13 WHAT YOU CANNOT DO, if anything is blocked]
-[INSERT §4.14 DO/DON'T + DEFINITION OF DONE + REPORT]
+[INSERT §4.14 DO/DON'T + DEFINITION OF DONE + REPORT starting with the GENPROMPT-REPORT line]
 
 <Terminal imperative: "Start with checkpoint A now." | "Do not start the next slice; report and wait.">
 ```

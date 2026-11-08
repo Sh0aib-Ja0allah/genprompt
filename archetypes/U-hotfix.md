@@ -53,6 +53,7 @@ STEP 4: FIX: minimal diff. [INSERT §4.15: a failing regression test first; prov
 STEP 5: POSTMORTEM, in `<PROFILE.docnaming: incident note>`: timeline, root cause, why tests/CI did
         not catch it, the fix, follow-ups (not done now).
 
-[INSERT §4.14: gates <literal>; baseline <n> → at least <n+1>; DON'T refactor or widen scope]
+[INSERT §4.14: gates <literal, each labelled>; baseline <n> → at least <n+1>; DON'T refactor
+ or widen scope; REPORT starting with the GENPROMPT-REPORT line]
 Start with STEP 1 now.
 ```

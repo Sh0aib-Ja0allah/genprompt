@@ -45,7 +45,8 @@ Phase 3: present the concrete slice plan in chat.
 [INSERT §4.19 approval gate]
 Phase 4: implement slice by slice, with checkpoints.  Phase 5: update the docs and the report.
 
-[INSERT §4.14 verification + report, for Phase 4]
+[INSERT §4.14 verification (literal gates, each labelled (script|contract|derived)) +
+ REPORT starting with the GENPROMPT-REPORT line, for Phase 4]
 
 Start now with Phase 1 and Phase 2 only. Do not edit code yet. Do not commit anything.
 ```

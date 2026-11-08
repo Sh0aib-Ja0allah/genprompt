@@ -41,7 +41,8 @@ LOCKED DECISIONS still in force (they must survive compaction):
 - <decision>: <the reason it was made>
 
 [INSERT §4.8 MODE or §4.19 gate, as the resumed slice had it]
-[INSERT §4.14 verification: literal gates, baseline <numbers>, expected delta]
+[INSERT §4.14 verification: literal gates, each labelled (script|contract|derived), baseline <numbers>, expected delta;
+ REPORT starting with the GENPROMPT-REPORT line]
 <Then the remaining scope, as a normal §5.D slice.>
 Do not re-decide anything in the locked list. If you believe one is wrong, say so and stop.
 Start with STEP 0 now.

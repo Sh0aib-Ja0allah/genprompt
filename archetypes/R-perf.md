@@ -45,6 +45,7 @@ STEP 3: one change at a time; re-measure after each; keep it only if it wins; re
         Behaviour must not change: [INSERT §4.10: <what must stay identical>].
 STEP 4: final table: metric | before | after | delta, per change, plus rejected changes with their numbers.
 
-[INSERT §4.14: gates <literal>; tests unchanged or up; DON'T add caching layers/dependencies without asking]
+[INSERT §4.14: gates <literal, each labelled>; tests unchanged or up; DON'T add caching
+ layers/dependencies without asking; REPORT starting with the GENPROMPT-REPORT line]
 Start with STEP 1 now.
 ```

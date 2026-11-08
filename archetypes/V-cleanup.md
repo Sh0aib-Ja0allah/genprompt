@@ -49,7 +49,7 @@ STEP 1: list every deletion/change with its reference check. Report, then procee
 STEP 2: apply in small commits: one concern per commit.
 STEP 3: prove the invariant.
 
-[INSERT §4.14: gates <literal>; baseline <n> UNCHANGED (or −k: exactly these removed tests: …);
- DON'T skip/xfail tests, loosen thresholds, or delete migrations]
+[INSERT §4.14: gates <literal, each labelled>; baseline <n> UNCHANGED (or −k: exactly these removed tests: …);
+ DON'T skip/xfail tests, loosen thresholds, or delete migrations; REPORT starting with the GENPROMPT-REPORT line]
 Start with STEP 1 now.
 ```

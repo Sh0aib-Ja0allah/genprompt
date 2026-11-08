@@ -55,6 +55,7 @@ PHASE 2: fix the FIX-NOW items only, in this order: <order + rationale (§4.20 s
 [INSERT §4.15 falsifiability: the attack refused AND the legitimate case still succeeds, per fix]
 [INSERT §4.20 RECORD, DO NOT ACT: <decision items>]
 [INSERT §4.13 WHAT YOU CANNOT DO: <e.g. production config, WAF, secrets rotation>]
-[INSERT §4.14: gates <literal>; baseline <n> → expected at least <n + fixes>]
+[INSERT §4.14: gates <literal, each labelled>; baseline <n> → expected at least <n + fixes>;
+ REPORT starting with the GENPROMPT-REPORT line]
 Start with Phase 1 now.
 ```

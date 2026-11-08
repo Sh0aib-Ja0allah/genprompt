@@ -25,6 +25,9 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 - 2026-11-08 · archetypes/L-fix.md, archetypes/A-redesign.md, guide/04-checklist.md · Fix and
   redesign prompts bound scope: L-fix gains a SCOPE block naming what not to start, A-redesign keeps
   the public surface and asks before changing behaviour, row 10 checks both.
+- 2026-11-08 · archetypes/, tools/build_shims.py · Every abbreviated §4.14 INSERT names the gate
+  labels and the GENPROMPT-REPORT line, because the baseline fix prompt composed §4.14 from that
+  line alone; --check fails a template whose §4.14 INSERTs never name it.
 
 ## 1.1.0 (2026-11-08): archive written and checked by a tool, a measurable workflow
 

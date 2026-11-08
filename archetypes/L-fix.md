@@ -63,7 +63,8 @@ SCOPE: fix only the defects above. Do not start these, do not drift into them:
   a product decision>
 [INSERT §4.20 RECORD, DO NOT ACT, for decisions]
 
-[INSERT §4.14 gates (literal) + DEFINITION OF DONE + REPORT; baseline <n> → at least <n + defects>]
+[INSERT §4.14: literal gates, each labelled (script|contract|derived); DEFINITION OF DONE;
+ REPORT starting with the GENPROMPT-REPORT line; baseline <n> → at least <n + defects>]
 <git posture: a commit per defect, or leave uncommitted for review>
 Start with DEFECT 1 now.
 ```

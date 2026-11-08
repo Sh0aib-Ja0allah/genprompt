@@ -58,7 +58,8 @@ OUT OF SCOPE: do not start these, do not drift into them:
 Constraints: <PROFILE.contract> wins over this prompt. No new packages, no new env vars.
 <git posture>. Out of bounds: <PROFILE.forbidden>.
 
-[INSERT §4.14: gates <PROFILE.gates>, baseline unchanged or up, report]
+[INSERT §4.14: literal gates, each labelled (script|contract|derived); baseline unchanged or up;
+ REPORT starting with the GENPROMPT-REPORT line]
 Summarise: UI/UX (or API) improvements, structural improvements, logic changes, the key decisions,
 and what you deliberately left alone and why.
 <terminal imperative>

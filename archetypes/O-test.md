@@ -51,7 +51,8 @@ TARGETS (each is a behaviour, not a function):
  marked skipped + the reason, or kept as a documented known-failure per the contract]
 [INSERT §4.24 measurement, if coverage/timing matters]
 
-[INSERT §4.14: gates <literal>; baseline <tests/assertions> → expected at least <n+k>; DON'T touch
- production code, weaken assertions, or add a test dependency without asking]
+[INSERT §4.14: gates <literal, each labelled>; baseline <tests/assertions> → expected at least <n+k>; DON'T touch
+ production code, weaken assertions, or add a test dependency without asking;
+ REPORT starting with the GENPROMPT-REPORT line]
 Start with target 1 now.
 ```

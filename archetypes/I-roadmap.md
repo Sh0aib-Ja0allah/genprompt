@@ -36,7 +36,8 @@ Read `<backlog doc>` and implement it fully, every item across its workstreams, 
 as reviewable vertical slices, until it is done or genuinely blocked on something only I can provide.
 
 [INSERT §4.8 MODE FOR THIS SESSION]
-[INSERT §4.14 VERIFICATION, hoisted here with environment facts] [INSERT §4.20 tree-integrity guard]
+[INSERT §4.14 VERIFICATION (literal gates, each labelled (script|contract|derived)), hoisted here
+ with environment facts] [INSERT §4.20 tree-integrity guard]
 [INSERT §4.6 source of truth]
 [INSERT §4.7 skepticism: "do NOT assume the backlog's audit claims are still true; verify each against
  current code; if one is already resolved, mark it done and move on"]
@@ -52,7 +53,7 @@ A1 … An, each with defect / decisions / build / traps / gate / commit.
 
 [INSERT §4.13 WHAT YOU CANNOT DO] [INSERT §4.20 STOP/DEFER with revert]
 [INSERT §4.20 STANDING RULES]
-[INSERT §4.14 DO/DON'T + DEFINITION OF DONE + REPORT]
+[INSERT §4.14 DO/DON'T + DEFINITION OF DONE + REPORT starting with the GENPROMPT-REPORT line]
 
 FINAL DELIVERABLE: `<PROFILE.docnaming: report>`: every item id with its final state, what was fixed
 where, every deviation and why, everything I must supply RANKED BY HOW MUCH EACH UNBLOCKS, and the

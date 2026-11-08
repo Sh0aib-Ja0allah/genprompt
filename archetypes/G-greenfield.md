@@ -47,6 +47,7 @@ Phase 3: present the concrete file/folder plan.
 [INSERT §4.19 approval gate]
 Phase 4: implement in logical slices, then write `<docs path per §2.7: implementation report>`.
 
-[INSERT §4.14 verification + report]
+[INSERT §4.14 verification (literal gates, each labelled (script|contract|derived)) +
+ REPORT starting with the GENPROMPT-REPORT line]
 Start with Phase 1 now.
 ```
