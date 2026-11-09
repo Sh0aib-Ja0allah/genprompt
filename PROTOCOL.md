@@ -213,8 +213,8 @@ generalises, write `## The transferable rule from this turn` under the checklist
 
 ## Standing conventions
 
-- A pasted or messaged worker stop-report with no instruction means "produce the next prompt"
-  (archetype J); if the verified state shows nothing is left, emit a closeout instead.
+- A pasted worker stop-report with no instruction means "produce the next prompt" (archetype J);
+  if the verified state shows nothing is left, emit a closeout instead.
 - Archetypes compose: a label joins letters with `+` (`D+H`, `J+L`, `P+Q`), dominant first. A
   sequence of separate prompts is written `B→I` in prose only, never as a label.
 - Ask only for what can't be derived; otherwise decide and state it as overridable. Don't widen

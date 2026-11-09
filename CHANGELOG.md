@@ -4,6 +4,12 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-09 · guide/06-library.md, archetypes/J-next.md, PROTOCOL.md · E-12 re-review: a
+  messaged report is ingested only when this chat sent to that exact sender or the request has
+  --from; anything else goes to the user. Sender checked by byte-equal name, ListAgents [ref] and
+  `from` address, kept in chat only. The newest message with a GENPROMPT-REPORT header is used. A
+  wrong-session reply is relayed and re-archived as copy. The Repo check is defined. PROTOCOL
+  convention reverts to pasted only (−12 B).
 - 2026-11-09 · tools/build_shims.py, tools/doctor.py, guide/06-library.md, PROTOCOL.md · E-12
   review fixes. SendMessage is no longer pre-approved: the harness asks before every send, and
   doctor fails a shim that grants it. The PROTOCOL pointer refuses any send not made with
