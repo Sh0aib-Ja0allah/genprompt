@@ -4,11 +4,43 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+## 1.3.1 (2026-11-09)
+
+EXPERIMENTAL: `--send <session>` and `:next --from <session>`. The hand-run checks follow
+after 1.3.0.
+
+Fix (privacy): investigate prompts (since 1.3.0) and design prompts (since 1.0.0) could name a
+scratch or temp path under the generating machine's user home. That path is now a `{scratch dir}`
+the worker fills in. This covers those two prompts only; see the known issue below for the lock.
+
+Card-first: a saved profile card is now read before any repo survey. First-use cost: a repo's
+first run without a card reads the derivation guide (about 5.2 KB) and saves the card; later runs
+read the card instead and load about 5.2 KB less than that first run. Plan's first run exceeds
+v1.1.0's load line, and investigate's first run is 40,616 B, over its 40,000 soft line (35,395 B
+with a card).
+
+Every command names genprompt's tools bare (`archive.py`, never `tools/archive.py`), worker
+fill-in slots use `{…}`, and plan's load is 821 B under v1.1.0's line.
+
+Testing: the release check now uses an opus judge with escalation, and 1.3.0 was re-baselined
+under it. The 1.3.0 known issue on redesign's judge score did not reproduce (grounding and scope
+3 of 3), so it is resolved.
+
+Known issue: in about 4 of 15 runs without a card the generator skipped deriving the profile, and
+in 3 of those it claimed "card new" although no card was created.
+
+Known issue: The TARGET LOCK and the grounding notes saved in your own archive may show your
+user-level settings path; don't paste them publicly. If GENPROMPT_HOME points to a shared or
+versioned folder, archived grounding notes may contain your user-level path. Fixed in 1.4.0.
+
+- 2026-11-09 · .claude-plugin/, CHANGELOG.md · Release prep: version 1.3.1. CP7 passed at frozen
+  57b0b67 ($10.56 of $13); first-use cost, the skip-derive and user-level-path known issues stated.
 - 2026-11-09 · archetypes/X-investigate.md, N-design.md · Fix (privacy): the scratch area was a
   generator placeholder, so CP7 investigate prompts named the generator's own Claude Code
   scratchpad and temp dir under the real user home. It is now the contract's ignored scratch
   path or the worker's `{scratch dir}`, with a rule never to write a generator-environment path
-  into the prompt; N's spike path gets the same fix. Affects 1.3.0.
+  into the prompt; N's spike path gets the same fix. Affects design prompts since 1.0.0 and
+  investigate since 1.3.0 (when X was introduced).
 - 2026-11-09 · archetypes/F-plan.md · F-hr: plan's Autonomy row says "an approval gate" instead
   of naming §4.19, so that block leaves F's excerpt; the cross-repo and Not-when parentheticals
   go. Plan's floor drops for headroom under the v1.1.0 gate; template text is unchanged.
