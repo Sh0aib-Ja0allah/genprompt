@@ -320,6 +320,13 @@ class BuildShims(unittest.TestCase):
         self.assertEqual(seen, {"lock": True, "card": True, "grounding": True})
         derive = (ROOT / "guide" / "blocks" / "derive.md").read_text(encoding="utf-8")
         self.assertIn("never its path", derive)
+        # CP8 L1: a closing chat note named the real user-level directory. The rule covers all
+        # output (notes, summary), and every archetype's always-loaded excerpt carries it.
+        rule = ("User-level is `present`/`unreadable`/`none` in all output, summary too: never a "
+                "path to or in it.")
+        for f in sorted((ROOT / "guide" / "blocks").glob("[A-Z]-*.md")):
+            flat = " ".join(f.read_text(encoding="utf-8").split())
+            self.assertIn(rule, flat, f.name)
 
     # Honest card state (1.4.0): CP7 saw 4/15 card-less runs skip the derive and "card new" claimed
     # for cards never written (all --dry-run). No card -> derive and Write it every time; "new" only

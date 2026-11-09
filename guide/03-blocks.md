@@ -39,7 +39,7 @@ Include every chain field that applies (archive.py orders the file).
 ```
 
 If a claim has no line here, it does not belong in the prompt. User-level is
-`present`/`unreadable`/`none`, never a path.
+`present`/`unreadable`/`none` in all output, summary too: never a path to or in it.
 
 ### 4.3 What the user asked for, and interpretations locked in (overridable)
 

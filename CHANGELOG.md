@@ -4,6 +4,10 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-10 · guide/03-blocks.md §4.2 · LOCK-UL in all output: user-level is
+  `present`/`unreadable`/`none` in all output, summary too, never a path to or in it (CP8 L1: a
+  redesign closing note named the real user-level directory; lock, card and prompt were clean).
+  +39 B on every floor (plan 29,610); PROTOCOL +0.
 - 2026-11-09 · PROTOCOL.md Step 2 + lock, guide/01 §2.9 · Honest card state (1.4.0): with no card
   (or a stale or expired one) the run derives and Writes the card every time, however small the
   task (CP7: 4/15 card-less runs skipped it); the lock says `card new` only if this run wrote
