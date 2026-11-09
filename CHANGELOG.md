@@ -14,6 +14,10 @@ runs still read the derivation guide before the card, and card-fresh load equall
 in 1.3.0 a saved card brings no load saving yet. Fix planned for 1.3.1 (read the card before
 surveying the repo).
 
+Known issue: in CP6 the automated judge scored `/genprompt:redesign` below 1.2.0 on grounding and
+scope (1 of 3 votes each; 1.2.0: 3 of 3). A manual check of that output found no grounding error.
+The judge method is being replaced in 1.3.1.
+
 - 2026-11-09 · .claude-plugin/, README.md, utilities/help.md · Release prep: version 1.3.0 (24
   archetypes); `--send` and `:next --from` marked EXPERIMENTAL in the README and the :help picker.
   CHANGELOG and release notes carry the card-load known issue (K1).
