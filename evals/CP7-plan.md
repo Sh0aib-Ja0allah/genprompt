@@ -83,7 +83,35 @@
 
 - **X5. Judge cost check.** If the first quality case's judge cost is above $0.10 (2× the
   assumed $0.05), stop and re-estimate before the next case.
-- **X6.** Moot: Shoaib kept the v1.2.0 re-baseline and raised the cap to $13.
+- **X6 (applied after the X5 stop).** The v1.2.0 re-baseline is **redesign only**, which clears
+  the 1.3.0 known issue. R4 for 1.3.1 compares against the re-baselined v1.3.0 on every case,
+  and against v1.2.0 on redesign only. The cap stays $13.
+- **X5 stop, as recorded** (`evals/CP7.md`, e6d4fd9): the opus judge cost $0.2300 on v1.3.0 fix,
+  4.6× the assumed $0.05. The debug log holds request ids only, no judge text (J5:
+  `--explain` is the only source of reasoning).
+- **Judge-inclusive caps, replacing §3's caps.** First run / escalation:
+
+  | Case | first-run cap | escalation cap |
+  |---|---|---|
+  | fix | $0.95 | $1.55 |
+  | plan | $1.00 | $1.60 |
+  | redesign | $1.10 | $1.75 |
+  | slice | $1.40 | $2.30 |
+  | investigate | $0.95 | $1.55 |
+
+- **Re-estimate with X6:**
+
+  | Step | Expected |
+  |---|---|
+  | v1.3.0 fix (done) | $0.66 |
+  | v1.3.0, the other four cases | $3.12 |
+  | v1.2.0 redesign | $0.80 |
+  | CP7 load | $0.90 |
+  | CP7 quality | $3.77 |
+  | **Total, no escalation** | **≈ $9.25** |
+
+  That leaves about $3.75 for escalations (about $1.3–2.0 each) and `--explain`. J6 still stops
+  before any step whose cap doesn't fit what's left.
 - **Pre-stated remedy (Planner).** If plan regresses on any gated grader in CP7, the remedy is
   to restore §4.19 to F (594595d removed it; the 821 B margin absorbs it), not a new patch.
 
