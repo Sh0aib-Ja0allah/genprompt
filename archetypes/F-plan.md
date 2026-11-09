@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | **Use when** | Produce a plan or roadmap doc, with no code |
-| **Not when** | The design of one decision (ADR, schema, API contract) → `:design`. Executing an existing plan → `:roadmap` |
-| **Autonomy** | N/A: read-only until the plan doc is written. An execution phase, if any, sits behind a §4.19 gate |
+| **Not when** | The design of one decision → `:design`. Executing an existing plan → `:roadmap` |
+| **Autonomy** | N/A: read-only until the plan doc is written. An execution phase, if any, sits behind an approval gate |
 | **Baseline delta** | N/A: gates for later slices are stated, not run |
 | **Length tier** | Program (350) |
 | **Deliverable** | Exactly one plan doc (`<PROFILE.docnaming>`) with stable item ids, then the ordered slice plan in chat |
@@ -12,8 +12,7 @@
 ## Generator: before emitting
 
 - No code changes or commits while planning; execution, if carried, sits behind a phase gate.
-- Cross-repo plans: anchor both repos (own branch, gates, commit permissions) and carry the
-  paired-change rule (§1).
+- Cross-repo plans: anchor both repos and carry the paired-change rule (§1).
 - `--split <N>`: emit per §8.1, not this template.
 - Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
   is not in the target repo.
