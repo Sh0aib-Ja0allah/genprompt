@@ -4,6 +4,9 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-09 · archetypes/F-plan.md · F-hr: plan's Autonomy row says "an approval gate" instead
+  of naming §4.19, so that block leaves F's excerpt; the cross-repo and Not-when parentheticals
+  go. Plan's floor drops for headroom under the v1.1.0 gate; template text is unchanged.
 - 2026-11-09 · tools/archive.py, tools/build_shims.py, commands/ · C1 card-first: `archive.py
   --where` adds a `card <path> (present|absent)` line for the cwd's git work tree (`card none`
   outside one or inside the genprompt root or home), and Step 0 reads the card, when present,

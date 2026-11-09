@@ -118,12 +118,6 @@ whose own REPORT text replaces the rest of this block and deltas (E, J).
   the stop-list.
 - The fields are claims: verify `Branch`, `HEAD` and the gate numbers by artifact (Step 4).
 
-### 4.19 Approval gate (attended mode only)
-
-```text
-Do not start coding until I approve the plan, unless I explicitly say "continue immediately".
-```
-
 ### 4.20 Situational blocks (with wording to copy)
 
 | Block | Use when | Wording to copy |
