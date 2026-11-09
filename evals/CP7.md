@@ -35,7 +35,7 @@
 
 | Step | Expected | Caps |
 |---|---|---|
-| load: card-less 5×3 (X4) + card-fresh 5×3 (R2, X3), haiku | $0.90 | `--max-total` 0.45 each |
+| load: card-less 5×3 (X4) + card-fresh 5×3 (R2, X3), haiku | $0.90 | `--budget 0.08`, `--max-total` 0.60 (card-less) and 0.75 (card-fresh, CP6's lesson: about $0.04 a run when the card is found) |
 | quality: 5 cases (J1–J2, R4 vs v1.3.0 on all, vs v1.2.0 on redesign; R3 investigate) | about $3.85 at this run's actuals | first / escalation: fix 0.95/1.55, plan 1.00/1.60, redesign 1.10/1.75, slice 1.40/2.30, investigate 0.95/1.55 |
 | **CP7 expected** | **about $4.75**, leaving about $3.6 for escalations or `--explain` | |
 
