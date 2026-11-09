@@ -96,8 +96,8 @@ capped at about 2.3× expected, which caps the re-sample path per case.
   expected numbers the plan fits with **one** escalation across all three sides, and two only if
   they're cheap cases.
 - **Worst case is guarded, not funded.**
-  - If every first run hits its cap: re-baselines $4.05 + $3.15, CP7 load about $1.20, CP7
-    quality $4.05. That's $12.45 with no escalation, which J6 would stop before CP7's quality step.
+  - If every first run hits its cap: re-baselines $4.05 + $3.35, CP7 load about $1.20, CP7
+    quality $4.05. That's $12.65 with no escalation, which J6 would stop before CP7's quality step.
   - J6 always checks before starting: the next step's caps must fit what's left.
 - Options, Shoaib's call:
   - **(a)** keep $11 and accept that a second escalation or a costly side may stop CP7 for a cap
