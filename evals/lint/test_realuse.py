@@ -651,3 +651,131 @@ class GeneralRuleTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WriteModeTest(unittest.TestCase):
+    """1.4.0 item 3: --write sends requests without --dry-run and counts honest card writes."""
+
+    def test_request_drops_dry_run_only_in_write_mode(self):
+        for case in run.REQUESTS:
+            self.assertTrue(run.request(case).endswith("--go --dry-run"), case)
+            w = run.request(case, write=True)
+            self.assertNotIn("--dry-run", w, case)
+            self.assertTrue(w.endswith("--go"), case)
+
+    def test_write_needs_a_sandbox_home_before_spend(self):
+        argv = sys.argv
+        try:
+            sys.argv = ["run.py", "compare", "--cand", "HEAD", "--cases", "plan", "--write"]
+            with self.assertRaises(SystemExit) as cm:
+                run.main()
+            self.assertEqual(cm.exception.code, 2)
+        finally:
+            sys.argv = argv
+
+    def test_real_archive_is_safe_only_in_write_mode(self):
+        root = "C:/genprompt-probe" if run.os.name == "nt" else "/var/tmp/genprompt-probe"
+        arch = f"{root}/w/gp-cand/tools/archive.py"
+        parts = f"{root}/w/homes/h/tmp/s-03.json"
+        self.assertFalse(run.safe_bash(f'python "{arch}" "{parts}"', root))
+        self.assertTrue(run.safe_bash(f'python "{arch}" "{parts}"', root, write=True))
+        self.assertTrue(run.safe_bash(f'python "{arch}" --dry-run "{parts}"', root))
+        # write mode widens nothing else: paths outside the root, other scripts, code still flag
+        for bad in (f'python "{arch}" "C:/elsewhere/p.json"', f'python "{root}/w/x.py"',
+                    "python -c 'print(1)'", f'python "{arch}" "{parts}" > out.txt'):
+            self.assertFalse(run.safe_bash(bad, root, write=True), bad)
+
+    def test_claims_new_card(self):
+        new = ["- Stack: Node commonjs, node >=18 · role senior Node engineer · card 0d, fresh (new)",
+               "Stack       Node, CommonJS · role CLI · card new (dry run writes none)",
+               "Stack       Node >=18 · role CLI engineer · card new, not written (--dry-run)"]
+        not_new = ["Stack       Node · role engineer · card 0d, stamps fresh (package.json@9c672ba)",
+                   "Stack       Node.js · role engineer · card none (not derived this run)",
+                   "The card is new to me",          # not a Stack line
+                   "Stack       Node · role new hire · card 3d, stamps fresh"]  # "new" outside the card part
+        for t in new:
+            self.assertTrue(run.claims_new_card([t]), t)
+        for t in not_new:
+            self.assertFalse(run.claims_new_card([t]), t)
+
+    def test_card_written_and_path(self):
+        import tempfile
+        self.assertTrue(run.card_written(None, "abc"))
+        self.assertFalse(run.card_written(None, None))
+        self.assertFalse(run.card_written("abc", "abc"))
+        self.assertTrue(run.card_written("abc", "def"))
+        with tempfile.TemporaryDirectory() as tmp:
+            home, fx = Path(tmp) / "home", Path(tmp) / "My_Repo X"
+            self.assertEqual(run.card_path(home, fx).name, "my-repo-x.profile.md")
+            p = run.card_path(home, fx)
+            self.assertIsNone(run.file_digest(p))
+            p.parent.mkdir(parents=True)
+            p.write_text("x", encoding="utf-8")
+            self.assertIsNotNone(run.file_digest(p))
+
+    def test_write_checks(self):
+        ok = {"plan": [{"claims_new": True, "card_written": True, "card_lint": []},
+                       {"claims_new": False, "card_written": False, "card_lint": []}]}
+        self.assertTrue(all(g for _, g, _ in run.write_checks(ok)))
+        lie = {"plan": [{"claims_new": True, "card_written": False, "card_lint": []}]}
+        h1, w1 = run.write_checks(lie)
+        self.assertFalse(h1[1])
+        self.assertIn("plan r1", h1[2])
+        self.assertTrue(w1[1])
+        lint = {"fix": [{"claims_new": True, "card_written": True,
+                         "card_lint": ["ERROR archive profile fixture.profile.md: missing field(s) stamp"]}]}
+        self.assertFalse(run.write_checks(lint)[1][1])
+
+    def test_analyze_records_claims_new(self):
+        import json
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp).resolve() / "genprompt-probe" / "run-1"
+            work.mkdir(parents=True)
+            t = work / "t.jsonl"
+            t.write_text("\n".join([
+                json.dumps({"type": "assistant", "message": {"content": [
+                    {"type": "text", "text": "Stack  Node · role x · card 0d, fresh (new)"}]}}),
+                json.dumps({"type": "result", "result": "done", "total_cost_usd": 0.01})]),
+                encoding="utf-8")
+            self.assertTrue(run.analyze(t, work / "gp-cand", work)["claims_new"])
+            t.write_text(json.dumps({"type": "assistant", "message": {"content": [
+                {"type": "text", "text": "Stack  Node · role x · card 0d, stamps fresh"}]}}),
+                encoding="utf-8")
+            self.assertFalse(run.analyze(t, work / "gp-cand", work)["claims_new"])
+
+    def test_write_section_counts(self):
+        rs = {"plan": [{"reads": [(run.DERIVE, 5221)], "card_written": True, "claims_new": True,
+                        "card_lint": []},
+                       {"reads": [], "card_written": False, "claims_new": False, "card_lint": []}]}
+        s = run.write_section(["plan"], rs)
+        self.assertIn("Card written: 1 of 2 runs; 1 of 1 runs that read derive.md", s)
+        self.assertIn("| plan r1 | Y | Y | Y | clean |", s)
+
+
+class DispatchSetupTest(unittest.TestCase):
+    """D1-D6 hand run: dispatch-setup stages everything offline (no claude call)."""
+
+    def test_setup_layout(self):
+        import tempfile
+        argv = sys.argv
+        with tempfile.TemporaryDirectory() as tmp:
+            try:
+                sys.argv = ["run.py", "dispatch-setup", "--cand", "HEAD", "--workroot", tmp]
+                self.assertEqual(run.main(), 0)
+            finally:
+                sys.argv = argv
+            work = next(Path(tmp).glob("genprompt-dispatch-*"))
+            self.assertIn('"name": "gp-cand"',
+                          (work / "gp-cand" / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+            for side in ("a", "b"):
+                self.assertTrue((work / side / "ledgerlite" / ".git").exists(), side)
+                self.assertTrue((work / side / "ledgerlite" / "package.json").exists(), side)
+            for role in run.DISPATCH_ROLES:
+                h = work / "homes" / role
+                self.assertTrue(h.is_dir() and not any(h.iterdir()), role)
+            s = (work / "sessions.txt").read_text(encoding="utf-8")
+            for _, name in run.DISPATCH_ROLES.values():
+                self.assertIn(f"/rename {name}", s)
+            self.assertEqual(s.count("GENPROMPT_HOME"), 4)
+            self.assertNotIn(str(Path.home().as_posix()) + "/.genprompt", s)
