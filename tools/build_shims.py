@@ -69,6 +69,8 @@ DOCTOR = ", ".join(f"Bash({py} {q}{PLUGIN_ROOT}/tools/doctor.py{q}:*)"
 # Every command that emits a prompt archives it through tools/archive.py (PROTOCOL Step 6), so the
 # archetype shims and the entry point may run that one script. archive.py writes only under
 # ~/.genprompt and runs doctor's per-file lint itself, so no separate doctor --prompt grant.
+# Step 0's home lookup (E-09e). Quoted, so a plugin root with spaces works; granted by ARCHIVE.
+WHERE_CALL = f'`python3 "{PLUGIN_ROOT}/tools/archive.py" --where`'
 ARCHIVE = ", ".join(f"Bash({py} {q}{PLUGIN_ROOT}/tools/archive.py{q}:*)"
                     for py in ("python3", "python") for q in ("", '"'))
 # Dispatch (E-12, §10.8): `--send <session>` delivers the archived prompt to another Claude session.
@@ -293,16 +295,24 @@ def includes(files: list[str], protocol: bool = True, where: bool = False) -> st
     # The @-lines above expand into the files' text when the command loads (verified for plugin
     # commands in E-09b). Re-reading them "to be safe" doubled the rule load, so Step 0 reads a
     # file only when its text is genuinely absent (E-09f: the @ paths are the fallback list).
+    if where:
+        # CP6 run 3: a generator that chained --where into one long first Bash call lost the whole
+        # call when any part was ungranted (cat, a ( ) group, a relative path) or `python3` was the
+        # Windows Store alias (exit 49), and went card-less. So --where runs alone, with one
+        # `python` retry, before any other read. No `;`, `|` or `&&` on this line (pinned by test).
+        return (f"{inc}\n\n{paths}"
+                f"Step 0: the files above are in context. Read them again only if PROTOCOL's "
+                f"`GENPROMPT-PROTOCOL v3 LOADED` marker is absent. First Bash call, alone and "
+                f"unchained: {WHERE_CALL}. No output or an error (exit 49: Store alias): once more "
+                f"with `python`, alone. Its `home` line is the absolute home for every "
+                f"`{USER_HOME}/` path and Write. `local-rules` says `present`: Read that file. Then "
+                f"git and other reads, one per call.\n")
     return (f"{inc}\n\n{paths}"
             f"Step 0: the files above are already in context (their text follows the `@` lines; "
             f"PROTOCOL's third line says `GENPROMPT-PROTOCOL v3 LOADED`). Don't Read them again "
-            f"unless that marker is absent. Then run " + (
-                f"`python3 {PLUGIN_ROOT}/tools/archive.py --where` once (`python` if `python3` is "
-                f"missing or a store alias): its `home` line is the absolute home for every "
-                f"`{USER_HOME}/` path and Write; if its `local-rules` line says `present`, Read "
-                f"that file.\n" if where else
-                f"`ls -d ~ {USER_HOME}/local-rules.md` once: it prints your absolute home (for every "
-                f"Write); if `local-rules.md` exists, Read it.\n"))
+            f"unless that marker is absent. Then run "
+            f"`ls -d ~ {USER_HOME}/local-rules.md` once: it prints your absolute home (for every "
+            f"Write); if `local-rules.md` exists, Read it.\n")
 
 
 def archetype_shim(letter, cmd, stem, name, desc, hint, flags: str = FLAGS) -> str:
@@ -310,8 +320,8 @@ def archetype_shim(letter, cmd, stem, name, desc, hint, flags: str = FLAGS) -> s
                         scopes=EMIT_SCOPES) + "\n" +
             includes([f"archetypes/{stem}.md", f"{BLOCKS_DIR}/{stem}.md"], where=True) +
             f"\nCommand `/genprompt:{cmd}` → archetype **{letter}: {name}** (§5.{letter}): follow "
-            f"PROTOCOL Steps 1–7. If the request is really another archetype, say so in the lock "
-            f"and use it (hybrids are fine).\n\n"
+            f"PROTOCOL Steps 1–7. Another archetype fits better? Say so in the lock and use it "
+            f"(hybrids are fine).\n\n"
             f"Request: $ARGUMENTS\n")
 
 
@@ -334,8 +344,8 @@ def root_shim() -> str:
             + "\n" + includes(["archetypes/README.md"], where=True) +
             f"\nEntry point `/genprompt:{ENTRY}`. Pick the archetype from the request using the picker "
             "in `archetypes/README.md`, then Read that archetype's file and its block excerpt "
-            f"`{BLOCKS_DIR}/<letter>-<command>.md` (this entry point loads neither up front, because "
-            "it picks the archetype first), and follow PROTOCOL Steps 1–7. "
+            f"`{BLOCKS_DIR}/<letter>-<command>.md` (this entry point loads neither: it picks the "
+            "archetype first), and follow PROTOCOL Steps 1–7. "
             "A pasted worker stop-report with no instruction means archetype J (`:next`). An empty "
             "request: resolve the target anyway, then, in one message and without asking twice, "
             "show the target and these six commands, each with its purpose: "

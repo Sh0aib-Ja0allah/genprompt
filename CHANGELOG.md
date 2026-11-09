@@ -4,6 +4,11 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-09 · tools/build_shims.py, commands/ · Fix: since the profile card shipped in 1.2.0,
+  Windows users whose `python3` is the Store alias (exit 49), and any run that chained Step 0's
+  `archive.py --where` with an ungranted part, had their saved card silently ignored (CP6 run 3:
+  card read in 2 of 15 runs). Step 0 now runs --where as its own first Bash call, retries once
+  with `python` alone, and only then does other reads one per call. Grants unchanged; shims −3 B.
 - 2026-11-09 · archetypes/B-audit.md, N-design.md, P-review.md, guide/01-target-profile.md · CP6
   fix: B, N and P name their doc by `<PROFILE.docnaming>` instead of pointing at §2.7, each offset
   in its own file; derive step 6 reads §2.7 only when the repo shows no naming pattern.

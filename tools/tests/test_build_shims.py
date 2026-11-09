@@ -261,12 +261,21 @@ class BuildShims(unittest.TestCase):
 
     def test_step0_home_comes_from_archive_where_under_the_archive_grant(self):
         bs = load_build_shims()
-        where = "`python3 ${CLAUDE_PLUGIN_ROOT}/tools/archive.py --where` once"
+        where = ('First Bash call, alone and unchained: '
+                 '`python3 "${CLAUDE_PLUGIN_ROOT}/tools/archive.py" --where`.')
         for cmd in [r.cmd for r in bs.ARCHETYPES] + [bs.ENTRY]:
             shim = (ROOT / "commands" / f"{cmd}.md").read_text(encoding="utf-8")
             self.assertIn(where, shim, cmd)
-            self.assertIn("Bash(python3 ${CLAUDE_PLUGIN_ROOT}/tools/archive.py:*)", shim, cmd)
+            self.assertIn("once more with `python`, alone.", shim, cmd)
+            self.assertIn("Then git and other reads, one per call.", shim, cmd)
+            # the exact call Step 0 names is pre-approved (no new grant: G1)
+            self.assertIn('Bash(python3 "${CLAUDE_PLUGIN_ROOT}/tools/archive.py":*)', shim, cmd)
+            self.assertIn('Bash(python "${CLAUDE_PLUGIN_ROOT}/tools/archive.py":*)', shim, cmd)
             self.assertNotIn("ls -d ~", shim, cmd)
+            # CP6 run 3: a chained first call lost --where and the card, so Step 0 chains nothing
+            step0 = re.search(r"^Step 0:.*$", shim, re.M).group(0)
+            for op in ("&&", "||", ";", "|"):
+                self.assertNotIn(op, step0, (cmd, op))
         for cmd in ("learn", "profile", "history"):
             shim = (ROOT / "commands" / f"{cmd}.md").read_text(encoding="utf-8")
             self.assertIn("`ls -d ~ ~/.genprompt/local-rules.md` once", shim, cmd)

@@ -10,8 +10,8 @@ allowed-tools: Read, Glob, Grep, Write(~/.genprompt/generated-prompts/**), Edit(
 
 Paths: the genprompt root (read-only rules) is `${CLAUDE_PLUGIN_ROOT}`.
 
-Step 0: the files above are already in context (their text follows the `@` lines; PROTOCOL's third line says `GENPROMPT-PROTOCOL v3 LOADED`). Don't Read them again unless that marker is absent. Then run `python3 ${CLAUDE_PLUGIN_ROOT}/tools/archive.py --where` once (`python` if `python3` is missing or a store alias): its `home` line is the absolute home for every `~/.genprompt/` path and Write; if its `local-rules` line says `present`, Read that file.
+Step 0: the files above are in context. Read them again only if PROTOCOL's `GENPROMPT-PROTOCOL v3 LOADED` marker is absent. First Bash call, alone and unchained: `python3 "${CLAUDE_PLUGIN_ROOT}/tools/archive.py" --where`. No output or an error (exit 49: Store alias): once more with `python`, alone. Its `home` line is the absolute home for every `~/.genprompt/` path and Write. `local-rules` says `present`: Read that file. Then git and other reads, one per call.
 
-Command `/genprompt:release` → archetype **T: Release and deploy** (§5.T): follow PROTOCOL Steps 1–7. If the request is really another archetype, say so in the lock and use it (hybrids are fine).
+Command `/genprompt:release` → archetype **T: Release and deploy** (§5.T): follow PROTOCOL Steps 1–7. Another archetype fits better? Say so in the lock and use it (hybrids are fine).
 
 Request: $ARGUMENTS
