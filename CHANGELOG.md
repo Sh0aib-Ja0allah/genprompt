@@ -10,6 +10,10 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 - 2026-11-09 · guide/08-grammar.md, archetypes/J-next.md · E-13: new §8.1 `--split <N>` for :plan
   and :roadmap (N disjoint-ownership lanes in worktrees, a shared findings folder, one merge prompt,
   siblings archived under one follows); :next recognises a lane report and re-issues the merge prompt.
+- 2026-11-09 · guide/03-blocks.md, guide/blocks/, examples/worked-examples.md · E-20: the §4.1
+  header gains an advisory `Worker` row (model, effort, fast mode) read from a new Worker column in
+  the §4.21 tier table (Delta Sonnet 5.5; Focused, Slice, Program Opus 5.5); set with /model.
+  Net-zero floor: offset by wording cuts in §4.1/§4.21 (every archetype −7 to −30 B).
 - 2026-11-09 · archetypes/X-investigate.md, tools/build_shims.py, .claude-plugin/ · New archetype X,
   /genprompt:investigate: an unknown-cause bug traced to a root cause at path:line and handed to
   :fix, read-only plus a scratch repro; 24 archetypes.
