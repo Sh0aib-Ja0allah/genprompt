@@ -1,8 +1,8 @@
 # CP6: 1.3.0 candidate (INCOMPLETE: run 4 stopped at card-less A5)
 
 Total CP6 spend: run 1 $0.5596 + V4 trace $0.0047 + run 2 $0.3228 + run 3 $0.6173 + replay
-$0.0169 + run 4 $0.4977 = **$2.0190** of the $7.50 cap (raised from $6.25 by Shoaib; $5.4810
-left).
+$0.0169 + run 4 card-less $0.4977 + run 4 card-fresh (interrupted) $0.4877 = **$2.5067** of
+the $7.50 cap (raised from $6.25 by Shoaib; $4.9933 left).
 
 ## Run 4: candidate c8edb15, probe code eea02ad (INCOMPLETE: A5 FAIL at card-less)
 
@@ -52,6 +52,21 @@ Claude Code ran both under dontAsk as read-only commands.
 2. Keep them flagged. Then the generator must avoid shell filters in Bash (use Read with
    offset/limit instead), which is another candidate and a full re-run.
 - Trace: `C:/genprompt-probe/genprompt-probe-20261109-122027/`.
+
+### Run 4 continued: A5 general rule (frozen 5a2504b), card-fresh INCOMPLETE (spend guard)
+
+- Shoaib ruled "general rule, continue". The pre-check passed: the P1 leak still flags, and
+  run 4 card-less re-grades to 0 of 15 (CP6-plan.md, "Run 4 ruling"). So card-less PASSES on
+  the frozen A5, with the medians above.
+- Card-fresh ran 5×3 on c8edb15 with `--cardless slice=32307 fix=37019 redesign=30892
+  plan=29983 investigate=34825 --budget 0.08 --max-total 0.55`.
+- **The spend guard stopped it after 13 of 15 runs, at $0.4877.** investigate r2 and r3 never
+  ran. The probe survived the window loss in between and exited on the guard, not a crash.
+- Cause: card-fresh runs now cost about $0.0375 each, against the about $0.025 the 0.55 total
+  assumed. With B's Step 0 fix the runs find the card and do more work.
+- **INCOMPLETE, not graded** (a partial set is never a pass). Traces:
+  `C:/genprompt-probe/genprompt-probe-20261109-131401/` (13 jsonl, no report).
+- Proposed: re-run card-fresh whole with `--max-total 0.70`. Awaiting GO.
 
 **V4 outcome, stated plainly (P3).** Run 1's refusal of the chained `archive.py --where; git …`
 calls was a probe artefact. Real Claude Code checks a chained command one subcommand at a
