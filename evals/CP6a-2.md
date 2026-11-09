@@ -1,12 +1,12 @@
-# CP6a-2: E-09f floor cut (f846d85) — INCOMPLETE
+# CP6a-2: E-09f floor cut (f846d85) — load PASS; quality 2 of 3, INCOMPLETE (plan not run)
 
 | | |
 |---|---|
 | Candidate | `f846d85` (E-09f: every archetype's always-loaded floor cut by about 5.2 KB; plan's floor is 29,853 B) |
 | Rule (fixed before results) | load: card-less per-case median ≤ v1.1.0 and ≤ v1.2.0, using CP6a's stored baseline medians. Quality: fix, redesign and plan on opus vs CP5 `2026-11-08T19-07-58Z`. Stop at the first failure; an incomplete run is reported as incomplete |
 | Run | 2026-11-09: isolation check, then `realuse/run.py compare --cand f846d85 --cases slice fix redesign plan --model haiku --budget 0.15 --runs 3 --home empty --max-total 0.40` |
-| Cost | isolation $0.0033 + $0.0041, load $0.2623 = **$0.2697** of $2.13 (about $1.86 left) |
-| Status | **INCOMPLETE.** The spend guard stopped the load probe after 11 of 12 runs (plan r3 not run). Load is not decided for plan, so the quality eval was not run |
+| Cost | isolation $0.0033 + $0.0041, load $0.2623 + plan r3 $0.0155, quality fix $0.5270 + redesign $0.8258 = **$1.6380** of $2.13 ($0.4920 left) |
+| Status | **Load PASS** in all 4 cases after plan r3 (PE GO). **Quality INCOMPLETE:** fix and redesign show no regression; plan was not run because its expected cost (CP5: $0.51) is more than the $0.49 left |
 
 ## Isolation check (drive root)
 
@@ -63,3 +63,50 @@
 
 Traces: `C:/genprompt-probe/genprompt-probe-20261109-031359/` (11 jsonl; no `report.md`, since the
 guard exits before writing it). Isolation: `C:/genprompt-probe/genprompt-isolation-20261109-031337/`.
+
+## Completion under the PE's GO
+
+### Plan r3 (load)
+
+- Run: `compare --cand f846d85 --cases plan --model haiku --budget 0.05 --runs 1 --home empty
+  --max-total 0.10`, cost $0.0155. It read no rule file: **29,853** B, the floor. A1 and A5 PASS.
+  Traces: `C:/genprompt-probe/genprompt-probe-20261109-034018/`.
+- Plan's runs are 35,080, 29,853 and 29,853, so the median is **29,853**: −2.5% vs v1.1.0 (30,615)
+  and −27.8% vs v1.2.0 (41,367). **PASS.**
+- **The load gate passes in every case against both baselines:**
+
+| Case | median | vs v1.1.0 | vs v1.2.0 |
+|---|---|---|---|
+| slice | 32,178 | −48.8% | −47.4% |
+| fix | 31,530 | −41.1% | −27.5% |
+| redesign | 30,705 | −42.6% | −21.9% |
+| plan | 29,853 | −2.5% | −27.8% |
+
+### Quality (opus-5-5, plugin eval at f846d85, vs CP5 `2026-11-08T19-07-58Z`)
+
+Each case ran on its own, with `--max-cost-usd` set to what was left of the $2.13. archive-valid
+used doctor from the f846d85 worktree.
+
+| Case | rubric-scope | rubric-grounding | cites-real | gates-exist | others | cost |
+|---|---|---|---|---|---|---|
+| fix | FPF → **PPP** (FAIL → PASS) | PPP → PFP (PASS → PASS, one vote fewer) | PASS (22 → 35 citations) | PASS (lint, start, test) | eval score 0.9 → 1.0; line-length PASS; archive-valid 8/0/0 | $0.5270 (CP5 $0.5267) |
+| redesign | PPP → PPP | PPP → PPP | PASS (17 → 15) | PASS (lint, test) | line-length FAIL → **PASS**; archive-valid 8/0/0 | $0.8258 (CP5 $0.5724) |
+| plan | **not run** | | | | | est. $0.51 |
+
+- **No regression in fix or redesign** on the four gated graders. fix's rubric-scope, which failed
+  at CP4 and CP5, passes for the first time.
+- **One note on fix's rubric-grounding:** it is still PASS, but on 2 of 3 votes instead of 3 of 3.
+  The judge's reasoning is not exposed by the harness (as before), so I can't say which claim the
+  dissenting vote doubted.
+- **Why plan wasn't run.** After redesign, $0.4920 of the $2.13 was left, and plan cost $0.5090
+  at CP5. Redesign also came in 44% over its CP5 cost. Run with `--max-cost-usd 0.49`, plan would
+  most likely stop partway, spending the money and still leaving the quality set incomplete. Under
+  the Planner's rule (an estimate over budget goes to Shoaib, and a partial set is never a pass),
+  I stopped before spending it.
+
+### To finish
+
+- One opus run of plan, about $0.51–0.75 (CP5 cost up to redesign's +44%). That is $0.02–0.26
+  more than the $0.49 left, so it needs a budget decision from Shoaib.
+- Quality results: `evals/results/2026-11-09T01-41-45Z` (fix) and `2026-11-09T01-44-22Z`
+  (redesign).
