@@ -4,6 +4,12 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-09 · PROTOCOL.md, archetypes/F-plan.md, X-investigate.md · F-hr (1.4.0): cuts only, for
+  headroom. PROTOCOL -255 B (five duplicate or wording cuts: the Step 0 home note, the root/git
+  write bullet, the Ask aside, Step 5.5's notation repeat of §4.0, the no-python repeat); F -94
+  B (its no-code bullet repeats the Autonomy row and template); X -99 B (the bisect trap folds
+  into its note). Plan floor 29,794 -> 29,445; investigate 35,395 -> 35,041; others -255.
+
 ## 1.3.1 (2026-11-09)
 
 EXPERIMENTAL: `--send <session>` and `:next --from <session>`. The hand-run checks follow

@@ -11,7 +11,6 @@
 
 ## Generator: before emitting
 
-- No code changes or commits while planning; execution, if carried, sits behind a phase gate.
 - Cross-repo plans: anchor both repos and carry the paired-change rule (§1).
 - `--split <N>`: emit per §8.1, not this template.
 - Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
