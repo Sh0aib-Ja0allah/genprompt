@@ -191,6 +191,28 @@ class BuildShims(unittest.TestCase):
 
     # E-09e: shims with the ARCHIVE grant (archetypes, :auto) read the home from archive.py --where
     # (GENPROMPT_HOME or ~/.genprompt); learn/profile/history have no such grant and keep ls -d ~.
+    # E-13: --split <N> is offered by plan and roadmap only, its rules live on demand in §8.1, and
+    # the archetypes that take it (and :next, for lane reports) point there.
+    def test_split_flag_only_on_plan_and_roadmap(self):
+        bs = load_build_shims()
+        self.assertEqual(set(bs.SPLIT_CMDS), {"plan", "roadmap"})
+        for r in bs.ARCHETYPES:
+            shim = (ROOT / "commands" / f"{r.cmd}.md").read_text(encoding="utf-8")
+            hint = re.search(r"^argument-hint: (.*)$", shim, re.M).group(1)
+            self.assertEqual(bs.SPLIT_FLAG in hint, r.cmd in bs.SPLIT_CMDS, r.cmd)
+        root = (ROOT / "commands" / f"{bs.ENTRY}.md").read_text(encoding="utf-8")
+        self.assertNotIn("--split", root)
+
+    def test_split_rules_are_on_demand_and_referenced(self):
+        grammar = (ROOT / "guide" / "08-grammar.md").read_text(encoding="utf-8")
+        self.assertIn("### 8.1 `--split <N>`", grammar)
+        self.assertIn("| `--split <N>` |", grammar)
+        for stem in ("F-plan", "I-roadmap", "J-next"):
+            text = (ROOT / "archetypes" / f"{stem}.md").read_text(encoding="utf-8")
+            self.assertIn("§8.1", text, stem)
+        self.assertIn("`W<k>/<N>:`", (ROOT / "archetypes" / "J-next.md").read_text(encoding="utf-8"))
+        self.assertNotIn("--split", (ROOT / "PROTOCOL.md").read_text(encoding="utf-8"))
+
     def test_step0_home_comes_from_archive_where_under_the_archive_grant(self):
         bs = load_build_shims()
         where = "`python3 ${CLAUDE_PLUGIN_ROOT}/tools/archive.py --where` once"

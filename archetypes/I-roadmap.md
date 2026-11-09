@@ -15,6 +15,9 @@
   Don't assume a filename.
 - If the backlog depends on a prior artifact (an audit doc), open with a §4.20 STEP 0 check
   that hard-STOPs.
+- `--split <N>`: read §8.1. It partitions the items into N lanes with disjoint file ownership,
+  each in its own worktree, and emits a lane prompt per lane plus a merge prompt that verifies
+  each lane's diff stayed inside its paths before merging.
 - Do not assume the backlog's own claims are still true. Each item is verified against current
   code; if it is already resolved, it is marked done and skipped.
 
