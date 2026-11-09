@@ -389,9 +389,11 @@ Keys and invalidation.
 - Age. The card's age is `today − derived`, in days. It is what a reader reports next to the
   verdict, for example `card 37d, stamps fresh` or `card 12d, stale: composer.json moved`, so a
   long-reused card is visible. `derived` changes only when the card is re-derived.
-- First use writes it. The first prompt for a repo that has no card derives the profile and
-  writes the card to `by-repo/<key>.profile.md`, so the next run can reuse it. A stale or expired
-  card is rewritten the same way. `--dry-run` never writes the card.
+- First use writes it. Every prompt for a repo that has no card derives the profile and writes
+  the card to `by-repo/<key>.profile.md`, however small the task, so the next run can reuse it.
+  A stale or expired card is rewritten the same way. `--dry-run` never writes the card.
+- The lock reports what happened: `card new` only when this run's Write of the card succeeded,
+  `card not written (--dry-run)` under `--dry-run`, never `new` for a card that was not written.
 - Future work, not active: skipping the TARGET LOCK wait when the card is fresh ("auto-go") stays
   off until the archive's `lock=` data (PROTOCOL Step 6) shows that locks are rarely corrected.
 - Why git shas and not mtimes: a checkout or pull changes mtimes without changing content.

@@ -321,6 +321,22 @@ class BuildShims(unittest.TestCase):
         derive = (ROOT / "guide" / "blocks" / "derive.md").read_text(encoding="utf-8")
         self.assertIn("never its path", derive)
 
+    # Honest card state (1.4.0): CP7 saw 4/15 card-less runs skip the derive and "card new" claimed
+    # for cards never written (all --dry-run). No card -> derive and Write it every time; "new" only
+    # when this run wrote it; --dry-run says "not written (--dry-run)".
+    def test_card_less_runs_always_derive_and_new_means_written(self):
+        proto = (ROOT / "PROTOCOL.md").read_text(encoding="utf-8")
+        step2 = proto[proto.index("## Step 2"):proto.index("## Step 3")]
+        flat = " ".join(step2.split())
+        self.assertIn("Otherwise (card missing, stale or past 90 days), every time, however small the "
+                      "task: read `guide/blocks/derive.md`", flat)
+        self.assertIn("derive the profile and Write the card (`--dry-run` never writes it)", flat)
+        self.assertIn("`new` only if this run wrote the card.", flat)
+        self.assertNotIn("Only when the card is", flat)
+        stack = next(ln for ln in proto.splitlines() if ln.startswith("Stack "))
+        self.assertIn("card <Nd, stamps fresh | Nd, stale: <file> moved | new | not written (--dry-run)>",
+                      stack)
+
     # 1.3.1 C1: --where names the cwd repo's card, and Step 0 reads it before any repo survey.
     def test_step0_reads_the_card_before_any_repo_survey(self):
         bs = load_build_shims()

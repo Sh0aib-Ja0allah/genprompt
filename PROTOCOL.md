@@ -70,13 +70,13 @@ no repo at all.
 Cached profile card: reuse `~/.genprompt/generated-prompts/by-repo/<key>.profile.md`, and read no
 profile rules at all, when both hold:
 - every `stamp:` entry still matches `git log -1 --format=%h -- <file>`, and no stamped file is dirty
-- `derived:` is at most 90 days old (freshness itself is the stamps)
+- `derived:` is at most 90 days old
 
-Report the card's age (today − `derived`, in days) on the lock's Stack line. Only when the card is
-missing, stale or older than 90 days: read `guide/blocks/derive.md` (§2.0 and the card template),
-derive the profile and rewrite the card (`--dry-run` never writes it). It names the only cases
-that need the rest of §2, `stacks/stack-matrix.md` or `stacks/workspaces.md`. Don't assume a file
-exists.
+Otherwise (card missing, stale or past 90 days), every time, however small the task: read
+`guide/blocks/derive.md` (§2.0 and the card template), derive the profile and Write the card
+(`--dry-run` never writes it). It names the only cases that need the rest of §2,
+`stacks/stack-matrix.md` or `stacks/workspaces.md`. Don't assume a file exists. The lock's Stack
+line gives the card's age (today − `derived`, in days); `new` only if this run wrote the card.
 
 Re-derive the gates every time, cache or not, from the manifest's real script keys, the contract's
 own commands and the tools you can prove present, because gates rot and a wrong gate is the most
@@ -92,7 +92,7 @@ Repo        <Name> · <absolute path>
             branch <current> (default <default>) · tree <clean | N files dirty> · via <argument|continuation|cwd|ask>
 Occupancy   <free | OCCUPIED: <evidence>; see §4.27>
 Scope       <single root | monorepo: apps/x IN, apps/y + services/ OUT>
-Stack       <stack + versions read from the manifest/lockfile> · role <role label> · card <Nd, stamps fresh | Nd, stale: <file> moved | new>
+Stack       <stack + versions read from the manifest/lockfile> · role <role label> · card <Nd, stamps fresh | Nd, stale: <file> moved | new | not written (--dry-run)>
 Contract    <path to CLAUDE.md / AGENTS.md, or "none in-repo"> · hard rules: <branching / deploy / push / logging, quoted short with line numbers>
 Ancestors   <non-governing paths | none found> · user-level: <present | unreadable | none>
 Truth       <source-of-truth docs, in order>
