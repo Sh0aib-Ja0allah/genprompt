@@ -30,5 +30,25 @@ class HarmlessTest(unittest.TestCase):
         self.assertFalse(run.harmless("Found 2 files\nC:/a.md\nC:/b.md"))
 
 
+class HomeModeTest(unittest.TestCase):
+    def test_deny_rules_home_mode(self):
+        work = Path("C:/genprompt-probe/x") if run.os.name == "nt" else Path("/var/tmp/genprompt-probe/x")
+        cand, base = run.deny_rules(work), run.deny_rules(work, base=True)
+        self.assertNotIn("Bash", cand)
+        self.assertIn("Bash(ls:*)", cand)
+        self.assertNotIn("Bash(python:*)", cand)
+        self.assertIn("Bash(python:*)", base)
+        self.assertIn("Bash(python3:*)", base)
+        self.assertIn("Write(~/**)", cand)
+        self.assertTrue(any(r.startswith("Write(") and r.endswith("/fixture/**)") for r in cand))
+        self.assertIn("Bash", run.deny_rules())  # default mode keeps Bash off
+
+    def test_safe_bash(self):
+        self.assertTrue(run.SAFE_BASH_RE.match("git log -1 --format=%h -- package.json"))
+        self.assertTrue(run.SAFE_BASH_RE.match("python3 C:/p/gp-cand/tools/archive.py --where"))
+        self.assertFalse(run.SAFE_BASH_RE.match("cat ~/.gitconfig"))
+        self.assertFalse(run.SAFE_BASH_RE.match("python3 C:/p/gp-cand/tools/archive.py --parts x"))
+
+
 if __name__ == "__main__":
     unittest.main()
