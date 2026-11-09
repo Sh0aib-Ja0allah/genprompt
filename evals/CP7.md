@@ -6,6 +6,36 @@
 | Spend | **$5.7298 of $13** (re-baselines $4.6481 + CP7 card-less interrupted $0.5377 + card-less re-run $0.5440; $7.2702 left) |
 | Status | Re-baselines complete under Shoaib's X6 ruling. Every case PASSES all four gated graders 3/3 on its first run, so none escalated: 0 flips either way on both sides (X2). CP7 (candidate 2fad0fa) waits for the PE's GO |
 
+## P-c: real-home / username grep over every CP7 output (free)
+
+- **Scope:** probe dirs 180449 (interrupted card-less), 184529 (card-less), 212154 (card-fresh) and
+  onetime (ii).
+- **Sources:**
+  - every emitted prompt, as the archive parts JSON `prompt` (49 files);
+  - every card (15 seeded, plus 1 written by (ii));
+  - the (ii) archived prompt;
+  - every run's final message (TARGET LOCK + prompt, 47 runs).
+- **Patterns:** `C:\…`, `C:/…` and `/c/…` forms of the real home, plus the username.
+
+| Where | slice | fix | redesign | plan | investigate |
+|---|---|---|---|---|---|
+| emitted prompt (parts) | 0/10 | 0/8 | 0/8 | 0/10 | **4/8** (AUTONOMY write area: 180449 r1, 184529 r1, 212154 r1, r2) |
+| cards (seeded + (ii)) | 0 | 0 | 0 | 0 (+ (ii) card 0, (ii) archive 0) | 0 |
+| final message, outside the prompt | **1** (184529 r3) | 0 | 0 | **1** (180449 r2) | **1** (184529 r3) |
+
+- Every hit is the `C:/` form plus the username. There are no `C:\` or `/c/` forms.
+- **The hits outside investigate are not in any emitted prompt or card.** All three are on the TARGET
+  LOCK's `Ancestors` line, inside the lock's fence, which the user sees and the worker doesn't. For example:
+  `user-level: unreadable (<REALHOME>/.claude/CLAUDE.md is in a permission-denied directory)`.
+  This follows the lock and card templates (`user-level: <path | none>`). Here it names the denied
+  path instead of `none`/`unreadable` alone.
+- **So the emitted-prompt leak is investigate only:** the AUTONOMY write area, in 4 of 8 investigate
+  prompts across the three probes.
+- The lock line is a separate, smaller question for A:
+  - it's shown to the person whose home it is;
+  - but the card template has the same `user-level: <path>` slot, and a card written in real use could
+    store that path. In CP7, both written cards said `unreadable` with no path.
+
 ## Shoaib's rulings on card-fresh, and what's next
 
 - **Redesign X3: stated, not a FAIL.** It's the pre-stated artefact: the card-less median is the floor
