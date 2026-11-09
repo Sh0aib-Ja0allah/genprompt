@@ -4,7 +4,7 @@
 |---|---|
 | Eval code | frozen at `a977724` (X1); unchanged through 01104e0 |
 | Spend | **$10.5624 of $13** (final; re-baselines $4.6481, CP7 load and checks $1.8921, CP7 quality $4.0222) |
-| Status | Re-baselines complete under Shoaib's X6 ruling. Every case PASSES all four gated graders 3/3 on its first run, so none escalated: 0 flips either way on both sides (X2). CP7 (candidate 2fad0fa) waits for the PE's GO |
+| Status | **CP7 COMPLETE: PASS on 57b0b67** (2fad0fa + the investigate privacy fix 671f541). Quality 5/5 PASS, no regression vs v1.3.0 or v1.2.0, 0 escalations and 0 flips on every side. Load results and known issues as stated in the verdict below |
 
 ## P-c: real-home / username grep over every CP7 output (free)
 
