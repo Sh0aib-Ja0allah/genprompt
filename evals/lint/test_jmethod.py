@@ -199,5 +199,96 @@ class ExplainTest(unittest.TestCase):
         self.assertIn("skipped", notes[1]["error"])
 
 
+class AutoExplainTest(unittest.TestCase):
+    """1.4.0 item 5 (5): explain runs by itself after a run, only on gated FAILs or splits,
+    under one total cap across the run dir and its escalation dirs, and never edits a verdict."""
+    AGG = ExplainTest.AGG
+
+    def _dir(self, d: Path, agg: dict, case: str = "redesign", runs: int = 1):
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "aggregate.json").write_text(json.dumps(agg), encoding="utf-8")
+        for r in range(1, runs + 1):
+            (d / case / f"run{r}").mkdir(parents=True, exist_ok=True)
+            (d / case / f"run{r}" / "final.txt").write_text("out", encoding="utf-8")
+
+    def _fake(self, cost=0.1):
+        return mock.Mock(stdout=json.dumps({"result": '{"verdict":"FAIL","reason":"x"}',
+                                            "total_cost_usd": cost}))
+
+    def test_nothing_to_explain_makes_no_call(self):
+        agg = json.loads(json.dumps(self.AGG))
+        for g in agg["cases"][0]["arms"]["with"][0]["graders"]:
+            g["passed"], g["judgeVotes"] = True, [True, True, True]
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            self._dir(d, agg)
+            with mock.patch.object(er.subprocess, "run") as sp:
+                s = er.auto_explain(d, "claude-opus-5-5", 0.3, 1.0)
+            self.assertFalse((d / "explain.json").exists())
+        sp.assert_not_called()
+        self.assertEqual((s["targets"], s["cost_usd"]), (0, 0.0))
+
+    def test_explains_run_and_escalation_dirs_under_one_cap(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            self._dir(d, self.AGG)                       # 2 targets
+            self._dir(d / "escalation-redesign", self.AGG)  # 2 more
+            esc = {"cases": {"redesign": {"final": {"rubric-grounding": "FAIL"}}},
+                   "first_pass_cost_usd": 0.5, "escalation_cost_usd": 1.0}
+            (d / "escalation.json").write_text(json.dumps(esc), encoding="utf-8")
+            agg_before = (d / "aggregate.json").read_text(encoding="utf-8")
+            with mock.patch.object(er.subprocess, "run", return_value=self._fake(0.1)) as sp, \
+                    mock.patch.object(er, "claude", return_value="claude"):
+                s = er.auto_explain(d, "claude-opus-5-5", 0.3, 0.65)
+            # $0.1 per call; a call starts only while spent + 0.3 <= 0.65 (spent 0, .1, .2, .3): all 4
+            self.assertEqual(sp.call_count, 4)
+            self.assertEqual((s["explained"], s["skipped"]), (4, 0))
+            self.assertAlmostEqual(s["cost_usd"], 0.4)
+            self.assertTrue((d / "explain.json").exists())
+            self.assertTrue((d / "escalation-redesign" / "explain.json").exists())
+            rep = json.loads((d / "escalation.json").read_text(encoding="utf-8"))
+            self.assertAlmostEqual(rep["explain_cost_usd"], 0.4)
+            # verdicts untouched
+            self.assertEqual(rep["cases"], esc["cases"])
+            self.assertEqual(rep["escalation_cost_usd"], 1.0)
+            self.assertEqual((d / "aggregate.json").read_text(encoding="utf-8"), agg_before)
+
+    def test_total_cap_is_shared_across_dirs(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            self._dir(d, self.AGG)
+            self._dir(d / "escalation-redesign", self.AGG)
+            with mock.patch.object(er.subprocess, "run", return_value=self._fake(0.1)) as sp, \
+                    mock.patch.object(er, "claude", return_value="claude"):
+                s = er.auto_explain(d, "claude-opus-5-5", 0.3, 0.55)
+            notes = json.loads((d / "escalation-redesign" / "explain.json").read_text(encoding="utf-8"))
+        self.assertEqual(sp.call_count, 3)               # 0.3 spent + 0.3 > 0.55: the 4th skips
+        self.assertEqual((s["explained"], s["skipped"]), (3, 1))
+        self.assertIn("skipped", notes[-1]["error"])
+
+    def _main(self, argv, agg):
+        """Drive main() with the eval run stubbed: run_once returns rows; auto-explain is spied."""
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(er, "EVALS", Path(tmp)), \
+                mock.patch.object(er.subprocess, "run", return_value=mock.Mock(returncode=0)), \
+                mock.patch.object(er, "run_once", return_value=([row()], agg)), \
+                mock.patch.object(er, "auto_explain") as ax, \
+                mock.patch.object(er.sys, "argv", ["run.py", *argv]):
+            self.assertEqual(er.main(), 0)
+        return ax
+
+    def test_main_runs_auto_explain_by_default_with_the_judge_model(self):
+        ax = self._main(["--case", "fix", "--judge-model", "claude-opus-5-5"], self.AGG)
+        ax.assert_called_once()
+        _, model, budget, total = ax.call_args.args
+        self.assertEqual((model, budget, total), ("claude-opus-5-5", 0.30, 1.00))
+
+    def test_main_opt_out_and_controls_skip_it(self):
+        self._main(["--case", "fix", "--no-auto-explain"], self.AGG).assert_not_called()
+        self._main(["--case", "fix", "--controls"], self.AGG).assert_not_called()
+        ax = self._main(["--case", "fix"], self.AGG)   # no --judge-model: the eval's default judge
+        self.assertEqual(ax.call_args.args[1], "haiku")
+
+
 if __name__ == "__main__":
     unittest.main()

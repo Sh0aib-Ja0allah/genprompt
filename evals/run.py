@@ -262,12 +262,12 @@ def explain_cmd(model: str, budget: float, prompt: str) -> list[str]:
             "--disallowedTools", *EXPLAIN_TOOLS_OFF, "--", prompt]
 
 
-def explain(results: Path, model: str, budget: float, max_total: float) -> int:
-    """J-method: for each gated LLM grader that FAILED or split, ask the judge model once for a
-    verdict and its reason, and store them in explain.json. An explanation, never a verdict:
-    gates stay on the harness votes."""
+def explain_notes(results: Path, model: str, budget: float, max_total: float,
+                  spent: float = 0.0) -> tuple[list[dict], float]:
+    """The core of --explain for one results dir: one call per target while `spent` + the
+    per-call cap fits `max_total`. Returns the notes and the new running total."""
     agg = json.loads((results / "aggregate.json").read_text(encoding="utf-8"))
-    spent, notes = 0.0, []
+    notes = []
     for case, run, grader, rubric in explain_targets(agg):
         final = results / case / f"run{run}" / "final.txt"
         if not final.exists():
@@ -287,12 +287,57 @@ def explain(results: Path, model: str, budget: float, max_total: float) -> int:
         spent += res.get("total_cost_usd") or 0
         notes.append({"case": case, "run": run, "grader": grader, "model": model,
                       "answer": res.get("result"), "cost_usd": res.get("total_cost_usd")})
+    return notes, spent
+
+
+def explain(results: Path, model: str, budget: float, max_total: float) -> int:
+    """J-method: for each gated LLM grader that FAILED or split, ask the judge model once for a
+    verdict and its reason, and store them in explain.json. An explanation, never a verdict:
+    gates stay on the harness votes."""
+    notes, spent = explain_notes(results, model, budget, max_total)
     (results / "explain.json").write_text(json.dumps(notes, indent=2), encoding="utf-8")
     for n in notes:
         print(f"{n['case']} run{n['run']} {n['grader']}: "
               f"{n.get('answer') or n.get('error')}")
     print(f"explain: {len(notes)} grader(s), ${spent:.4f}")
     return 0
+
+
+def auto_explain(out: Path, model: str, budget: float, max_total: float) -> dict:
+    """1.4.0 item 5, recommendation (5): after a real run (and its escalation, if any), explain
+    every gated LLM grader that FAILED or split, in the run's dir and each escalation-<case>/
+    dir, under ONE running total (`max_total`) and the per-call cap (`budget`). Never touches a
+    verdict: aggregate.json, structural.json and escalation.json's verdicts are read, not written.
+    Writes <dir>/explain.json per dir with targets, adds `explain_cost_usd` to escalation.json
+    (so a driver that sums escalation.json costs sees the spend), and returns a summary."""
+    dirs = [d for d in [out, *sorted(out.glob("escalation-*"))]
+            if (d / "aggregate.json").exists()]
+    targets = {d: explain_targets(json.loads((d / "aggregate.json").read_text(encoding="utf-8")))
+               for d in dirs}
+    summary = {"model": model, "targets": sum(len(t) for t in targets.values()),
+               "explained": 0, "skipped": 0, "cost_usd": 0.0}
+    if not summary["targets"]:
+        print("auto-explain: no gated FAIL or split vote, nothing to explain ($0)")
+        return summary
+    spent = 0.0
+    for d in dirs:
+        if not targets[d]:
+            continue
+        notes, spent = explain_notes(d, model, budget, max_total, spent)
+        (d / "explain.json").write_text(json.dumps(notes, indent=2), encoding="utf-8")
+        for n in notes:
+            summary["skipped" if n.get("error") else "explained"] += 1
+            print(f"auto-explain {d.name} {n['case']} run{n['run']} {n['grader']}: "
+                  f"{n.get('answer') or n.get('error')}")
+    summary["cost_usd"] = spent
+    esc = out / "escalation.json"
+    if esc.exists():
+        rep = json.loads(esc.read_text(encoding="utf-8"))
+        rep["explain_cost_usd"] = spent
+        esc.write_text(json.dumps(rep, indent=2), encoding="utf-8")
+    print(f"auto-explain: {summary['explained']} explained, {summary['skipped']} skipped "
+          f"(cap ${max_total}), ${spent:.4f}")
+    return summary
 
 
 def find_bash() -> str:
@@ -376,8 +421,13 @@ def main() -> int:
     ap.add_argument("--explain", type=Path,
                     help="results dir: ask the judge model why each gated LLM FAIL/split went "
                          "that way; writes explain.json (no verdict changes)")
-    ap.add_argument("--explain-budget", type=float, default=0.30, help="$ cap per explain call")
-    ap.add_argument("--explain-max-total", type=float, default=1.00, help="$ cap for --explain")
+    ap.add_argument("--explain-budget", type=float, default=0.30,
+                    help="$ cap per explain call (--explain and the automatic step)")
+    ap.add_argument("--explain-max-total", type=float, default=1.00,
+                    help="$ cap for all explain calls of one invocation, escalation dirs included")
+    ap.add_argument("--no-auto-explain", action="store_true",
+                    help="skip the automatic explain step after a run (it runs by default, only "
+                         "for gated LLM FAILs or split votes, and never changes a verdict)")
     args = ap.parse_args()
     for stream in (sys.stdout, sys.stderr):
         stream.reconfigure(encoding="utf-8", errors="replace")
@@ -421,6 +471,10 @@ def main() -> int:
         return 1
     if args.escalate:
         rows = escalate(args, out, tag, rows, agg)
+    if not args.no_auto_explain and not args.controls:
+        # Recommendation (5): reasons for every gated FAIL or split, verdicts unchanged.
+        auto_explain(out, args.judge_model or "haiku", args.explain_budget,
+                     args.explain_max_total)
     print(f"results: {out}")
     return 0
 
