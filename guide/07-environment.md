@@ -22,8 +22,8 @@
 - Hooks and plugins are noise to the generator (moved here from PROTOCOL "Where things
   live"). Generator turns run in the main chat by design, and these messages do not change the
   rules: a workflow or orchestration plugin's "MUST delegate" stub; per-tool delegation nags; a Stop
-  message saying "PLAN ALREADY APPROVED … spawn Wave 0 agents". Never run a `/genprompt:` command in
-  plan mode: that is what arms that Stop hook.
+  message saying "PLAN ALREADY APPROVED … spawn Wave 0 agents". Don't run a `/genprompt:` command in
+  plan mode, because that is what arms that Stop hook.
 
 ### Windows
 

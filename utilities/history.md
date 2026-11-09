@@ -23,7 +23,7 @@ Emits no worker prompt. Read-only.
    - flag use: how many prompts carried `--go`, `--brief`, `--dry-run`, `--verbose`, `--unattended`
 
    Count only files whose header has `flags`, `via` or `lock`, and say how many older files predate
-   the fields ("N older files predate the fields"). Never flag those files: they are valid.
+   the fields ("N older files predate the fields"). Don't flag those files: they are valid.
 7. End with one line: the likely next command, derived from the latest row (for example: the
    latest is a slice with no commit row after it, so `/genprompt:commit` or `/genprompt:next` with
    the report).

@@ -23,8 +23,8 @@ can read and check the archive; the generator never writes a prompt file or a sh
 ### 10.1 Keys and filenames
 
 - `<key>` is the repo directory's basename, lowercased, with `_` and spaces turned into `-`
-  (`Billing-Website` → `billing-website`, `Mobile_App_Backend` → `mobile-app-backend`). The folder and
-  the shard use the same key. On a collision with a different path, suffix the key `-2` and note it
+  (`Billing-Website` → `billing-website`, `Mobile_App_Backend` → `mobile-app-backend`). The folder
+  and the shard use the same key. On a collision with a different path, suffix the key `-2` and note it
   in the profile.
 - Filename: `<YYYY-MM-DD>-<cmd>[+<cmd>]-<slug>.md`.
   - `<cmd>` is the command word of each archetype in the label, dominant first. The words are
@@ -76,7 +76,8 @@ Prompt row (5 fields, separated by ` | `):
 2026-09-23 | J+L | seo-structured-data | 2026-09-23-next+fix-seo-structured-data.md | Fix JSON-LD graph omissions; add Course schema test
 ```
 
-- archetype: letters joined by `+`, dominant first (`J+D+L`). Never `→`, `×` or command words.
+- archetype: letters joined by `+`, dominant first (`J+D+L`), not `→`, `×` or command words, because
+  doctor parses the letters.
 - file: a bare filename when it lives in `<key>/`, `<otherkey>/<file>` when it lives
   elsewhere, and `-` for a status row.
 - task: 200 characters at most. No `|`, no `·`, no em-dash. The detail lives in the file, not
@@ -110,8 +111,8 @@ by file mtime, because legacy backfilled rows are not strictly ordered.
   `--dry-run` (then run it with `--dry-run`, which writes nothing). A no-prompt turn gets a status
   row, also through `archive.py` (`"archetype": "none"`). If python cannot run at all, say so and
   mark self-check row 22 FAIL; never hand-write the file or the row.
-- Never append to `INDEX.md`. Never rename or move a prompt file: `Follows` and `Amends`
-  references point at exact filenames.
+- Don't append to `INDEX.md`, because it is the frozen v1 library. Don't rename or move a prompt
+  file: `Follows` and `Amends` references point at exact filenames.
 - Shard rows may be normalised (format, order, duplicates), but only with a snapshot copy in
   `~/.genprompt/history/` first. Prompt files are never edited after they are archived. The one
   exception is `archive.py --replace` in the same turn, to fix a prompt it flagged with a FAIL:

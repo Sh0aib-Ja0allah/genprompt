@@ -17,8 +17,8 @@
   - Node API: autocannon/k6 locally
   - Flutter/RN: frame timings, app size
   - SQL: `EXPLAIN`
-- State the environment. Measure in production build mode where it matters, and never against
-  production data or servers.
+- State the environment. Measure in production build mode where it matters, and not against
+  production data or servers, because a measurement must not load them.
 - Name candidate hotspots from the code (`file:line`) as hypotheses, not conclusions.
 
 ## Required blocks

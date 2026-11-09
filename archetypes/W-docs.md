@@ -13,7 +13,7 @@
 
 - Name the audience and the language. For example, an Arabic admin guide for a client, or an
   API reference for integrators. Audience decides depth and vocabulary. If the contract says
-  client wording is contractual, quote it verbatim and never paraphrase it.
+  client wording is contractual, quote it verbatim rather than paraphrasing it.
 - List the facts the doc must carry and their sources in code: commands from the manifests,
   routes from the route files, env keys from `.env.example`, screens from the panel resources.
 - Drift check: name the claims you already found stale (`file:line` in the doc against
