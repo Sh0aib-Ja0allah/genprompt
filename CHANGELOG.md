@@ -4,6 +4,11 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-09 · archetypes/X-investigate.md, N-design.md · Fix (privacy): the scratch area was a
+  generator placeholder, so CP7 investigate prompts named the generator's own Claude Code
+  scratchpad and temp dir under the real user home. It is now the contract's ignored scratch
+  path or the worker's `{scratch dir}`, with a rule never to write a generator-environment path
+  into the prompt; N's spike path gets the same fix. Affects 1.3.0.
 - 2026-11-09 · archetypes/F-plan.md · F-hr: plan's Autonomy row says "an approval gate" instead
   of naming §4.19, so that block leaves F's excerpt; the cross-repo and Not-when parentheticals
   go. Plan's floor drops for headroom under the v1.1.0 gate; template text is unchanged.

@@ -4,7 +4,7 @@
 |---|---|
 | **Use when** | A bug has a symptom but no known cause: find the repro, trace it, name the root cause at `path:line`, and hand confirmed defects to `:fix` |
 | **Not when** | The cause is already known and confirmed → `:fix`, because investigating a known defect only delays the fix. Users are affected right now → `:hotfix`, because mitigation comes before diagnosis. A broad "is this codebase healthy" question → `:audit`, because it ranks many findings against the docs, not one symptom. The bug arrived with a specific diff or PR → `:review`, because the range is already known |
-| **Autonomy** | N/A: read-only, plus a scratch repro. Writes are enumerated: files under one named scratch path outside the source tree (deleted or left untracked, never committed), and at most one findings doc if the contract allows docs |
+| **Autonomy** | N/A: read-only, plus a scratch repro. Writes are enumerated: files under one scratch dir outside the source tree, never a generator path (deleted or left untracked, never committed), and at most one findings doc if the contract allows docs |
 | **Baseline delta** | Unchanged: no production code or test changes. The repro's own output (failing before) goes in the report |
 | **Length tier** | Focused (200) |
 | **Deliverable** | The repro (command, observed vs expected), the root cause as mechanism → chain → consequence at `path:line`, the evidence that refutes the alternatives, and a hand-off list of confirmed defects in `:fix` input form, or a STOP with what is missing |
@@ -16,15 +16,18 @@
   `file:line` that would confirm or refute it, because a guessed cause handed over as fact gets
   confirmed instead of tested.
 - Name the repro you expect, as a literal command or step list from the repo's own scripts or
-  examples. If none can be derived, the prompt's first step builds one in the scratch path.
+  examples. If none can be derived, the prompt's first step builds one in the scratch dir.
 - Pick the narrowing method from the evidence: "it used to work" → bisect between a known-good and
   a known-bad commit (name the known-good one if the history shows it); "only some inputs" → shrink
   the input; "only in some environments" → diff the configuration.
 - Bisect never moves the user's checkout: it runs in a temporary `git worktree` under the scratch
-  path and is removed at the end. In a dirty or occupied tree, read by SHA instead (PROTOCOL
+  dir and is removed at the end. In a dirty or occupied tree, read by SHA instead (PROTOCOL
   Step 5.2 says when to read the occupied-tree block).
 - Set the stop conditions up front: the bug does not reproduce; reproducing it needs production
   data, credentials or a live system; the cause sits in a dependency or a service outside the repo.
+- Never write a path from your own environment (your scratchpad, temp dir or home) into the
+  prompt: it leaks this machine's user home and is not the worker's. The scratch area is the
+  contract's ignored scratch path if it names one, else the worker's `{scratch dir}`.
 - Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
   is not in the target repo.
 
@@ -49,7 +52,8 @@ TASK: find the root cause of this symptom. Do not fix it: the fix is a separate 
 SYMPTOM: <what happens> · EXPECTED: <what should happen> · SINCE: <when, if known> ·
   WHERE: <entry point: command / route / screen>
 
-AUTONOMY: read-only on the source tree. You may write only under <scratch path> (a repro script,
+AUTONOMY: read-only on the source tree. You may write only under <the contract's ignored scratch
+  path | {scratch dir}, a new directory you create outside the source tree> (a repro script,
   inputs, a bisect worktree), never commit it, and remove the worktree at the end.
 [INSERT §4.15 falsifiability standard]
 
