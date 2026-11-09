@@ -67,16 +67,16 @@ would have named the `tools/archive.py` trigger directly and settled redesign ru
 
 - **What happened.** Two CP6 alarms came from emitted prompts that hand the *worker* a template
   written with generator-slot notation:
-  - investigate run 7 ("THE DEFECT: <file:line> <does X>. <step> (<file:line>) → …"), copied
+  - investigate run 7 (`THE DEFECT: <file:line> <does X>. <step> (<file:line>) → …`), copied
     from §4.9's generator template;
-  - CP6a-2's plan ("Stable ids (<WS letter>-<two digits>)").
+  - CP6a-2's plan (`Stable ids (<WS letter>-<two digits>)`).
 - Guide §4.0 already separates the two: `<…>` means "fill from grounding before emitting; none
   may reach the user", and `{…}` is "a worker-side variable … it stays in the prompt".
 - The grader already exempts `{…}`, inline code and nested fenced blocks. New tests in
   `evals/lint/test_structural.py` pin each of these, and pin that the two CP6 lines as written
   still FAIL.
-- **Why not loosen the grader.** Exempting "label: <slot>" lines, or slot runs like `<a>-<b>`,
-  would also pass a genuinely unfilled template ("Repo: <PROFILE.path>", or a filename pattern
+- **Why not loosen the grader.** Exempting `label: <slot>` lines, or slot runs like `<a>-<b>`,
+  would also pass a genuinely unfilled template (`Repo: <PROFILE.path>`, or a filename pattern
   the generator forgot to fill). A test pins that case as FAIL.
 - **Proposed fix, generator side (A's lane, for Shoaib):**
   - when a prompt hands the worker a fill-in line (an investigate root-cause line, an id
