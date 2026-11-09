@@ -34,6 +34,8 @@
   case style), or chat-only when the request has `--chat-only`, the tree is occupied, or a doc
   would land in someone else's commit.
 - The worker never edits. Fixes are a separate `:fix` prompt that consumes this register.
+- Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
+  is not in the target repo.
 
 ## Required blocks
 

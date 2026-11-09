@@ -15,6 +15,8 @@
   real file counts in the prompt. A kickoff written against an imagined tree is worse than none.
 - Classify every change as committed prior work / uncommitted WIP for this unit / missing work /
   unrelated tooling noise. Nothing is cleaned up, reverted or discarded unless the user asks.
+- Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
+  is not in the target repo.
 
 ## Required blocks
 

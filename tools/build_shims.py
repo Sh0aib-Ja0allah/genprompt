@@ -300,13 +300,16 @@ def includes(files: list[str], protocol: bool = True, where: bool = False) -> st
         # call when any part was ungranted (cat, a ( ) group, a relative path) or `python3` was the
         # Windows Store alias (exit 49), and went card-less. So --where runs alone, with one
         # `python` retry, before any other read. No `;`, `|` or `&&` on this line (pinned by test).
+        # 1.3.1 C1: 3 of 15 CP6 card runs surveyed the repo and read derive.md before the card,
+        # so --where names the cwd repo's card and Step 0 reads it first. No derive.md cue: a
+        # card-less run that read it every time would lift the card-less load medians by ~5 KB.
         return (f"{inc}\n\n{paths}"
                 f"Step 0: the files above are in context. Read them again only if PROTOCOL's "
                 f"`GENPROMPT-PROTOCOL v3 LOADED` marker is absent. First Bash call, alone and "
                 f"unchained: {WHERE_CALL}. No output or an error (exit 49: Store alias): once more "
-                f"with `python`, alone. Its `home` line is the absolute home for every "
-                f"`{USER_HOME}/` path and Write. `local-rules` says `present`: Read that file. Then "
-                f"git and other reads, one per call.\n")
+                f"with `python`, alone. `home` is the absolute home for every `{USER_HOME}/` path "
+                f"and Write. Read `local-rules` if `present`, then `card` if `present`, before any "
+                f"repo survey or derive.md. Then git and other reads, one per call.\n")
     return (f"{inc}\n\n{paths}"
             f"Step 0: the files above are already in context (their text follows the `@` lines; "
             f"PROTOCOL's third line says `GENPROMPT-PROTOCOL v3 LOADED`). Don't Read them again "
@@ -525,7 +528,7 @@ CHECK_COMPACT = {
     20: "No leaked example specifics; volatile facts in §4.22; no attribution or finality "
         "claim; occupancy checked",
     21: "Length within budget (§4.21), lines ≤ 100 (lone unbreakable token excepted), or why",
-    22: "Archived by `tools/archive.py`, result cited; `--dry-run`: N/A + lint result, no card; "
+    22: "Archived by `archive.py`, result cited; `--dry-run`: N/A + lint result, no card; "
         "no python: FAIL",
     23: "Every TRAP, locked decision, stop-list and out-of-scope item has a \"because\" reason",
 }

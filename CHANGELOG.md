@@ -4,6 +4,20 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-09 · tools/archive.py, tools/build_shims.py, commands/ · C1 card-first: `archive.py
+  --where` adds a `card <path> (present|absent)` line for the cwd's git work tree (`card none`
+  outside one or inside the genprompt root or home), and Step 0 reads the card, when present,
+  before any repo survey or derive.md (3 of 15 CP6 card runs read derive.md first). Step 0 gives
+  card-less runs no new cue to read derive.md.
+- 2026-11-09 · archetypes/ (20), PROTOCOL.md, tools/build_shims.py · T-bare: every archetype
+  names genprompt's tools bare (`archive.py`), never `tools/…`, which CP6 judges read as a
+  missing repo file; PROTOCOL's prose and checklist row 22 name it bare too (the call keeps
+  the plugin-root path). A test fails on any repo-path `tools/archive.py`. F is offset in its
+  own generator notes.
+- 2026-11-09 · archetypes/X-investigate.md, F-plan.md, U-hotfix.md · Fix: worker fill-in slots use
+  `{…}` (§4.0), not `<…>`: X's ROOT CAUSE line, U's `revert {sha}`; F's workstream ids read
+  `WS-A, WS-B, …` (CP6 no-placeholders alarms).
+
 ## 1.3.0 (2026-11-09)
 
 EXPERIMENTAL: `--send <session>` and `:next --from <session>`. The hand-run checks follow

@@ -158,7 +158,7 @@ Reply "go" to accept, or correct any line.
 
 1. Self-check: the §6 checklist (end of your excerpt) as a `| # | Item | Verdict | Reason |`
    table. Every row has a reason, N/A always explains why, no bare `✓ passed`.
-2. Archive through `tools/archive.py`, never by hand: don't Write or Edit a `.md` in
+2. Archive through `archive.py`, never by hand: don't Write or Edit a `.md` in
    `generated-prompts/` or a `by-repo/*.tsv` row yourself, even when the script fails.
    - Parts file: one JSON object, written with the Write tool to `~/.genprompt/tmp/<slug>.json`
      (the absolute home from Step 0): `key`, `repo`, `path`, `date`, `archetype` (letters),
@@ -201,7 +201,7 @@ Reply "go" to accept, or correct any line.
    archive.py exit 0 → done: mention any WARN lines. Read §10.6 only on a non-zero exit.
 
 No-prompt turns (work verified done, or parked): a §4.26 closeout in chat and a status row
-through `tools/archive.py`. Read §10.7 only then.
+through `archive.py`. Read §10.7 only then.
 
 ## Step 7: Close
 

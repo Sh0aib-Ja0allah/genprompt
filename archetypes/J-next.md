@@ -45,6 +45,8 @@
   emit a §4.26 closeout and a status row (§10). Do not force a prompt.
 - Prefer the thorough option (a whole-surface review over a scoped one, a root-cause fix over a
   patch, clean multi-commit history), and still surface the trade-off.
+- Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
+  is not in the target repo.
 
 ## Template
 

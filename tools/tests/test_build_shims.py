@@ -259,6 +259,27 @@ class BuildShims(unittest.TestCase):
         self.assertIn("No client names, customer data, secrets", body)
         self.assertIn("Do not merge the PR, request reviewers", sec)
 
+    # 1.3.1 T-bare: CP6 judges read `tools/archive.py` in an emitted prompt as a cited file missing
+    # from the target repo. Generator-facing text names the tool bare (`archive.py`); only the
+    # actual call keeps the plugin-root path. Every archetype carries the bare-name line.
+    def test_archive_py_is_never_written_as_a_repo_path(self):
+        files = [*sorted((ROOT / "commands").glob("*.md")), *sorted((ROOT / "archetypes").glob("*.md")),
+                 *sorted((ROOT / "guide" / "blocks").glob("*.md")), ROOT / "PROTOCOL.md"]
+        bad = re.compile(r"(?<!\{CLAUDE_PLUGIN_ROOT\}/)tools/archive\.py")
+        for f in files:
+            for n, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
+                self.assertIsNone(bad.search(line), f"{f.relative_to(ROOT)}:{n}: {line}")
+        for f in sorted((ROOT / "archetypes").glob("[A-Z]-*.md")):
+            self.assertIn("Name genprompt's own tools bare (`archive.py`)",
+                          f.read_text(encoding="utf-8"), f.name)
+
+    # 1.3.1 C1: --where names the cwd repo's card, and Step 0 reads it before any repo survey.
+    def test_step0_reads_the_card_before_any_repo_survey(self):
+        bs = load_build_shims()
+        for cmd in [r.cmd for r in bs.ARCHETYPES] + [bs.ENTRY]:
+            shim = (ROOT / "commands" / f"{cmd}.md").read_text(encoding="utf-8")
+            self.assertIn("then `card` if `present`, before any repo survey or derive.md.", shim, cmd)
+
     def test_step0_home_comes_from_archive_where_under_the_archive_grant(self):
         bs = load_build_shims()
         where = ('First Bash call, alone and unchained: '

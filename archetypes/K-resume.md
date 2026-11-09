@@ -19,6 +19,8 @@
 - Restate the LOCKED DECISIONS still in force, each with its reason: stack choices, boundaries,
   rulings. These are exactly what compaction loses, and a re-decision forks the codebase.
 - Restate the gates. The worker may not remember those either.
+- Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
+  is not in the target repo.
 
 ## Template
 

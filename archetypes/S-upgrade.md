@@ -31,6 +31,8 @@
   - §4.23 approval for anything that touches a non-local database
 - Lockfile policy: commit the lockfile. No `--force`, no `--legacy-peer-deps`, and no disabling
   of security policies without an explicit ruling.
+- Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
+  is not in the target repo.
 
 ## Required blocks
 

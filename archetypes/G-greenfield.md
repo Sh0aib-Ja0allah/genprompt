@@ -20,6 +20,8 @@
   convention.
 - Take Phase 1's study list from the reference's stack (`stacks/stack-matrix.md`), not from a
   React-shaped default.
+- Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
+  is not in the target repo.
 
 ## Required blocks
 

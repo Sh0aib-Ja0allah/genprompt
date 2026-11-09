@@ -128,12 +128,33 @@ class ToolsHonourTheOverride(unittest.TestCase):
         code, out = run_tool(TOOLS / "archive.py", "--where", home=home)
         self.assertEqual(code, 0, out)
         self.assertEqual(out.splitlines(), [f"home {home.as_posix()}",
-                                            f"local-rules {home.as_posix()}/local-rules.md (absent)"])
+                                            f"local-rules {home.as_posix()}/local-rules.md (absent)",
+                                            "card none"])   # cwd is the genprompt root
         self.assertFalse(home.exists())
         home.mkdir()
         (home / "local-rules.md").write_text("auto-go: on\n", encoding="utf-8")
         _code, out = run_tool(TOOLS / "archive.py", "--where", home=home)
-        self.assertTrue(out.rstrip().endswith("local-rules.md (present)"), out)
+        self.assertTrue(out.splitlines()[1].endswith("local-rules.md (present)"), out)
+
+    # 1.3.1 C1: --where names the cwd repo's card, so Step 0 reads it before any repo survey.
+    def test_where_names_the_cwd_repo_card(self):
+        home = self.tmp / "h"
+        repo = self.tmp / "My_Repo App"
+        (repo / ".git").mkdir(parents=True)
+        (repo / "src").mkdir()
+        card = home / "generated-prompts" / "by-repo" / "my-repo-app.profile.md"
+        code, out = run_tool(TOOLS / "archive.py", "--where", home=home, cwd=repo / "src")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(out.splitlines()[-1], f"card {card.as_posix()} (absent)")
+        self.assertFalse(home.exists())
+        card.parent.mkdir(parents=True)
+        card.write_text("key: my-repo-app\n", encoding="utf-8")
+        _code, out = run_tool(TOOLS / "archive.py", "--where", home=home, cwd=repo)
+        self.assertEqual(out.splitlines()[-1], f"card {card.as_posix()} (present)")
+        bare = self.tmp / "no-git"
+        bare.mkdir()
+        _code, out = run_tool(TOOLS / "archive.py", "--where", home=home, cwd=bare)
+        self.assertEqual(out.splitlines()[-1], "card none")
 
     def test_where_takes_no_other_argument(self):
         code, out = run_tool(TOOLS / "archive.py", "--where", str(self.src), home=self.tmp / "h")

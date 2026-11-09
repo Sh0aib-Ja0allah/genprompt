@@ -25,6 +25,8 @@
   - Spike: a question, a time box, a scratch path, the result, and a keep/discard verdict
 - Anything that needs the user's taste or authority goes in a `[DECIDE]` list, not into a
   silent choice.
+- Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
+  is not in the target repo.
 
 ## Required blocks
 

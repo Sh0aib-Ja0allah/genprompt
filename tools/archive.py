@@ -34,8 +34,10 @@ An existing file is never overwritten by accident (exit 3, nothing written). --r
 deliberate fix-and-re-archive path: it overwrites that same file and rewrites its shard row in
 place (never a second row). --dry-run writes nothing and prints what it would write plus the lint.
 GENPROMPT_HOME overrides the genprompt home (default ~/.genprompt), through doctor.genprompt_home().
---where prints `home <absolute path>` and `local-rules <path> (present|absent)` and writes nothing,
-so the generator can learn the home from the one script it may already run (E-21).
+--where prints `home <absolute path>`, `local-rules <path> (present|absent)` and `card <path>
+(present|absent)` for the cwd's git work tree (`card none` outside one, or inside the genprompt
+root or home) and writes nothing, so the generator learns the home and reads a cached card
+before surveying the repo (E-21; 1.3.1 C1, card-first).
 
 Exit codes: 0 archived (warnings allowed) · 1 archived with errors (or dry run with errors) ·
 2 bad input, nothing written · 3 refused: the file exists and --replace was not given.
@@ -63,6 +65,21 @@ USAGE = "usage: archive.py [--dry-run | --replace] [<parts.json> | -]  |  archiv
 
 def say(msg: str = "") -> None:
     sys.stdout.write(f"{msg}\n")
+
+
+def cwd_card(home: Path, cwd: Path | None = None) -> str:
+    """The `card` line of --where: the profile card for the git work tree holding the cwd, with
+    the key PROTOCOL Step 2 / derive.md step 7 uses (the top-level folder's name, lowercased, `_`
+    and spaces turned into `-`). Found by walking up to a `.git` entry, so no git call is needed.
+    A cwd inside the genprompt root or home never counts (PROTOCOL Step 1 rule 3)."""
+    here = (cwd or Path.cwd()).resolve()
+    top = next((d for d in (here, *here.parents) if (d / ".git").exists()), None)
+    root = Path(__file__).resolve().parents[1]
+    if top is None or any(top == x or x in top.parents for x in (root, home.resolve())):
+        return "card none"
+    key = re.sub(r"[_ ]", "-", top.name.lower())
+    card = home / "generated-prompts" / "by-repo" / f"{key}.profile.md"
+    return f"card {card.as_posix()} ({'present' if card.is_file() else 'absent'})"
 
 
 def load_parts(arg: str | None) -> dict:
@@ -180,6 +197,7 @@ def main(argv: list[str]) -> int:
         rules = home / "local-rules.md"
         say(f"home {home.as_posix()}")
         say(f"local-rules {rules.as_posix()} ({'present' if rules.is_file() else 'absent'})")
+        say(cwd_card(home))
         return EXIT_OK
     dry, replace = "--dry-run" in argv, "--replace" in argv
     rest = [a for a in argv if a not in ("--dry-run", "--replace")]

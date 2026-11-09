@@ -19,6 +19,8 @@
   gates, conventions) for the user to rule on. It feeds `:plan` or `:greenfield`, not code.
 - Whether gates may run is a question for the lock when the repo has ⚠ gates or a
   database-touching test suite.
+- Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
+  is not in the target repo.
 
 ## Required blocks
 
