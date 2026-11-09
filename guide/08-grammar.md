@@ -86,6 +86,7 @@ Each is offered only by the commands named (their argument-hint lists it).
 | `--verify` | `:commit` | A read-only verification pass first; commit only once it is clean (the older bare `verify+` means the same) |
 | `--pr` | `:commit` | After the commits: create the branch, push it and open a PR with a body template, each step a separate approval (§4.23, §8.2). The worker runs them; the generator never pushes (a bare `pr` means the same) |
 | `--readonly-phase` | `:security`, `:perf` | Emit only the read-only first phase: security's Phase 1 (threat model and findings), perf's measurement and plan. The prompt stops there and changes no code |
+| `--from <session>` | `:next` | Take the stop-report from the latest cross-session message that session sent here (the worker pushes it, §10.8); none yet → paste it |
 
 Auto-go (no flag): with `auto-go: on` in `~/.genprompt/local-rules.md` (set it with
 `/genprompt:learn auto-go on`), the lock skips its wait like `--go`, but only when the target came

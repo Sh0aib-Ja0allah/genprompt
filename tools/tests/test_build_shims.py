@@ -227,7 +227,7 @@ class BuildShims(unittest.TestCase):
         bs = load_build_shims()
         expected = {"plan": {"--split"}, "roadmap": {"--split"}, "review": {"--chat-only"},
                     "commit": {"--verify", "--pr"}, "security": {"--readonly-phase"},
-                    "perf": {"--readonly-phase"}}
+                    "perf": {"--readonly-phase"}, "next": {"--from"}}
         own = {f for v in bs.CMD_FLAGS.values() for f in re.findall(r"--[a-z-]+", v)}
         grammar = (ROOT / "guide" / "08-grammar.md").read_text(encoding="utf-8")
         table = grammar.split("### Per-command modifiers", 1)[1].split("Auto-go", 1)[0]

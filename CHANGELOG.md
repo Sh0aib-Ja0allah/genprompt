@@ -4,6 +4,11 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-09 · archetypes/J-next.md, guide/06-library.md, PROTOCOL.md, tools/build_shims.py ·
+  E-12 `:next --from <session>`: the worker pushes its report and the generator never pulls. The
+  report is that sender's latest cross-session message, ingested like a pasted report (§4.14
+  header, git-verified, `Repo` must match). None yet → paste. §10.8 item 9; a messaged report
+  counts as pasted (J).
 - 2026-11-09 · tools/build_shims.py, guide/06-library.md, PROTOCOL.md, tools/doctor.py,
   tools/archive.py · E-12 `--send <session>`: opt-in dispatch of the archived prompt to another
   Claude session. The rules are in the on-demand §10.8: a strict project-key check, a yes per send

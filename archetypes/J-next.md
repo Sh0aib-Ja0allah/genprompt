@@ -26,6 +26,9 @@
   prompt stays inside that lane's owned paths. Once every lane's report is `done` and verified,
   the next prompt is the archived merge prompt (`merge/<N>:`), re-issued with the verified lane
   SHAs (`Re-issues`), not a new plan.
+- `--from <session>`, or a report that arrived as a `<cross-session-message>`: read §10.8 first.
+  The report is that sender's latest such message in this chat (none: ask for a paste); it is
+  parsed and verified exactly like a pasted one.
 - Derive the next step from the report; do not ask what it is. The answer is almost always in
   what the worker says it finished, deferred or hit. Ask only about a fork that cannot be derived
   and matters.

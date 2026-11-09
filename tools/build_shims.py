@@ -102,6 +102,7 @@ CMD_FLAGS: dict[str, str] = {
     "commit": "[--verify] [--pr]",
     "security": "[--readonly-phase]",
     "perf": "[--readonly-phase]",
+    "next": "[--from <session>]",                     # E-12: the report a worker pushed (§10.8)
 }
 
 # Grammar groups (guide/08-grammar.md §8), in the order they are printed.
