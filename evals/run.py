@@ -140,7 +140,8 @@ def post_grade(agg: dict, out: Path, keep: bool) -> list[dict]:
                                        tool_uses=t["tools"], home=home,
                                        trace_events=t["events"],
                                        letters=meta[0], cmd=meta[1], doctor=DOCTOR,
-                                       package=spec.get("package"), sibling=spec.get("sibling"))
+                                       package=spec.get("package"), sibling=spec.get("sibling"),
+                                       untrusted=spec.get("untrusted"))
                 row.update({k: t[k] for k in ("model", "cost_usd", "turns", "usage",
                                               "model_usage")})
                 row["structural"] = [r.as_dict() for r in res]
@@ -384,7 +385,8 @@ def regrade(results: Path) -> int:
                                files=build_cases.fixture_files(spec["variant"]),
                                tool_uses=t["tools"], home=None, trace_events=t["events"],
                                letters=meta[0], cmd=meta[1], doctor=DOCTOR,
-                                       package=spec.get("package"), sibling=spec.get("sibling"))
+                                       package=spec.get("package"), sibling=spec.get("sibling"),
+                                       untrusted=spec.get("untrusted"))
         row["structural"] = [r.as_dict() for r in res]
         row["grader_version"] = structural.GRADER_VERSION
     (results / "structural.json").write_text(json.dumps(rows, indent=2), encoding="utf-8")
