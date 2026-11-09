@@ -273,6 +273,28 @@ class BuildShims(unittest.TestCase):
             self.assertIn("Name genprompt's own tools bare (`archive.py`)",
                           f.read_text(encoding="utf-8"), f.name)
 
+    # Privacy (CP7): a generator-filled scratch placeholder made investigate prompts name the
+    # generator's own scratchpad/temp dir under the real user home. The scratch area is a worker
+    # slot or a contract path, and every archetype with a scratch area carries the rule.
+    def test_no_rule_text_sends_the_generator_scratch_or_temp_path_into_the_prompt(self):
+        files = [*sorted((ROOT / "commands").glob("*.md")), *sorted((ROOT / "archetypes").glob("*.md")),
+                 *sorted((ROOT / "guide" / "blocks").glob("*.md")), ROOT / "PROTOCOL.md"]
+        placeholder = re.compile(r"<(scratch|temp|tmp)[ _-]?(path|dir|area|folder)>", re.I)
+        env_path = re.compile(r"AppData|%TEMP%|\$TMPDIR|\$\{?TEMP\b|(?<![\w.])/tmp/|scratchpad/", re.I)
+        for f in files:
+            for n, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
+                where = f"{f.relative_to(ROOT)}:{n}: {line}"
+                self.assertIsNone(placeholder.search(line), where)
+                self.assertIsNone(env_path.search(line), where)
+                if "scratchpad" in line.lower():
+                    self.assertIn("Never write a path from your own environment", line, where)
+        rule = "Never write a path from your own environment (your scratchpad, temp dir or home)"
+        for f in sorted((ROOT / "archetypes").glob("[A-Z]-*.md")):
+            text = f.read_text(encoding="utf-8")
+            if "scratch dir" in text or "scratch path" in text:
+                self.assertIn(rule, text, f.name)
+                self.assertIn("{scratch dir}", text, f.name)
+
     # 1.3.1 C1: --where names the cwd repo's card, and Step 0 reads it before any repo survey.
     def test_step0_reads_the_card_before_any_repo_survey(self):
         bs = load_build_shims()

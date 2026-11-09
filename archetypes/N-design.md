@@ -4,7 +4,7 @@
 |---|---|
 | **Use when** | A decision must be designed before it is built: an architecture decision (ADR), an API contract, a DB schema/ERD, a design-system or Figma-to-code mapping, or a throwaway spike to de-risk an unknown |
 | **Not when** | A multi-workstream plan → `:plan`. The design is settled and needs building → `:slice` |
-| **Autonomy** | N/A: design docs only. A spike runs in a named scratch path and is never merged |
+| **Autonomy** | N/A: design docs only. A spike runs in a scratch dir (never a generator path) and is never merged |
 | **Baseline delta** | Unchanged. Production code is untouched; a spike's own numbers go in the doc |
 | **Length tier** | Program (350) |
 | **Deliverable** | One design doc (ADR/contract/schema/mapping), named `<PROFILE.docnaming>`, with the options considered, the recommendation and the consequences |
@@ -25,6 +25,9 @@
   - Spike: a question, a time box, a scratch path, the result, and a keep/discard verdict
 - Anything that needs the user's taste or authority goes in a `[DECIDE]` list, not into a
   silent choice.
+- Never write a path from your own environment (your scratchpad, temp dir or home) into the
+  prompt: it leaks this machine's user home and is not the worker's. The scratch area is the
+  contract's ignored scratch path if it names one, else the worker's `{scratch dir}`.
 - Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
   is not in the target repo.
 
@@ -41,8 +44,8 @@
 Repo: <PROFILE.path> (branch <PROFILE.branch><, scope <root>>)
 [INSERT §4.5 contract precedence]
 Task: design <decision>. You write ONE doc: `<PROFILE.docnaming: design doc>`.
-<Spike only: "You may create throwaway code ONLY under `<scratch path>`. It is never imported by
-production code and never committed unless I say so.">
+<Spike only: "You may create throwaway code ONLY under `<the contract's ignored scratch path |
+{scratch dir}>`. It is never imported by production code and never committed unless I say so.">
 No production code changes. No dependency changes. <git posture: commit only the doc | no commits>.
 The contract's mandated tools (<e.g. logging>) are allowed.
 
