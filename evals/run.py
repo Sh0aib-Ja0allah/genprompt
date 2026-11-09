@@ -56,6 +56,13 @@ def eval_cmd(args, out: Path, tag: str) -> list[str]:
         cmd += ["--model", args.model]
     if args.max_cost_usd is not None:
         cmd += ["--max-cost-usd", str(args.max_cost_usd)]
+    if getattr(args, "judge_model", None):
+        cmd += ["--judge-model", args.judge_model]  # J-method (1.3.1): recorded in structural.json
+    if not args.validate and not getattr(args, "no_debug", False):
+        # J-method: keep the eval's debug log beside the results, in case it holds the judge
+        # text. --debug-file is a global claude option, so it goes before `plugin eval`.
+        cmd[1:1] = ["--debug-file", str(out / "eval-debug.log")]
+        cmd.append("--verbose")
     if tag == "control":
         cmd += ["--allow-tools", "Write"]  # so the control's write attempt shows no-write failing
     return cmd
@@ -159,7 +166,8 @@ def summary(rows: list[dict], agg: dict) -> str:
         out.append(f"## {r['case']} run {r['run']}{tag}")
         out.append(f"model {r.get('model')} · eval score {r['eval_score']} · cost "
                    f"${(r.get('eval_cost_usd') or 0):.4f} (judge ${(r.get('judge_cost_usd') or 0):.4f})"
-                   f" · turns {r.get('turns')} · usage {r.get('usage')}")
+                   f" · turns {r.get('turns')} · usage {r.get('usage')}"
+                   + (f" · judge {r['judge_model']}" if r.get("judge_model") else ""))
         if r.get("error"):
             out.append(f"ERROR: {r['error']}")
         out.append("| grader | kind | result | detail |\n|---|---|---|---|")
@@ -187,6 +195,104 @@ def summary(rows: list[dict], agg: dict) -> str:
                        + (f" (not exercised: {notes})" if notes else ""))
         out.append("")
     return "\n".join(out)
+
+
+# J-method (1.3.1, option D). The gated graders R4/R3 judge; a case that FAILS any of them gets
+# 2 more generations, and each gated grader's verdict is then the majority of the 3 runs.
+GATED = ("rubric-scope", "rubric-grounding", "cites-real", "gates-exist")
+LLM_GATED = ("rubric-scope", "rubric-grounding")
+ESCALATE_RUNS = 2
+
+
+def gated_verdicts(row: dict) -> dict[str, bool]:
+    """One run's verdict per gated grader: True = PASS. Eval graders and structural ones."""
+    out = {g["name"]: bool(g["passed"]) for g in row.get("eval_graders", [])
+           if g["name"] in GATED}
+    out.update({g["name"]: g["status"] == structural.PASS for g in row.get("structural", [])
+                if g["name"] in GATED})
+    return out
+
+
+def needs_escalation(rows: list[dict]) -> bool:
+    """A single run of a case FAILED a gated grader (or a gated grader is missing)."""
+    return any(not all(gated_verdicts(r).get(g, False) for g in GATED) for r in rows)
+
+
+def majority(rows: list[dict]) -> dict[str, dict]:
+    """Per gated grader: the run verdicts and the majority (strictly more PASS than FAIL)."""
+    out = {}
+    for g in GATED:
+        votes = [gated_verdicts(r).get(g, False) for r in rows]
+        out[g] = {"runs": ["PASS" if v else "FAIL" for v in votes],
+                  "verdict": "PASS" if sum(votes) * 2 > len(votes) else "FAIL"}
+    return out
+
+
+def explain_targets(agg: dict) -> list[tuple[str, int, str, str]]:
+    """(case, run, grader, rubric text) for each gated LLM grader that FAILED or split its
+    votes; the only graders `--explain` asks about."""
+    out = []
+    for case in agg.get("cases", []):
+        rubric = {g["name"]: g.get("graderMarkdown", "") for g in case.get("graders", [])}
+        for i, run in enumerate(case.get("arms", {}).get("with", [])):
+            for g in run.get("graders", []):
+                votes = g.get("judgeVotes") or []
+                if g["name"] in LLM_GATED and (not g.get("passed") or len(set(votes)) > 1):
+                    out.append((case["name"], i + 1, g["name"], rubric.get(g["name"], "")))
+    return out
+
+
+EXPLAIN_TOOLS_OFF = ["Bash", "PowerShell", "Read", "Glob", "Grep", "Write", "Edit",
+                     "NotebookEdit", "WebFetch", "WebSearch", "Task", "Agent"]
+
+
+def explain_prompt(rubric: str, final: str) -> str:
+    return ("You are re-checking one LLM grader's verdict on a stored eval output. Apply the "
+            "rubric below to the RESPONSE exactly as a grader would. Use no tools. Reply with "
+            "one JSON object only: {\"verdict\": \"PASS\" or \"FAIL\", \"reason\": \"<the "
+            "specific line(s) of the response and the rubric clause that decide it, at most "
+            "120 words>\"}.\n\n=== RUBRIC ===\n" + rubric.strip() +
+            "\n\n=== RESPONSE ===\n" + final.strip() + "\n")
+
+
+def explain_cmd(model: str, budget: float, prompt: str) -> list[str]:
+    return [claude(), "-p", "--model", model, "--output-format", "json",
+            "--setting-sources", "local", "--strict-mcp-config", "--permission-mode", "dontAsk",
+            "--no-session-persistence", "--max-budget-usd", f"{budget:.2f}",
+            "--disallowedTools", *EXPLAIN_TOOLS_OFF, "--", prompt]
+
+
+def explain(results: Path, model: str, budget: float, max_total: float) -> int:
+    """J-method: for each gated LLM grader that FAILED or split, ask the judge model once for a
+    verdict and its reason, and store them in explain.json. An explanation, never a verdict:
+    gates stay on the harness votes."""
+    agg = json.loads((results / "aggregate.json").read_text(encoding="utf-8"))
+    spent, notes = 0.0, []
+    for case, run, grader, rubric in explain_targets(agg):
+        final = results / case / f"run{run}" / "final.txt"
+        if not final.exists():
+            notes.append({"case": case, "run": run, "grader": grader, "error": "no final.txt"})
+            continue
+        if spent + budget > max_total:
+            notes.append({"case": case, "run": run, "grader": grader,
+                          "error": f"skipped: ${spent:.4f} spent, cap ${max_total}"})
+            continue
+        p = subprocess.run(explain_cmd(model, budget, explain_prompt(
+            rubric, final.read_text(encoding="utf-8"))), capture_output=True, text=True,
+            encoding="utf-8", errors="replace", cwd=results)
+        try:
+            res = json.loads(p.stdout)
+        except json.JSONDecodeError:
+            res = {"result": p.stdout[-500:], "total_cost_usd": 0}
+        spent += res.get("total_cost_usd") or 0
+        notes.append({"case": case, "run": run, "grader": grader, "model": model,
+                      "answer": res.get("result"), "cost_usd": res.get("total_cost_usd")})
+    (results / "explain.json").write_text(json.dumps(notes, indent=2), encoding="utf-8")
+    for n in notes:
+        print(f"{n['case']} run{n['run']} {n['grader']}: "
+              f"{n.get('answer') or n.get('error')}")
+    print(f"explain: {len(notes)} grader(s), ${spent:.4f}")
+    return 0
 
 
 def find_bash() -> str:
@@ -258,6 +364,20 @@ def main() -> int:
     ap.add_argument("--plugin", type=Path, default=ROOT,
                     help="plugin root under test (default: this tree; CP4 points elsewhere)")
     ap.add_argument("--doctor", type=Path, help="doctor.py for archive-valid (default: this tree)")
+    # J-method (1.3.1)
+    ap.add_argument("--judge-model", help="LLM-grader model passed to the eval CLI (default: "
+                                          "its own, haiku); recorded per row in structural.json")
+    ap.add_argument("--no-debug", action="store_true",
+                    help="skip --verbose --debug-file (on by default for real runs)")
+    ap.add_argument("--escalate", action="store_true",
+                    help="option D: a gated FAIL gets 2 more generations; majority of 3")
+    ap.add_argument("--escalate-max-cost-usd", type=float,
+                    help="cost cap for the 2 extra generations of one case")
+    ap.add_argument("--explain", type=Path,
+                    help="results dir: ask the judge model why each gated LLM FAIL/split went "
+                         "that way; writes explain.json (no verdict changes)")
+    ap.add_argument("--explain-budget", type=float, default=0.30, help="$ cap per explain call")
+    ap.add_argument("--explain-max-total", type=float, default=1.00, help="$ cap for --explain")
     args = ap.parse_args()
     for stream in (sys.stdout, sys.stderr):
         stream.reconfigure(encoding="utf-8", errors="replace")
@@ -265,6 +385,13 @@ def main() -> int:
     if args.doctor:
         DOCTOR = args.doctor.resolve()
     PLUGIN = args.plugin.resolve()
+    if args.explain:
+        if not args.judge_model:
+            ap.error("--explain needs --judge-model (the model whose reasoning is wanted)")
+        return explain(args.explain, args.judge_model, args.explain_budget,
+                       args.explain_max_total)
+    if args.escalate and (not args.case or "*" in args.case or args.runs != 1):
+        ap.error("--escalate needs one --case and --runs 1 (escalation is per case)")
     if args.print_shas:
         return print_shas()
     if args.regrade:
@@ -289,19 +416,75 @@ def main() -> int:
         print(f"validate: eval CLI exit {proc.returncode}; "
               + ("FAIL: a case did not load" if bad else "OK: every case loaded, no run started"))
         return 1 if bad else 0
+    rows, agg = run_once(cmd, out, args)
+    if rows is None:
+        return 1
+    if args.escalate:
+        rows = escalate(args, out, tag, rows, agg)
+    print(f"results: {out}")
+    return 0
+
+
+def run_once(cmd: list[str], out: Path, args) -> tuple[list[dict] | None, dict]:
     code = subprocess.run(cmd).returncode
     agg_path = out / "aggregate.json"
     if not agg_path.exists():
         print(f"no aggregate.json (eval exit {code})")
-        return 1
+        return None, {}
     agg = json.loads(agg_path.read_text(encoding="utf-8"))
     rows = post_grade(agg, out, args.keep)
+    for r in rows:
+        r["judge_model"] = args.judge_model or "eval CLI default (haiku)"
     (out / "structural.json").write_text(json.dumps(rows, indent=2), encoding="utf-8")
     text = summary(rows, agg)
     (out / "summary.txt").write_text(text, encoding="utf-8")
     print(text)
-    print(f"results: {out}")
-    return 0
+    return rows, agg
+
+
+def escalate(args, out: Path, tag: str, rows: list[dict], agg: dict) -> list[dict]:
+    """J-method option D: a case whose single run FAILED a gated grader gets ESCALATE_RUNS more
+    generations (one eval call, its own results dir, its own cost cap); each gated grader's
+    verdict is then the majority of the 3 runs. escalation.json records the per-run verdicts,
+    the majority, and which gated graders the re-sample flipped from FAIL to PASS (O1)."""
+    report = {"judge_model": args.judge_model, "cases": {}}
+    first_cost = sum(r.get("eval_cost_usd") or 0 for r in rows)
+    for case in sorted({r["case"] for r in rows}):
+        case_rows = [r for r in rows if r["case"] == case]
+        entry = {"first": {g: v["runs"][0] for g, v in majority(case_rows).items()},
+                 "escalated": False}
+        if needs_escalation(case_rows):
+            budget = args.escalate_max_cost_usd
+            if budget is None or budget <= 0:
+                entry["error"] = "escalation needed but no --escalate-max-cost-usd left"
+            else:
+                sub = out / f"escalation-{case}"
+                sub.mkdir(parents=True, exist_ok=True)
+                sargs = argparse.Namespace(**{**vars(args), "case": case,
+                                              "runs": ESCALATE_RUNS, "max_cost_usd": budget})
+                more, _ = run_once(eval_cmd(sargs, sub, tag), sub, sargs)
+                if more is None or len(more) < ESCALATE_RUNS:
+                    entry["error"] = "escalation incomplete (an incomplete case is a stop)"
+                    more = more or []
+                for i, r in enumerate(more):
+                    r["run"] = len(case_rows) + i + 1
+                case_rows = case_rows + more
+                entry["escalated"] = True
+                entry["escalation_cost_usd"] = sum(r.get("eval_cost_usd") or 0 for r in more)
+        m = majority(case_rows)
+        entry["runs"] = {g: v["runs"] for g, v in m.items()}
+        entry["final"] = {g: v["verdict"] for g, v in m.items()}
+        entry["flipped_to_pass"] = [g for g in GATED
+                                    if entry["first"][g] == "FAIL" and entry["final"][g] == "PASS"]
+        report["cases"][case] = entry
+    report["first_pass_cost_usd"] = first_cost
+    report["escalation_cost_usd"] = sum(e.get("escalation_cost_usd", 0)
+                                        for e in report["cases"].values())
+    (out / "escalation.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+    for case, e in report["cases"].items():
+        print(f"{case}: final {e['final']} · escalated {e['escalated']} · flipped "
+              f"{e['flipped_to_pass'] or 'none'}" + (f" · {e['error']}" if e.get("error") else ""))
+    return rows
 
 
 if __name__ == "__main__":
