@@ -1,10 +1,23 @@
-# CP7 (1.3.1 under J-method option D): re-baselines DONE (v1.3.0 all 5, v1.2.0 redesign); waiting for the CP7 GO
+# CP7 (1.3.1 under J-method option D): INCOMPLETE, card-less load stopped by its spend guard
 
 | | |
 |---|---|
 | Eval code | frozen at `a977724` (X1); unchanged through 01104e0 |
-| Spend | **$4.6481 of $13** ($8.3519 left) |
+| Spend | **$5.1858 of $13** (re-baselines $4.6481 + CP7 card-less, interrupted, $0.5377; $7.8142 left) |
 | Status | Re-baselines complete under Shoaib's X6 ruling. Every case PASSES all four gated graders 3/3 on its first run, so none escalated: 0 flips either way on both sides (X2). CP7 (candidate 2fad0fa) waits for the PE's GO |
+
+## CP7 on 2fad0fa (GO given): card-less load INCOMPLETE (spend guard)
+
+- `compare --cand 2fad0fa --cases slice fix redesign plan investigate --home empty --budget 0.08
+  --runs 3 --max-total 0.60`.
+- The guard stopped it after 13 of 15 runs at $0.5377: investigate r2 and r3 never ran.
+- Cause: 1.3.1's card-less runs cost about $0.041 each against the about $0.025–0.03 the 0.60
+  total assumed. With 1.3.1's card-first Step 0, a card-less run is told `card … (absent)` and
+  does more work (plan $0.044–0.058, slice $0.041–0.060). My guard pair was too tight again.
+- **Not graded** (a partial set is never a pass). Card-fresh and quality were not run.
+- Traces: `C:/genprompt-probe/genprompt-probe-20261109-180449/` (13 jsonl, no report).
+- Proposed: re-run card-less 5×3 whole with `--max-total 0.80`, about $0.62 expected, and run
+  card-fresh with `--max-total 0.80` as well.
 
 ## Re-baselines (opus generator, opus judge, judge-inclusive caps)
 
