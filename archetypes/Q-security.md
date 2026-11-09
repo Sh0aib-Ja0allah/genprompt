@@ -26,6 +26,8 @@
 - `--readonly-phase`: the prompt ends after Phase 1. Drop Phase 2 and its gate, keep the
   findings doc, and end with "Stop after Phase 1 and report; fixes come in a separate prompt."
   The FIX-NOW list then feeds a later `:security` or `:fix` prompt.
+- Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
+  is not in the target repo.
 
 ## Required blocks
 

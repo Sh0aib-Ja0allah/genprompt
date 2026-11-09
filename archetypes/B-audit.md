@@ -16,6 +16,8 @@
   the doc records.
 - Build a reading manifest with depth (READ FULLY / SKIM / CONTEXT ONLY) from the real `docs/`.
 - Execution, if wanted, is a separate `:roadmap` prompt that hard-STOPs if this doc is missing. Do not fold audit and execution into one prompt.
+- Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
+  is not in the target repo.
 
 ## Required blocks
 

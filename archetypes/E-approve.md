@@ -25,6 +25,8 @@
   - open the block with an unmissable STOP AND INSERT
   - verify on the branch that the prior prompt actually reached the worker
 - Anything that needs a decision rather than a fix goes in §4.20 `RECORD, DO NOT ACT`.
+- Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
+  is not in the target repo.
 
 ## Template
 

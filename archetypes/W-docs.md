@@ -19,6 +19,8 @@
 - Drift check: name the claims you already found stale (`file:line` in the doc against
   `file:line` in the code).
 - Screenshots and images are placeholders unless the worker can produce real ones. Mark them.
+- Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
+  is not in the target repo.
 
 ## Required blocks
 

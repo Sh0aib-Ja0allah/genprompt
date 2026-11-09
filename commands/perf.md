@@ -10,7 +10,7 @@ allowed-tools: Read, Glob, Grep, Write(~/.genprompt/generated-prompts/**), Edit(
 
 Paths: the genprompt root (read-only rules) is `${CLAUDE_PLUGIN_ROOT}`.
 
-Step 0: the files above are in context. Read them again only if PROTOCOL's `GENPROMPT-PROTOCOL v3 LOADED` marker is absent. First Bash call, alone and unchained: `python3 "${CLAUDE_PLUGIN_ROOT}/tools/archive.py" --where`. No output or an error (exit 49: Store alias): once more with `python`, alone. Its `home` line is the absolute home for every `~/.genprompt/` path and Write. `local-rules` says `present`: Read that file. Then git and other reads, one per call.
+Step 0: the files above are in context. Read them again only if PROTOCOL's `GENPROMPT-PROTOCOL v3 LOADED` marker is absent. First Bash call, alone and unchained: `python3 "${CLAUDE_PLUGIN_ROOT}/tools/archive.py" --where`. No output or an error (exit 49: Store alias): once more with `python`, alone. `home` is the absolute home for every `~/.genprompt/` path and Write. Read `local-rules` if `present`, then `card` if `present`, before any repo survey or derive.md. Then git and other reads, one per call.
 
 Command `/genprompt:perf` → archetype **R: Performance** (§5.R): follow PROTOCOL Steps 1–7. Another archetype fits better? Say so in the lock and use it (hybrids are fine).
 

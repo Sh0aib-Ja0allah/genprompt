@@ -24,6 +24,8 @@
 - Minimal diff. No refactors, no opportunistic cleanup. Anything else found goes in the
   postmortem as follow-ups.
 - Revert is a legitimate mitigation. Name the candidate commit if the timing points at one.
+- Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
+  is not in the target repo.
 
 ## Required blocks
 
@@ -45,7 +47,7 @@ since <date>: sha subject>, <…>.
 
 STEP 1: TRIAGE: reproduce locally (the exact steps/data). If you cannot reproduce it, say so and list
         what you need from me.
-STEP 2: MITIGATE: propose the fastest safe mitigation (flag, revert <sha>, config). Prepare it; ask
+STEP 2: MITIGATE: propose the fastest safe mitigation (flag, revert {sha}, config). Prepare it; ask
         before any live action.
 STEP 3: ROOT CAUSE: [INSERT §4.9 mechanism → chain → consequence], with path:line.
 STEP 4: FIX: minimal diff. [INSERT §4.15: a failing regression test first; prove it load-bearing;

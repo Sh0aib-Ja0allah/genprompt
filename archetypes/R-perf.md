@@ -24,6 +24,8 @@
 - `--readonly-phase` (measure only): keep STEP 1 and STEP 2, drop STEPS 3–4 and the gate, and
   end with "Stop after the plan and report; change no code." The ranked causes feed a later
   `:perf` prompt.
+- Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
+  is not in the target repo.
 
 ## Required blocks
 

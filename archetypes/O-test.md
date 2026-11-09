@@ -22,6 +22,8 @@
   state).
 - Production code is out of scope. A product defect a test exposes is RECORDED, not fixed. The
   only exception is a test seam the contract allows.
+- Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
+  is not in the target repo.
 
 ## Required blocks
 

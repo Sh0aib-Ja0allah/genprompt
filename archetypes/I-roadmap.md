@@ -20,6 +20,8 @@
   each lane's diff stayed inside its paths before merging.
 - Do not assume the backlog's own claims are still true. Each item is verified against current
   code; if it is already resolved, it is marked done and skipped.
+- Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
+  is not in the target repo.
 
 ## Required blocks
 

@@ -20,6 +20,8 @@
 - Secrets and credentials are never put in the prompt, the repo or the chat. The prompt names
   *which* keys are needed and where they are set (an action for the user).
 - Rollback is written before deploy. No rollback path means no deploy.
+- Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
+  is not in the target repo.
 
 ## Required blocks
 

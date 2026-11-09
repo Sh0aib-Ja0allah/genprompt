@@ -22,6 +22,8 @@
 - `--pr`: read §8.2 and add its PULL REQUEST section.
 - Name the probe/scratch files that must NOT be swept in. `.env` is excluded; **`.env.example`
   is in scope**.
+- Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
+  is not in the target repo.
 
 ## Required blocks
 

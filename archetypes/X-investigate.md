@@ -60,8 +60,8 @@ STEP 2: NARROW by <bisect between <good sha> and <bad sha> in a temporary worktr
 STEP 3: TRACE from <entry point file:line> to the faulty code. Test each hypothesis:
   - H1 <hypothesis> (<file:line>): confirmed or refuted, with the evidence
   - H2 <hypothesis> (<file:line>): confirmed or refuted, with the evidence
-STEP 4: ROOT CAUSE: [INSERT §4.9 mechanism → chain → consequence], at path:line, plus why the
-  existing tests did not catch it.
+STEP 4: ROOT CAUSE, as THE DEFECT: {file:line} {does X}. {causal step} ({file:line}) → …
+  → {consequence} (§4.9 shape), plus why the existing tests did not catch it.
 STEP 5: HAND-OFF: each confirmed defect in :fix input form: MECHANISM (file:line), CONSEQUENCE,
   REPRO, a suggested ACCEPTANCE assertion. Suspicious code that is not the cause goes under
   [INSERT §4.20 RECORD, DO NOT ACT], in a §4.25 findings register.

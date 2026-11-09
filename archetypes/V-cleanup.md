@@ -20,6 +20,8 @@
   first.
 - Refactor: name the invariant (public API, rendered output, response shapes) and how to prove
   it unchanged.
+- Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
+  is not in the target repo.
 
 ## Required blocks
 

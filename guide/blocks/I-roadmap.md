@@ -221,5 +221,5 @@ Grade all 23 rows (Step 6). Judgement rows 5, 6, 7, 10, 13 and 23 cite evidence 
 | 19 | Every number labelled `verified by artifact` or `reported, not confirmed`; nothing run |
 | 20 | No leaked example specifics; volatile facts in §4.22; no attribution or finality claim; occupancy checked |
 | 21 | Length within budget (§4.21), lines ≤ 100 (lone unbreakable token excepted), or why |
-| 22 | Archived by `tools/archive.py`, result cited; `--dry-run`: N/A + lint result, no card; no python: FAIL |
+| 22 | Archived by `archive.py`, result cited; `--dry-run`: N/A + lint result, no card; no python: FAIL |
 | 23 | Every TRAP, locked decision, stop-list and out-of-scope item has a "because" reason |
