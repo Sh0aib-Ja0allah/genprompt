@@ -1,10 +1,49 @@
-# CP7 (1.3.1 under J-method option D): INCOMPLETE, card-less load stopped by its spend guard
+# CP7 (1.3.1 under J-method option D): STOPPED, card-less load FAILS X4 (and plan fails the v1.1.0 load gate)
 
 | | |
 |---|---|
 | Eval code | frozen at `a977724` (X1); unchanged through 01104e0 |
-| Spend | **$5.1858 of $13** (re-baselines $4.6481 + CP7 card-less, interrupted, $0.5377; $7.8142 left) |
+| Spend | **$5.7298 of $13** (re-baselines $4.6481 + CP7 card-less interrupted $0.5377 + card-less re-run $0.5440; $7.2702 left) |
 | Status | Re-baselines complete under Shoaib's X6 ruling. Every case PASSES all four gated graders 3/3 on its first run, so none escalated: 0 flips either way on both sides (X2). CP7 (candidate 2fad0fa) waits for the PE's GO |
+
+## CP7 card-less re-run (`--max-total 1.00`): complete; **FAIL X4**
+
+`C:/genprompt-probe/genprompt-probe-20261109-184529/`, $0.5440, A1 PASS, A5 PASS.
+
+| Case | floor | per-run rule bytes | median | X4 limit (v1.3.0 + 2%) | X4 | v1.1.0 / v1.2.0 load gate |
+|---|---|---|---|---|---|---|
+| slice | 32,458 | 37,679 ×3 | 37,679 | 33,084 | **FAIL** | pass (62,894 / 61,230) |
+| fix | 33,241 | 38,462 ×3 | 38,462 | 33,882 | **FAIL** | pass (53,561 / 43,475) |
+| redesign | 31,899 | 31,899 31,899 37,120 | 31,899 | 32,514 | PASS | pass |
+| plan | 29,794 | 29,794 35,015 35,015 | 35,015 | 30,615 | **FAIL** | **FAIL vs v1.1.0 30,615** (pass vs v1.2.0 41,367) |
+| investigate | 35,016 | 35,016 40,237 40,237 | 40,237 | 35,652 | **FAIL** | (R1: over the 40,000 soft line) |
+
+**Diagnosis (no remedy applied):**
+- The floors are within the expected range: plan's 29,794 is *lower* than v1.3.0's 30,059.
+- The growth is entirely `derive.md` (5,221 B): read in 11 of 15 runs (slice 3/3, fix 3/3,
+  plan 2/3, investigate 2/3, redesign 1/3). In v1.3.0's CP6 card-less runs it was 0–1 of 3
+  per case.
+- This is 1.3.1's intended behaviour. The card-first Step 0 prints `card … (absent)` and a
+  card-less run then derives. X3 (card-fresh strictly below card-less) depends on exactly that.
+- **X3 and X4 conflict by construction.**
+  - X4 caps card-less at v1.3.0's median + 2%, and those medians were floor medians: the runs
+    mostly skipped deriving.
+  - So the change that makes X3 passable makes X4 fail. Card-less medians now include
+    derive.md, while card-fresh (with a card) should not.
+- **Not a regression for a user with a card.** That's card-fresh, not yet run. It is a real cost
+  increase on first use in a repo: no card means 1.3.1 always derives, where 1.3.0 often
+  skipped it.
+- Card-fresh and quality were not run.
+
+**Options for Shoaib (none taken):**
+1. **Planner ruling on the load gate for 1.3.1:** compare like with like, e.g. X4 applied to
+   the card-fresh medians (the steady state with a card), while the card-less median is gated
+   at floor + derive.md, so the first-use cost is stated rather than capped at the old
+   skip-derive median. That's a rule change after a result.
+2. **Accept the X4 FAIL as stated** (first use in a repo costs about +5.2 KB) and continue to
+   card-fresh and quality.
+3. **A product change:** let card-less runs skip derive.md when the request doesn't need the
+   full profile. That's a new candidate, and it undoes the point of card-first.
 
 ## CP7 on 2fad0fa (GO given): card-less load INCOMPLETE (spend guard)
 
