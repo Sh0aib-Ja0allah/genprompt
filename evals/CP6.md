@@ -1,8 +1,9 @@
-# CP6: 1.3.0 candidate (INCOMPLETE: run 4 stopped at card-less A5)
+# CP6: 1.3.0 candidate (INCOMPLETE: run 4 card-fresh VALID but C1 FAIL)
 
 Total CP6 spend: run 1 $0.5596 + V4 trace $0.0047 + run 2 $0.3228 + run 3 $0.6173 + replay
-$0.0169 + run 4 card-less $0.4977 + run 4 card-fresh (interrupted) $0.4877 = **$2.5067** of
-the $7.50 cap (raised from $6.25 by Shoaib; $4.9933 left).
+$0.0169 + run 4 card-less $0.4977 + run 4 card-fresh (interrupted) $0.4877 + run 4 card-fresh
+re-run $0.4948 = **$3.0015** of the $8.50 cap (raised from $6.25, then $7.50, by Shoaib; $5.4985
+left).
 
 ## Run 4: candidate c8edb15, probe code eea02ad (INCOMPLETE: A5 FAIL at card-less)
 
@@ -67,6 +68,46 @@ Claude Code ran both under dontAsk as read-only commands.
 - **INCOMPLETE, not graded** (a partial set is never a pass). Traces:
   `C:/genprompt-probe/genprompt-probe-20261109-131401/` (13 jsonl, no report).
 - Proposed: re-run card-fresh whole with `--max-total 0.70`. Awaiting GO.
+
+### Run 4 card-fresh re-run (cap raised to $8.50): VALID, C1 FAIL
+
+- Re-run whole and fresh on c8edb15 with the same flags but `--max-total 0.75`.
+- Cost **$0.4948**; CP6 total **$3.0015** of $8.50 ($5.4985 left).
+- Trace: `C:/genprompt-probe/genprompt-probe-20261109-145426/`.
+
+| Case | per-run rule bytes | median | C2 limit (card-less + 1,245) | $ |
+|---|---|---|---|---|
+| slice | 32,307 32,307 37,528 | 32,307 | 33,552 | 0.1170 |
+| fix | 31,798 37,019 31,798 | 31,798 | 38,264 | 0.0905 |
+| redesign | 30,892 36,113 30,892 | 30,892 | 32,137 | 0.0911 |
+| plan | 29,983 ×3 | 29,983 | 31,228 | 0.0947 |
+| investigate | 34,825 ×3 | 34,825 | 36,070 | 0.1014 |
+
+- **Validity: VALID, 15 of 15 runs saw the card** (B's Step 0 fix works). 12 runs Read the
+  card file; the other 3 saw it only through `--where` output, which counts by definition.
+- A1 PASS, C2 PASS, A5 PASS (frozen A5, no flags).
+- **C1 FAIL:** slice r3, fix r2 and redesign r2 each Read `guide/blocks/derive.md` (5,221 B),
+  although all three saw the card.
+
+**Diagnosis (no remedy applied):** in all three runs the order was:
+1. `--where` (home found);
+2. fixture reads;
+3. a `Glob **/*`;
+4. **`derive.md`**;
+5. only then the card Read.
+
+After reading the card they used it: redesign r2 noted "the profile card is fresh (stamps
+`9c672ba` match, derived today)". In the 9 runs that Read the card *before* anything else, none
+read derive.md. So the generator sometimes reaches for derive.md before it looks for the cached
+card. That is a Step 2 ordering lapse, not a stale or unusable card. For scale: card-less runs
+read derive.md in 5 of 15 (run 4), card-fresh in 3 of 15.
+
+**Options for Shoaib (none taken):**
+1. Generator fix (new candidate, so R5 means a full re-run): right after `--where`, Step 2
+   checks `<home>/generated-prompts/by-repo/<key>.profile.md` before any fixture survey, and
+   reads derive.md only if the card is missing or stale.
+2. Planner ruling on C1 (a gate change after a result): e.g. C1 judged only on runs that never
+   Read the card, or a rate instead of zero.
 
 **V4 outcome, stated plainly (P3).** Run 1's refusal of the chained `archive.py --where; git …`
 calls was a probe artefact. Real Claude Code checks a chained command one subcommand at a
