@@ -122,6 +122,44 @@ class Variants(unittest.TestCase):
         bare = self.GOOD.replace("Begin with the branch.", "Begin with <branch>.")
         self.assertEqual(grade(bare)["no-placeholders"].status, s.FAIL)
 
+    # G-ph (1.3.1): slots the WORKER fills. Per guide §4.0 they are written as `{…}`; `<…>` means
+    # "the generator fills this", so a bare `<…>` that reaches the prompt is a FAIL. These pin
+    # that the grader already exempts a fenced template, inline code and `{…}`, and that the two
+    # CP6 false alarms were notation slips in the emitted prompt, not grader bugs.
+    CP6_ROOT_LINE = ("THE DEFECT: <file:line> <does X>. <step> (<file:line>) → <step> "
+                     "(<file:line>) → <what the user sees>.")
+    CP6A2_ID_LINE = "Stable ids (<WS letter>-<two digits>), never renumbered once written."
+
+    def swap(self, line):
+        return self.GOOD.replace("Begin with the branch.", line + "\nBegin with the branch.")
+
+    def test_gph_cp6_slips_still_fail_as_written(self):
+        for line in (self.CP6_ROOT_LINE, self.CP6A2_ID_LINE):
+            self.assertEqual(grade(self.swap(line))["no-placeholders"].status, s.FAIL, line)
+
+    def test_gph_worker_slots_in_braces_pass(self):
+        braces = ("THE DEFECT: {file:line} {does X}. {step} ({file:line}) → {step} "
+                  "({file:line}) → {what the user sees}.")
+        self.assertEqual(grade(self.swap(braces))["no-placeholders"].status, s.PASS)
+
+    def test_gph_slots_in_inline_code_pass(self):
+        for line in ("Root cause as one line: `THE DEFECT: <file:line> <does X>.`",
+                     "Stable ids (`<WS letter>-<two digits>`), never renumbered once written."):
+            self.assertEqual(grade(self.swap(line))["no-placeholders"].status, s.PASS, line)
+
+    def test_gph_slots_in_a_nested_fenced_template_pass(self):
+        fenced = "Root cause, in this form:\n```\n" + self.CP6_ROOT_LINE + "\n```"
+        self.assertEqual(grade(self.swap(fenced))["no-placeholders"].status, s.PASS)
+
+    def test_gph_concrete_example_instead_of_a_format_passes(self):
+        self.assertEqual(grade(self.swap("Stable ids (e.g. WS-01), never renumbered."))
+                         ["no-placeholders"].status, s.PASS)
+
+    def test_gph_an_unfilled_generator_slot_still_fails(self):
+        # the reason not to exempt "label: <slot>" lines: this is a real unfilled template
+        self.assertEqual(grade(self.swap("Repo: <PROFILE.path>"))["no-placeholders"].status,
+                         s.FAIL)
+
     def test_v2_protocol_loaded_paths(self):
         marker = s.PROTOCOL_MARKER
         ctx = [{"type": "user", "message": {"content": f"x {marker} y"}}]
