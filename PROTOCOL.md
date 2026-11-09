@@ -12,7 +12,7 @@ a worker repo, or run builds, tests or installs anywhere.
   read-only to you; paths below are relative to it.
 - The genprompt home holds the archive (`generated-prompts/`) and personal rules, outside every
   repo and the plugin. It is `~/.genprompt/` unless `GENPROMPT_HOME` names another folder; every
-  `~/.genprompt/` below means that home. Step 0 prints it as an absolute path; tools need that.
+  `~/.genprompt/` below means that home.
 
 A normal run reads no rule file: this file, your archetype and its excerpt (ending with the
 compact §6 checklist) are loaded. Read a file only when a step's "Read … only when" holds:
@@ -29,8 +29,7 @@ Step 0) add to this suite and win where they conflict; the TARGET LOCK says so.
 - You may Write or Edit only inside `~/.genprompt/generated-prompts/` and `~/.genprompt/tmp/`
   (the archive.py parts file).
 - The one exception: after showing the diff, `/genprompt:learn` may edit `~/.genprompt/local-rules.md`.
-- The genprompt root is never edited at runtime, and the generator **never runs a mutating git
-  command** anywhere.
+- Never edit the genprompt root or run a **mutating git command** anywhere.
 
 **Every worker repo is read-only to you.**
 - Allowed: Read, Glob, Grep and read-only git (`status`, `log`, `diff`, `show`, `grep`, …).
@@ -56,7 +55,7 @@ Use the first rule that fires, and record which one fired:
    Source = `continuation`. The header is a claim: the lock still shows the real branch and HEAD.
 3. cwd: the working directory, if inside a git work tree (`git rev-parse --show-toplevel`).
    Source = `cwd`. A cwd inside the genprompt root or home never counts unless named explicitly.
-4. Ask: nothing named and no usable cwd repo (the normal case from a home or desktop folder).
+4. Ask: nothing named and no usable cwd repo.
    Offer the five shards whose last data row is newest. Source = `ask`.
 
 If rules 2 and 3 fire on different repos, use rule 2 and show the conflict in the lock, because a
@@ -71,13 +70,13 @@ no repo at all.
 Cached profile card: reuse `~/.genprompt/generated-prompts/by-repo/<key>.profile.md`, and read no
 profile rules at all, when both hold:
 - every `stamp:` entry still matches `git log -1 --format=%h -- <file>`, and no stamped file is dirty
-- `derived:` is at most 90 days old (freshness itself is the stamps)
+- `derived:` is at most 90 days old
 
-Report the card's age (today − `derived`, in days) on the lock's Stack line. Only when the card is
-missing, stale or older than 90 days: read `guide/blocks/derive.md` (§2.0 and the card template),
-derive the profile and rewrite the card (`--dry-run` never writes it). It names the only cases
-that need the rest of §2, `stacks/stack-matrix.md` or `stacks/workspaces.md`. Don't assume a file
-exists.
+Otherwise (card missing, stale or past 90 days), every time, however small the task: read
+`guide/blocks/derive.md` (§2.0 and the card template), derive the profile and Write the card
+(`--dry-run` never writes it). It names the only cases that need the rest of §2,
+`stacks/stack-matrix.md` or `stacks/workspaces.md`. Don't assume a file exists. The lock's Stack
+line gives the card's age (today − `derived`, in days); `new` only if this run wrote the card.
 
 Re-derive the gates every time, cache or not, from the manifest's real script keys, the contract's
 own commands and the tools you can prove present, because gates rot and a wrong gate is the most
@@ -93,9 +92,9 @@ Repo        <Name> · <absolute path>
             branch <current> (default <default>) · tree <clean | N files dirty> · via <argument|continuation|cwd|ask>
 Occupancy   <free | OCCUPIED: <evidence>; see §4.27>
 Scope       <single root | monorepo: apps/x IN, apps/y + services/ OUT>
-Stack       <stack + versions read from the manifest/lockfile> · role <role label> · card <Nd, stamps fresh | Nd, stale: <file> moved | new>
+Stack       <stack + versions read from the manifest/lockfile> · role <role label> · card <Nd, stamps fresh | Nd, stale: <file> moved | new | not written (--dry-run)>
 Contract    <path to CLAUDE.md / AGENTS.md, or "none in-repo"> · hard rules: <branching / deploy / push / logging, quoted short with line numbers>
-Ancestors   <non-governing paths | none found> · user-level: <path | none>
+Ancestors   <non-governing paths | none found> · user-level: <present | unreadable | none>
 Truth       <source-of-truth docs, in order>
 Gates       <literal commands, in order, each (script|contract|derived); ⚠ destructive; test: NONE if true>
 New docs    <the naming convention and the default name a new doc would get here>
@@ -152,7 +151,7 @@ Reply "go" to accept, or correct any line.
    stop-list, report spec and terminal imperative.
 4. Stay within the length budget (§4.21) and run its compression pass.
 5. **One fenced block holds the whole prompt.** If the prompt contains a fence, the outer fence uses
-   four backticks. Fill every `<…>`; write worker-side variables in commands as `{…}` (§4.0).
+   four backticks.
 
 ## Step 6: Self-check, archive, print
 
@@ -176,7 +175,7 @@ Reply "go" to accept, or correct any line.
      evidence for rows 8, 15, 16, 21 and 22 instead of grading them by eye. Then run it without
      `--dry-run` to archive. Under a `--dry-run` request the dry run is the only run.
    - archive.py builds the file name, line 1 and the shard row.
-   - No python: say so, mark row 22 FAIL, and don't hand-write the archive.
+   - No python: say so and mark row 22 FAIL.
 3. Print in chat, prompt first, in this order:
    1. the lock block, if `--go` skipped the wait
    2. `Interpretations locked in (overridable)`, if any, because the user must see an

@@ -4,6 +4,22 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-09 · PROTOCOL.md Step 2 + lock, guide/01 §2.9 · Honest card state (1.4.0): with no card
+  (or a stale or expired one) the run derives and Writes the card every time, however small the
+  task (CP7: 4/15 card-less runs skipped it); the lock says `card new` only if this run wrote
+  the card, and `card not written (--dry-run)` under --dry-run (CP7: false "card new" claims).
+  Step 2's "(freshness itself is the stamps)" aside goes. +51 B on every floor (plan 29,571).
+- 2026-11-09 · PROTOCOL.md, guide/01, 03-blocks.md §4.2, 04-checklist.md, tools/doctor.py ·
+  LOCK-UL (1.4.0, privacy): the user-level CLAUDE.md is reported as present / unreadable / none,
+  never by path, in the TARGET LOCK Ancestors line, the card's ancestors slot and the grounding
+  notes (CP7 found the user's home there; SEC-130 lock caveat). doctor's prompt lint and card
+  check WARN on a user-level path. +75 B on every floor (PROTOCOL +16, §4.2 +59).
+- 2026-11-09 · PROTOCOL.md, archetypes/F-plan.md, X-investigate.md · F-hr (1.4.0): cuts only, for
+  headroom. PROTOCOL -255 B (five duplicate or wording cuts: the Step 0 home note, the root/git
+  write bullet, the Ask aside, Step 5.5's notation repeat of §4.0, the no-python repeat); F -94
+  B (its no-code bullet repeats the Autonomy row and template); X -99 B (the bisect trap folds
+  into its note). Plan floor 29,794 -> 29,445; investigate 35,395 -> 35,041; others -255.
+
 ## 1.3.1 (2026-11-09)
 
 EXPERIMENTAL: `--send <session>` and `:next --from <session>`. The hand-run checks follow

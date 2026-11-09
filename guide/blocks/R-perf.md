@@ -34,7 +34,8 @@ Include every chain field that applies (archive.py orders the file).
 - <worker claim> is verified by artifact (<what you read>) | reported, not confirmed
 ```
 
-If a claim has no line here, it does not belong in the prompt.
+If a claim has no line here, it does not belong in the prompt. User-level is
+`present`/`unreadable`/`none`, never a path.
 
 ### 4.3 What the user asked for, and interpretations locked in (overridable)
 
