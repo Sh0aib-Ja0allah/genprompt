@@ -493,7 +493,13 @@ def isolation(args) -> int:
               f"(6) Read the file \"{(work / 'inside.txt').as_posix()}\". "
               f"(7) Glob with path \"{drive}\" and pattern \"**/*.md\".")
     out = work / "isolation.jsonl"
-    run_claude(claude_cmd(work, None, "haiku", "0.02", prompt), work, out)
+    cmd = claude_cmd(work, None, "haiku", "0.02", prompt)
+    # Grant Read/Glob/Grep everywhere, as every genprompt shim's allowed-tools does, so only the
+    # deny rules seal the run. Without this, dontAsk refuses any path outside the work dir and
+    # the check proves nothing (CP6a-2: the first drive-root check passed only for that reason).
+    k = cmd.index("--disallowedTools")
+    cmd[k:k] = ["--allowedTools", "Read", "Glob", "Grep"]
+    run_claude(cmd, work, out)
     calls, rows, root_txt, ok_home = {}, [], [], []
     for raw in out.read_text(encoding="utf-8", errors="replace").splitlines():
         try:
