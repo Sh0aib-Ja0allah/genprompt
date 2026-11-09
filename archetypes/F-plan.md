@@ -4,10 +4,10 @@
 |---|---|
 | **Use when** | Produce a plan or roadmap doc, with no code |
 | **Not when** | The design of one decision (ADR, schema, API contract) → `:design`. Executing an existing plan → `:roadmap` |
-| **Autonomy** | N/A: read-only until the plan doc is written. If an execution phase is included, it sits behind a §4.19 gate |
+| **Autonomy** | N/A: read-only until the plan doc is written. An execution phase, if any, sits behind a §4.19 gate |
 | **Baseline delta** | N/A. State the gates for later slices without running them |
 | **Length tier** | Program (350) |
-| **Deliverable** | Exactly one plan doc (§2.7 naming) with stable item ids, then the ordered slice plan in chat |
+| **Deliverable** | Exactly one plan doc (`<PROFILE.docnaming>`) with stable item ids, then the ordered slice plan in chat |
 
 ## Generator: before emitting
 
