@@ -8,6 +8,9 @@ With no argument: print, compactly:
 3. the utilities and modifiers from `guide/08-grammar.md`
 4. the common lifecycles line
 
+Wherever you show `--send <session>` or `:next --from <session>`, mark it EXPERIMENTAL (its
+hand-run checks follow after 1.3.0), and never recommend either as the default path.
+
 With a goal (`/genprompt:help I need to move from Drizzle to Supabase`):
 1. match the goal against the picker, and recommend one command (or an honest hybrid) with a
    one-line reason

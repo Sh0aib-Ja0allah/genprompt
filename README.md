@@ -114,7 +114,7 @@ Not sure which command? `/genprompt:auto <what you want>` picks one for you.
 | Decide | `:plan` · `:design` · `:approve` |
 | Build | `:slice` · `:roadmap` · `:fix` · `:redesign` · `:greenfield` · `:kickoff` · `:test` · `:perf` · `:upgrade` · `:cleanup` · `:hotfix` · `:docs` |
 | Ship | `:commit` · `:release` |
-| Continue | `:next` · `:resume` |
+| Continue | `:next` (`--from <session>`: EXPERIMENTAL) · `:resume` |
 | Any | `:auto` (picks the archetype from your request) |
 | Utilities | `:help` · `:history` · `:doctor` · `:profile` · `:learn` |
 
@@ -124,11 +124,13 @@ Each command is `/genprompt:<name>`. The "I want to… → use…" picker is in
 
 **Modifiers** (on any prompt command): `--repo <name|path>`, `--go` (skip the lock wait),
 `--attended` / `--unattended`, `--dry-run` (archive nothing), `--brief`, `--follows <file>`,
-`--send <session>` (also deliver the prompt to that Claude session; asks first),
+`--send <session>` (EXPERIMENTAL: also deliver the prompt to that Claude session; asks first),
 `--verbose` (full self-check table in chat). Per command: `--split <N>` (`:plan`, `:roadmap`:
 parallel worker prompts with disjoint file ownership, plus one merge prompt), `--chat-only`
 (`:review`), `--verify` and `--pr` (`:commit`: verify first; branch, push and open a PR, each
-approved by you), `--readonly-phase` (`:security`, `:perf`: the read-only first phase only).
+approved by you), `--readonly-phase` (`:security`, `:perf`: the read-only first phase only),
+`--from <session>` (`:next`, EXPERIMENTAL: read the report that session sent here). The hand-run
+checks for `--send` and `--from` follow after 1.3.0.
 
 ## Where your files go
 
