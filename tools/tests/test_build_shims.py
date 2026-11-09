@@ -425,6 +425,26 @@ class BuildShims(unittest.TestCase):
         self.assertEqual(code, 1, out)
         self.assertIn("L-fix.md: no [INSERT §4.14 …] line names GENPROMPT-REPORT", out)
 
+    # R3 (1.4.1): B, E, F and H had no §4.14 INSERT at all, so E-10's check skipped them and their
+    # prompts could ship without the GENPROMPT-REPORT line. Now every template but J carries one.
+    def test_every_template_but_next_inserts_the_report_line(self):
+        for f in sorted((ROOT / "archetypes").glob("[A-X]-*.md")):
+            text = f.read_text(encoding="utf-8")
+            if f.stem == "J-next":
+                self.assertIn("built from the emitted archetype's template", " ".join(text.split()))
+                continue
+            inserts = re.findall(r"\[INSERT §4\.14\b[^\]]*\]", text)
+            self.assertTrue(any("GENPROMPT-REPORT" in b for b in inserts), f.name)
+
+    def test_check_fails_when_a_template_has_no_414_insert(self):
+        arch = self.copy / "archetypes" / "H-commit.md"
+        text = arch.read_text(encoding="utf-8")
+        line = next(l for l in text.splitlines(True) if l.startswith("[INSERT §4.14"))
+        arch.write_text(text.replace(line, ""), encoding="utf-8", newline="\n")
+        code, out = run_tool(self.script, "--check", cwd=self.copy)
+        self.assertEqual(code, 1, out)
+        self.assertIn("H-commit.md: no [INSERT §4.14 …] line names GENPROMPT-REPORT", out)
+
 
 if __name__ == "__main__":
     unittest.main()

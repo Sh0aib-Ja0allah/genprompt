@@ -51,5 +51,6 @@ STOP AND INSERT THIS BEFORE PART <X>. <what changed, and why the running plan is
 [INSERT §4.20 RECORD, DO NOT ACT, for anything that needs a decision rather than a fix]
 GATES for the work this unlocks: <literal commands>. Expected delta: <…>.
 
+[INSERT §4.14 report header line: GENPROMPT-REPORT · Repo · Branch · HEAD · Prompt · Gates · Status]
 Then continue with <ordering>. <What stays deferred, and why.>
 ```

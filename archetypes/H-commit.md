@@ -68,6 +68,7 @@ CONSTRAINTS
 - Leave unrelated dirty files untouched.
 - If a pre-commit hook fails and it is clearly related to these changes, fix it and make a NEW commit.
 
+[INSERT §4.14 report header line: GENPROMPT-REPORT · Repo · Branch · HEAD · Prompt · Gates · Status]
 After pushing: show the final commit message(s), the branch, the SHA(s) and the push/remote status.
 Begin with step 1.
 ```

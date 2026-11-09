@@ -59,6 +59,7 @@ STEP 4: write the doc, with this TOC:
         6. RANKED BACKLOG: {id, item, area, why it matters, effort S/M/L, source doc, dependencies}
         7. the recommended next slice (ONE pick). Describe it; do NOT build it.
 
+[INSERT §4.14 report header line: GENPROMPT-REPORT · Repo · Branch · HEAD · Prompt · Gates · Status]
 Do not create commits. Be critical; a comfortable audit is a useless one.
 Start with STEP 1 now.
 ```
