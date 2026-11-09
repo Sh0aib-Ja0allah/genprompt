@@ -192,3 +192,23 @@ explain anywhere in the order.
 - **Quality:** per case, the votes, the gated verdicts, escalation, flips both ways, explain notes
   (if any) and cost; R4 against CP7's 57b0b67 finals.
 - The running total against the cap after every step.
+
+## 7. Restart rules (after the 02a5619 L1 stop; fixed before the restart)
+
+- **Y-1 (ruling (a)):** a new candidate with LOCK-UL extended ("never name the user-level directory
+  anywhere in the output, including explanations"). The full CP8 re-runs from L1 under the
+  unchanged eval freeze `7af76de`, with the same rules and guards.
+- **Y-2: the $11.50 cap includes L1's $0.5083 on 02a5619,** so the restart starts with **$10.99
+  left**. The J6 walk in §5 shifts by $0.51 and still fits.
+  - At worst load ($3.00), $7.99 is left before slice: 4.30 fits, and investigate fits with $3.61
+    left against its 3.10.
+  - At expected load ($1.72), $9.27 is left before slice.
+  - Headroom for one escalation with explain: about $1.5 at expected load.
+- **Y-3:** the new candidate's test proves only the rule text. **The proof is CP8's privacy grep**
+  (Q-e, after every load step), not the test.
+- **Y-4 (pre-stated):** if the restart hits the real home again **only in a chat-only note** (the
+  emitted prompt, lock, card and archive all clean), **stop and report**. It goes to Shoaib with:
+  - **(a)** state it as a 1.4.0 known issue; or
+  - **(b)** a second fix.
+
+  No automatic third loop. A hit in a prompt, lock, card or archive stops under Q-e as usual.
