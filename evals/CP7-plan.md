@@ -112,6 +112,14 @@
 
   That leaves about $3.75 for escalations (about $1.3–2.0 each) and `--explain`. J6 still stops
   before any step whose cap doesn't fit what's left.
+- **V-a to V-d (Planner and Shoaib, after the card-less X4 FAIL, before card-fresh).**
+  - **V-a.** Split card-less runs into derive.md readers and non-readers. Non-readers must meet X4,
+    and the gap should be about derive.md's size. Otherwise stop.
+  - **V-b.** "Wrote the card" means every deriving run wrote it at the right by-repo path and the
+    card passes lint. Non-deriving runs with no card are recorded separately (the 1.3.0 bug).
+  - **V-c.** Card-less doesn't trigger the §4.19 remedy. It stays armed for card-fresh plan and quality.
+  - **V-d (Shoaib: GATED).** Card-fresh medians must meet the X4 limits (each case ≤ v1.3.0 stored
+    median + 2%, plan ≤ 30,615). That's in addition to X3 (C1 0/15; card-fresh < card-less per case).
 - **Pre-stated remedy (Planner).** If plan regresses on any gated grader in CP7, the remedy is
   to restore §4.19 to F (594595d removed it; the 821 B margin absorbs it), not a new patch.
 

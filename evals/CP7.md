@@ -6,6 +6,43 @@
 | Spend | **$5.7298 of $13** (re-baselines $4.6481 + CP7 card-less interrupted $0.5377 + card-less re-run $0.5440; $7.2702 left) |
 | Status | Re-baselines complete under Shoaib's X6 ruling. Every case PASSES all four gated graders 3/3 on its first run, so none escalated: 0 flips either way on both sides (X2). CP7 (candidate 2fad0fa) waits for the PE's GO |
 
+## Planner V-a / V-b (free, traces of 184529): V-a CLEAN, **V-b NOT CLEAN → STOPPED**
+
+**V-a: derive-readers vs non-readers.** The only extra rule Read in any run is derive.md.
+
+| Case | non-readers (rule bytes) | readers (rule bytes) | gap | X4 limit | non-readers vs X4 |
+|---|---|---|---|---|---|
+| slice | none (static floor 32,458) | r1–r3 37,679 | 5,221 | 33,084 | no runs; floor would pass |
+| fix | none (static floor 33,241) | r1–r3 38,462 | 5,221 | 33,882 | no runs; floor would pass |
+| redesign | r1, r2 31,899 | r3 37,120 | 5,221 | 32,514 | PASS |
+| plan | r1 29,794 | r2, r3 35,015 | 5,221 | 30,615 | PASS |
+| investigate | r1 35,016 | r2, r3 40,237 | 5,221 | 35,652 | PASS |
+
+The gap is exactly derive.md's 5,221 B in every case, so nothing else grows. Caveat: slice and fix
+have no non-reader runs, so for those two the comparison rests on the static floor.
+
+**V-b: card written and linted?** No. 0 of 11 deriving runs wrote the card (see the card-write check
+below): every probe request is `--dry-run`, so there's no card to lint.
+
+**V-b: the 4 non-deriving runs.** All four had no card: Step 0's `--where` printed
+`…/by-repo/fixture.profile.md (absent)` in each. All four still skipped derive.md. **That is the 1.3.0
+bug (no card, no derive), still present in 4 of 15 runs:**
+
+| Run | Stack-line card status the run emitted |
+|---|---|
+| investigate r1 | `card new (not written: --dry-run)`, a "new card" without reading derive.md |
+| plan r1 | `card new (dry run writes none)`, same |
+| redesign r1 | `card none (not derived this run)`, skipped deriving openly |
+| redesign r2 | `card new, not written (--dry-run)`, a "new card" without reading derive.md |
+
+So the X4 FAIL's cause is real (derive.md is read when a card is absent), but 1.3.1 doesn't apply it
+consistently. In 27% of card-less runs it claims or skips a card without the derive rules. This is a
+product finding, and it's separate from the load gate.
+
+**V-c** (recorded): card-less doesn't trigger the §4.19 remedy. It stays armed for card-fresh plan
+and for quality. **V-d** is written into CP7-plan.md. Card-fresh and quality were not run. Spend
+is unchanged at $5.7298.
+
 ## Card-write check (Shoaib: "verify, then continue"; free, traces of 184529): **STOPPED, not shown one-time**
 
 | | count |
