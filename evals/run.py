@@ -277,13 +277,20 @@ def explain_notes(results: Path, model: str, budget: float, max_total: float,
             notes.append({"case": case, "run": run, "grader": grader,
                           "error": f"skipped: ${spent:.4f} spent, cap ${max_total}"})
             continue
-        p = subprocess.run(explain_cmd(model, budget, explain_prompt(
-            rubric, final.read_text(encoding="utf-8"))), capture_output=True, text=True,
-            encoding="utf-8", errors="replace", cwd=results)
+        try:
+            p = subprocess.run(explain_cmd(model, budget, explain_prompt(
+                rubric, final.read_text(encoding="utf-8"))), capture_output=True, text=True,
+                encoding="utf-8", errors="replace", cwd=results)
+        except Exception as e:  # noqa: BLE001  Z-3: an explain failure never fails a graded case
+            notes.append({"case": case, "run": run, "grader": grader,
+                          "error": f"explain unavailable: {type(e).__name__}: {e}"[:300]})
+            continue
         try:
             res = json.loads(p.stdout)
         except json.JSONDecodeError:
             res = {"result": p.stdout[-500:], "total_cost_usd": 0}
+        if not isinstance(res, dict):
+            res = {"result": str(res)[-500:], "total_cost_usd": 0}
         spent += res.get("total_cost_usd") or 0
         notes.append({"case": case, "run": run, "grader": grader, "model": model,
                       "answer": res.get("result"), "cost_usd": res.get("total_cost_usd")})
@@ -473,8 +480,12 @@ def main() -> int:
         rows = escalate(args, out, tag, rows, agg)
     if not args.no_auto_explain and not args.controls:
         # Recommendation (5): reasons for every gated FAIL or split, verdicts unchanged.
-        auto_explain(out, args.judge_model or "haiku", args.explain_budget,
-                     args.explain_max_total)
+        try:
+            auto_explain(out, args.judge_model or "haiku", args.explain_budget,
+                         args.explain_max_total)
+        except Exception as e:  # noqa: BLE001  Z-3: verdicts are already written; keep them
+            print(f"auto-explain: explain unavailable ({type(e).__name__}: {e}); "
+                  f"verdicts unchanged")
     print(f"results: {out}")
     return 0
 

@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| Status | **For Planner and PE review, then Shoaib's cost OK.** No spend yet |
+| Status | **GO.** Shoaib approved a **$11.50 cap**, and the Planner's verdict is GO. Z-1 to Z-5 are folded in below, and **this commit is the eval freeze** |
 | Candidate | **`02a5619`**, frozen (R5). That's local main: A's three 1.4.0 items (plan headroom, LOCK-UL plus the doctor WARNs, honest card state) and the eval branches. Tools and evals suites pass. Plan floor 29,571 |
-| Eval code | **frozen (X1) at the commit that adds this file.** It's 02a5619's evals/ plus one pre-freeze fix, F-1 below. Probes and drivers run from this tree; quality grades with the candidate's own `evals/cases` |
+| Eval code | **frozen (X1) at the commit that folds in Z-1 to Z-5** (named in the report). It's 02a5619's evals/ plus two pre-freeze fixes: F-1 and Z-3. Probes and drivers run from this tree; quality grades with the candidate's own `evals/cases` |
 | Reference | CP7 on `57b0b67`: load numbers (CP7.md) and quality finals (all PASS); CP7 cost $10.56 |
 | Estimate | **about $6.0 expected with no escalation; worst case guarded at the $9.50 cap** (§5) |
 | Outside CP8 | D1–D6, the hand run (evals/D-handrun.md), with its own cost OK (Q-g) |
@@ -17,6 +17,15 @@
   - It now writes `user-level: unreadable`, which is what a sandboxed run sees.
   - Test: `SeedCardLockULTest`.
   - The card is a few bytes smaller; C2 uses the bytes recorded per run, so nothing else moves.
+- **Z-3, an explain failure never makes a graded case incomplete.**
+  - `explain_notes` catches a failed `claude -p` call and records `"explain unavailable: …"` for
+    that grader.
+  - `main()` wraps `auto_explain`: on any exception it prints `auto-explain: explain unavailable …;
+    verdicts unchanged` and still exits 0.
+  - aggregate.json, structural.json and escalation.json are written **before** auto-explain runs,
+    and it never rewrites their verdicts.
+  - Tests: an API failure logs "unavailable" with the verdicts intact; `main()` survives an
+    auto-explain exception.
 
 ## 2. Q-a: is the grading path unchanged since CP7? Yes, so CP7's finals are the v1.3.1 baseline
 
@@ -47,13 +56,17 @@ counted both ways). Stop at the first failure, INVALID or incomplete step; no re
 - **L1, card-less (`--home empty`, dry-run requests). Q-b:** limits come from v1.3.1's **deriving** runs
   only (the V-a split), median + 2%.
 
-  | Case | v1.3.1 deriving runs (bytes) | L1 limit | 1.4.0 expected (floor + derive.md about 5,310) |
-  |---|---|---|---|
-  | slice | 37,679 (r1–r3, 2fad0fa) | 38,433 | about 37,640 |
-  | fix | 38,462 (r1–r3) | 39,231 | about 38,420 |
-  | redesign | 37,120 (r3; r1, r2 skipped derive) | 37,862 | about 37,080 |
-  | plan | 35,015 (r2, r3) | 35,715 | about 34,880 |
-  | investigate | 40,616 (r1–r3, 57b0b67) | 41,428 | about 40,480 |
+  | Case | v1.3.1 deriving runs (bytes) | **n (Z-5)** | L1 limit | 1.4.0 expected (floor + derive.md about 5,310) |
+  |---|---|---|---|---|
+  | slice | 37,679 (r1–r3, 2fad0fa) | 3 | 38,433 | about 37,640 |
+  | fix | 38,462 (r1–r3) | 3 | 39,231 | about 38,420 |
+  | redesign | 37,120 (r3; r1, r2 skipped derive) | **1** | 37,862 | about 37,080 |
+  | plan | 35,015 (r2, r3) | **2** | 35,715 | about 34,880 |
+  | investigate | 40,616 (r1–r3, 57b0b67) | 3 | 41,428 | about 40,480 |
+
+  - **Z-5:** the report states n for each baseline. Redesign's limit rests on **one** deriving run
+    and plan's on **two**. The bytes were identical across deriving runs in every case (rule bytes
+    are deterministic per file set), so n affects confidence in "always derives", not the byte value.
 
   - Plan's v1.1.0 line (30,615) and investigate's R1 line (40,000) are **reported** as the stated
     first-use cost.
@@ -78,13 +91,15 @@ counted both ways). Stop at the first failure, INVALID or incomplete step; no re
   - **"card new" on the Stack line matches an actual card write in 15/15 runs**, in both directions:
     H1 (no "new" without a write) plus every write saying "new". It's read from the probe's card-write
     table;
-  - **card written 15/15** (target; PE floor ≥ 14/15, but Q-d's 15/15 match makes it effectively 15/15);
+  - **card written 15/15, gated (Z-4)**;
   - **W1:** every written card passes the candidate's card lint (doctor.py, including the LOCK-UL WARN);
   - A1 and A5 (A5 allows only the candidate's archive.py writing into the sandbox home).
   - The load numbers from L3 are reported, not gated: the request differs (no `--dry-run`).
-- **Privacy (Q-e), a standing gate on every load step.** The real-home grep (C:\, C:/ and /c/ forms,
-  plus the username) must be **0** across every emitted prompt (parts files), card, archived prompt,
-  shard and final message (lock included). **Any hit stops.**
+- **Privacy (Q-e), a standing gate, run after EACH load step (Z-1, free).** An L1 leak stops before
+  any L2 or L3 spend.
+  - The real-home grep (C:\, C:/ and /c/ forms, plus the username) must be **0** across every
+    emitted prompt (parts files), card, archived prompt, shard and final message, lock included.
+    **Any hit stops.**
   - LOCK-UL means this now includes the lock's user-level line and the grounding notes, which CP7
     left to the backlog.
 
@@ -101,18 +116,28 @@ counted both ways). Stop at the first failure, INVALID or incomplete step; no re
     **$0.60** (`--explain-max-total 0.60`). That's 2 explained graders, the most a first run can have.
   - Worst case $0.60 per case, which only happens on a case that also escalates or splits.
   - It never changes a verdict.
-- **Privacy on quality outputs (Q-e):** each final.txt names the eval's own scaffold repo, which
-  `claude plugin eval` creates under the user's temp folder (`…/AppData/Local/Temp/claude-eval-*`).
-  That is the target repo, not a leak; CP7 accepted it. Any **other** real-home hit stops.
-  **The Planner should confirm this exemption.**
+- **Privacy on quality outputs (Q-e, a narrow exemption ruled by the Planner).**
+  - Exempt: **only** the `…/AppData/Local/Temp/claude-eval-*` scaffold path, and **only where it
+    names the target repo**: the lock's Repo line, the prompt's `Repo:` line, the header's target
+    row, and path:line citations into the scaffold repo.
+  - Exempt hits are counted separately.
+  - **The username or home anywhere else stops**, including the lock or card `user-level` line and
+    the grounding notes, **even if the text there contains the scaffold path**.
 
 ## 4. Order
 
-1. L1, card-less 5×3: `--budget 0.08 --max-total 1.00`.
-2. L2, card-fresh 5×3: `--home card --cardless <L1 medians> --budget 0.08 --max-total 1.00`.
-3. L3, `--write` card-less 5×3: `--budget 0.08 --max-total 1.00`.
-4. The privacy grep over L1–L3.
-5. Quality, largest caps first, J6 before each case: slice, redesign, plan, fix, investigate.
+1. L1, card-less 5×3: `compare --cand 02a5619 --cases slice fix redesign plan investigate
+   --home empty --runs 3 --budget 0.08 --max-total 1.00`. Then the **privacy grep** (Z-1).
+2. L2, card-fresh 5×3: the same with `--home card --cardless <L1 medians>`. Then the **privacy grep**.
+3. L3, card-less 5×3 with `--write`: the same as L1 plus `--write`. Then the **privacy grep**.
+4. Quality, largest caps first, J6 before each case: slice, redesign, plan, fix, investigate.
+   Each case's command is spelled out (Z-2):
+   `evals/run.py --case <case> [--tag extra for investigate] --model claude-opus-5-5
+   --judge-model claude-opus-5-5 --max-cost-usd <first> --escalate --escalate-max-cost-usd <esc>
+   --explain-budget 0.30 --explain-max-total 0.60 --plugin <worktree at 02a5619>
+   --doctor <worktree>/tools/doctor.py`.
+   - run.py's default `--explain-max-total` is 1.00; CP8 passes 0.60.
+   - investigate's case is tagged `extra`; the default tag `baseline` matches no case (a CP7 driver slip).
 
 ## 5. Estimate and J6 walk
 
@@ -135,7 +160,11 @@ Per-case caps, first / escalation / explain, with J6 checking the sum:
 - fix 0.95 / 1.55 / 0.60 = **3.10**
 - investigate 0.95 / 1.55 / 0.60 = **3.10**
 
-**J6 walk at a $9.50 cap.** Before each case, the money left must cover that case's sum.
+**Approved cap: $11.50 (option b).** The walk below is shown at $9.50, the no-escalation floor. At
+$11.50 every "left" figure is $2.00 higher, which funds one escalation (about $1.3–2.0) and its
+explain anywhere in the order.
+
+**J6 walk at $9.50.** Before each case, the money left must cover that case's sum.
 
 | Before | spent (expected load $1.72) | left | needs | | spent (worst load $3.00) | left | needs | |
 |---|---|---|---|---|---|---|---|---|

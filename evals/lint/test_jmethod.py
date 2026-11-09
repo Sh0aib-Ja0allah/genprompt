@@ -283,6 +283,30 @@ class AutoExplainTest(unittest.TestCase):
         _, model, budget, total = ax.call_args.args
         self.assertEqual((model, budget, total), ("claude-opus-5-5", 0.30, 1.00))
 
+    def test_z3_api_failure_is_logged_and_verdicts_stay(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            self._dir(d, self.AGG)
+            esc = {"cases": {"redesign": {"final": {"rubric-grounding": "FAIL"}}}}
+            (d / "escalation.json").write_text(json.dumps(esc), encoding="utf-8")
+            with mock.patch.object(er.subprocess, "run", side_effect=OSError("api down")), \
+                    mock.patch.object(er, "claude", return_value="claude"):
+                s = er.auto_explain(d, "claude-opus-5-5", 0.3, 0.6)
+            notes = json.loads((d / "explain.json").read_text(encoding="utf-8"))
+            rep = json.loads((d / "escalation.json").read_text(encoding="utf-8"))
+        self.assertTrue(all("explain unavailable" in n["error"] for n in notes))
+        self.assertEqual((s["explained"], s["skipped"], s["cost_usd"]), (0, 2, 0.0))
+        self.assertEqual(rep["cases"], esc["cases"])
+
+    def test_z3_main_survives_an_auto_explain_exception(self):
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(er, "EVALS", Path(tmp)), \
+                mock.patch.object(er.subprocess, "run", return_value=mock.Mock(returncode=0)), \
+                mock.patch.object(er, "run_once", return_value=([row()], self.AGG)), \
+                mock.patch.object(er, "auto_explain", side_effect=RuntimeError("boom")), \
+                mock.patch.object(er.sys, "argv", ["run.py", "--case", "fix"]):
+            self.assertEqual(er.main(), 0)
+
     def test_main_opt_out_and_controls_skip_it(self):
         self._main(["--case", "fix", "--no-auto-explain"], self.AGG).assert_not_called()
         self._main(["--case", "fix", "--controls"], self.AGG).assert_not_called()
