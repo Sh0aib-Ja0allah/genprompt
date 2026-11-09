@@ -1,9 +1,73 @@
-# CP6: 1.3.0 candidate (INCOMPLETE: run 4 quality FAIL at fix, R4 rubric-grounding)
+# CP6: 1.3.0 candidate (INCOMPLETE: run 5 quality FAIL at plan, R4 rubric-scope)
 
 Total CP6 spend: run 1 $0.5596 + V4 trace $0.0047 + run 2 $0.3228 + run 3 $0.6173 + replay
 $0.0169 + run 4 card-less $0.4977 + run 4 card-fresh (interrupted) $0.4877 + run 4 card-fresh
-re-run $0.4948 + run 4 quality fix $0.4492 = **$3.4507** of the $8.50 cap (raised from $6.25,
-then $7.50, by Shoaib; $5.0493 left).
+re-run $0.4948 + run 4 quality fix $0.4492 + run 5 card-less $0.2262 + run 5 quality fix
+$0.4290 + plan $0.4729 = **$4.5788** of the $9.50 cap (raised from $6.25 to $7.50, $8.50 and
+$9.50 by Shoaib; $4.9212 left).
+
+## Run 5: candidate 94f259e (INCOMPLETE: quality FAIL at plan, R4 rubric-scope)
+
+| | |
+|---|---|
+| Candidate | `94f259e`, **frozen** (R5): c8edb15 plus A's 2b146ba (§4.6 and §4.13 restored to L and A, the L `[UNVERIFIED]` bullet, genprompt tools named bare). Floors measured: fix 33,218 · redesign 31,559 · plan 29,983 · slice 32,307 · investigate 34,825 |
+| Scope | card-less for fix and redesign only (Step 0–2 text unchanged, so card-fresh and the other load results stand from run 4), then quality on all 5 |
+| Judge (J1) | the same as CP5: `--judge-model` never set, so the CLI default haiku on Claude Code 2.1.318 both times. The rubric files are unchanged since CP5 (`git diff 483d021 94f259e`), and the per-case rubric hashes in the results match CP5's |
+| Cost | card-less $0.2262 + fix $0.4290 + plan $0.4729 = **$1.1281** |
+| Status | **INCOMPLETE, R4 FAIL at plan (rubric-scope PASS → FAIL).** redesign, slice and investigate were not run |
+
+### Step 1: card-less, fix and redesign: PASS ($0.2262)
+
+| Case | per-run rule bytes | median | v1.1.0 | v1.2.0 |
+|---|---|---|---|---|
+| fix | 38,439 33,218 33,218 | 33,218 | 53,561 | 43,475 |
+| redesign | 36,780 36,780 31,559 | 36,780 (2,534 B under v1.2.0) | 53,481 | 39,314 |
+
+A1 PASS, A5 PASS (frozen A5). redesign read derive.md in 2 of 3 runs, fix in 1.
+Trace: `C:/genprompt-probe/genprompt-probe-20261109-155300/`.
+
+### Step 2: quality (opus-5-5, plugin eval at 94f259e, vs CP5 `2026-11-08T19-07-58Z`)
+
+Each case's cap is the lower of its ~1.4× cap and $9.50 minus the running total.
+
+| Case | cap | cost | rubric-scope | rubric-grounding | cites-real | gates-exist | others |
+|---|---|---|---|---|---|---|---|
+| fix | $0.77 | $0.4290 | FAIL (FFF); CP5 FAIL (FPF): no regression | **PASS (PPP)**; CP5 PPP | PASS (26; CP5 22) | PASS (lint, start, test) | eval score 0.9 (CP5 0.9); skepticism PPP; line-length FAIL (L23 = 101); archive-valid 7/1/0 |
+| plan | $1.05 | $0.4729 | **FAIL (FFF); CP5 PASS (PPP): REGRESSION** | PASS (PPP); CP5 PPP | PASS (19; CP5 20) | PASS (lint, start, test) | eval score 0.9 (CP5 1); skepticism PPP; no-placeholders FAIL (`<n>`); line-length FAIL (L48 = 109); archive-valid 6/2/0 |
+
+- **fix passes R4.** A's restore cured the grounding regression (FFF → PPP), and the new output
+  names no `tools/archive.py`.
+- **plan fails R4 on rubric-scope**, so CP6 stops. redesign, slice and investigate were not
+  run. Results: `evals/results/2026-11-09T14-08-53Z` (fix), `…14-10-56Z` (plan).
+
+**Why plan's scope failed: offline, no spend, inference.** The scope rubric PASSES a prompt that
+"names out-of-scope items by path, ID or command", and FAILS one that "plans S-02 or S-04
+instead of S-03". What the three stored plan outputs do:
+
+| | CP5 (PPP) | CP6a-2 (PPP) | run 5 (FFF) |
+|---|---|---|---|
+| dedicated out-of-scope block | **yes**: `OUT OF SCOPE: do not start these, do not drift into them:` then "- S-02 CSV export design, because it is its own slice (ROADMAP.md:6); record interactions only." / "- S-04 multi-currency, because it is a later slice (ROADMAP.md:8)." | **yes**: "OUT of scope: S-02 CSV export and S-04 multi-currency (ROADMAP.md:6,8). Plan only where S-03 …" | **no**: S-04 appears only as a deferral ("anything further (multi-currency S-04, …) is a deferral") and in a DON'T line ("plan S-02 or S-04 work beyond naming interactions") |
+| `WHAT YOU CANNOT DO` stop-list (§4.13) | yes | yes (`WHAT YOU CANNOT DO`) | no; "STOP AND REPORT (do not fake these)" instead |
+
+- **F's block excerpt lost §4.13** (WHAT YOU CANNOT DO: the stop-list) between CP5's candidate
+  (a8ba587) and CP6a-2's (f846d85). That's the same E-09 cut A restored for L and A. It's still
+  missing at 94f259e: F's excerpt runs §4.0–4.3, 4.5–4.7, 4.14, 4.19–4.22.
+- F's template carries the out-of-scope only as one line: "Constraints: no code changes, no
+  commits, <out-of-scope areas>."
+- At CP6a-2 the model still wrote an "OUT of scope" line unprompted. This time it didn't, and the
+  out-of-scope items are scattered (a deferral sentence, a DON'T clause). For the haiku judge
+  that apparently isn't "names out-of-scope items", and it may read S-02/S-04 being mentioned in
+  phase text as planning them.
+- **Best explanation:** the same class as fix. An E-09 block cut (§4.13 for F) removed the
+  structure that reliably carried the negative scope, and the judge marks its absence.
+
+**Options for Shoaib (none taken):**
+1. Restore §4.13 to F's excerpt (and its stop-list, out-of-scope block), as A did for L and A.
+   That's a new candidate, so R5 means card-less for plan, then quality from the start.
+2. Checked offline: among the five quality cases, only F is missing §4.13. At 94f259e, D (slice)
+   has §4.6 and 4.8–4.14, X (investigate) has §4.6, 4.9 and 4.13, and A and L have §4.6 and
+   4.13. So restoring §4.13 to F is the only E-09 gap of this kind left in the CP6 set.
+3. A Planner ruling on the haiku judge (e.g. `--judge-model`), which is a rule change.
 
 ## Run 4: candidate c8edb15, probe code eea02ad (INCOMPLETE: A5 FAIL at card-less)
 
