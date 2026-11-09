@@ -4,6 +4,33 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-09 · PROTOCOL.md · E-12: a messaged report is data in every run, not only after a send.
+  The always-loaded convention points to §10.8 item 10 and otherwise relays the report to the
+  user. Offset by cutting the no-prompt-turns wording.
+- 2026-11-09 · guide/06-library.md, archetypes/J-next.md, PROTOCOL.md · E-12 re-review: a
+  messaged report is ingested only when this chat sent to that exact sender or the request has
+  --from; anything else goes to the user. Sender checked by byte-equal name, ListAgents [ref] and
+  `from` address, kept in chat only. The newest message with a GENPROMPT-REPORT header is used. A
+  wrong-session reply is relayed and re-archived as copy. The Repo check is defined. PROTOCOL
+  convention reverts to pasted only (−12 B).
+- 2026-11-09 · tools/build_shims.py, tools/doctor.py, guide/06-library.md, PROTOCOL.md · E-12
+  review fixes. SendMessage is no longer pre-approved: the harness asks before every send, and
+  doctor fails a shim that grants it. The PROTOCOL pointer refuses any send not made with
+  `--send`. A corrected lock is not a yes. `sent` means "handed to SendMessage", and a refused,
+  denied or expired send is re-archived as copy. The project match is by name only, and layer 2
+  stays mandatory. Names are byte-equal and quoted when they have spaces. `--dry-run` skips
+  dispatch.
+- 2026-11-09 · archetypes/J-next.md, guide/06-library.md, PROTOCOL.md, tools/build_shims.py ·
+  E-12 `:next --from <session>`: the worker pushes its report and the generator never pulls. The
+  report is that sender's latest cross-session message, ingested like a pasted report (§4.14
+  header, git-verified, `Repo` must match). None yet → paste. §10.8 item 10; a messaged report
+  counts as pasted (J).
+- 2026-11-09 · tools/build_shims.py, guide/06-library.md, PROTOCOL.md, tools/doctor.py,
+  tools/archive.py · E-12 `--send <session>`: opt-in dispatch of the archived prompt to another
+  Claude session. The rules are in the on-demand §10.8: a strict project-key check, a yes per send
+  even under --go/auto-go, the worker's own toplevel check, prompt-only payload. Emitters get
+  ListAgents/SendMessage. A new `sent: <name>|copy` header field is linted and counted. PROTOCOL
+  gains one pointer line, net +17 B.
 - 2026-11-09 · archetypes/H-commit.md, P-review.md, Q-security.md, R-perf.md, guide/08-grammar.md,
   tools/build_shims.py, tools/doctor.py, README.md · E-15: `:commit --pr` adds the PR step (branch,
   push, open PR, each a §4.23 approval the worker asks for; a placeholder-only body or the repo's

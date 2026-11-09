@@ -227,7 +227,7 @@ class BuildShims(unittest.TestCase):
         bs = load_build_shims()
         expected = {"plan": {"--split"}, "roadmap": {"--split"}, "review": {"--chat-only"},
                     "commit": {"--verify", "--pr"}, "security": {"--readonly-phase"},
-                    "perf": {"--readonly-phase"}}
+                    "perf": {"--readonly-phase"}, "next": {"--from"}}
         own = {f for v in bs.CMD_FLAGS.values() for f in re.findall(r"--[a-z-]+", v)}
         grammar = (ROOT / "guide" / "08-grammar.md").read_text(encoding="utf-8")
         table = grammar.split("### Per-command modifiers", 1)[1].split("Auto-go", 1)[0]
@@ -271,6 +271,28 @@ class BuildShims(unittest.TestCase):
             shim = (ROOT / "commands" / f"{cmd}.md").read_text(encoding="utf-8")
             self.assertIn("`ls -d ~ ~/.genprompt/local-rules.md` once", shim, cmd)
             self.assertNotIn("archive.py --where", shim, cmd)
+
+    # E-12: exactly the prompt-emitting commands (every archetype in ARCHETYPES, plus :auto) carry
+    # ListAgents and offer --send; no utility does. SendMessage is pre-approved nowhere, so the
+    # harness asks before every send (review HIGH). Counts come from the table, not literals.
+    def test_dispatch_grant_is_on_exactly_the_emitting_commands(self):
+        bs = load_build_shims()
+        emitters = {r.cmd for r in bs.ARCHETYPES} | {bs.ENTRY}
+        carriers = set()
+        for path in sorted((ROOT / "commands").glob("*.md")):
+            text = path.read_text(encoding="utf-8")
+            tools = re.search(r"^allowed-tools:(.*)$", text, re.M).group(1)
+            hint = re.search(r"^argument-hint:(.*)$", text, re.M).group(1)
+            granted = {t.strip() for t in tools.split(",")}
+            self.assertNotIn("SendMessage", text.split("\n---", 1)[0], path.name)
+            if "ListAgents" in granted:
+                self.assertIn("[--send <session>]", hint, path.name)
+                carriers.add(path.stem)
+            else:
+                self.assertNotIn("--send", hint, path.name)
+        self.assertEqual(carriers, emitters)
+        self.assertEqual(len(carriers), len(bs.ARCHETYPES) + 1)
+        self.assertIn("--send", bs.FLAGS_RO)
 
     def test_investigate_excerpt_has_its_blocks(self):
         # E-14: archetype X needs the defect chain, falsifiability and the findings register.

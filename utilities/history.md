@@ -21,6 +21,8 @@ Emits no worker prompt. Read-only.
    - `lock`: go / auto / accepted / corrected, with the correction rate (corrected ÷ (accepted +
      corrected); go and auto skipped the wait, so they are counted apart)
    - flag use: how many prompts carried `--go`, `--brief`, `--dry-run`, `--verbose`, `--unattended`
+   - `sent` (only prompts requested with `--send`, §10.8): sent (a session name) vs declined
+     (`copy`)
 
    Count only files whose header has `flags`, `via` or `lock`, and say how many older files predate
    the fields ("N older files predate the fields"). Don't flag those files: they are valid.

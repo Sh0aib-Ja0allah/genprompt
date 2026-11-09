@@ -236,6 +236,39 @@ class ArchiveWriter(unittest.TestCase):
         first = self.file.read_text(encoding="utf-8").splitlines()[0]
         self.assertTrue(first.endswith("| follows=- | flags=--go | via=cwd | lock=go -->"), first)
 
+    # E-12 (§10.8): `sent` is written only with --send: a delivered send records the bare session
+    # name, a declined (or non-yes) one records copy, and no --send means no field at all.
+    def test_sent_field_records_delivered_declined_or_nothing(self):
+        cases = [("s30-sent", "--send", "genprompt : Worker B", "| lock=accepted | sent=genprompt : Worker B -->"),
+                 ("s31-copy", "--go --send", "copy", "| lock=go | sent=copy -->"),
+                 ("s32-none", "-", None, "| lock=accepted -->")]
+        for slug, flags, sent, tail in cases:
+            data = parts(slug=slug, flags=flags, lock="go" if "--go" in flags else "accepted")
+            if sent is not None:
+                data["sent"] = sent
+            code, out = self.run_archive(data)
+            self.assertEqual(code, 0, out)
+            self.assertNotIn("WARN  header-vocab", out)
+            path = self.arch / "lint-demo" / f"2026-10-07-slice-{slug}.md"
+            first = path.read_text(encoding="utf-8").splitlines()[0]
+            self.assertTrue(first.endswith(tail), first)
+            if sent is None:
+                self.assertNotIn("sent=", first)
+        code, out = run_tool(DOCTOR, "--archive", home=self.home)
+        self.assertEqual(error_lines(out), [], out)
+        self.assertIn("send:  sent 1, declined 1 (of 2 --send request(s)", out)
+        self.assertIn("--send 2/3", out)
+
+    def test_sent_field_lint(self):
+        bad = [({"flags": "--send"}, "sent missing (--send was requested"),
+               ({"flags": "-", "sent": "copy"}, "sent is set but flags has no --send"),
+               ({"flags": "--send", "sent": "genprompt : Worker B [de1b13]"}, "is not a bare session name")]
+        for i, (extra, msg) in enumerate(bad):
+            code, out = self.run_archive(parts(slug=f"s4{i}-lint", **extra), "--dry-run")
+            self.assertEqual(code, 0, out)
+            self.assertIn("WARN  header-vocab", out)
+            self.assertIn(msg, out)
+
     def test_parts_on_stdin(self):
         head, rest = BODY.split("````text", 1)
         prompt, self_check = rest.split("````\n", 1)
