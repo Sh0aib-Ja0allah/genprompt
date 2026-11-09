@@ -476,14 +476,18 @@ def escalate(args, out: Path, tag: str, rows: list[dict], agg: dict) -> list[dic
         entry["final"] = {g: v["verdict"] for g, v in m.items()}
         entry["flipped_to_pass"] = [g for g in GATED
                                     if entry["first"][g] == "FAIL" and entry["final"][g] == "PASS"]
+        # X2: both directions (a grader that passed run 1 can lose the 3-run majority)
+        entry["flipped_to_fail"] = [g for g in GATED
+                                    if entry["first"][g] == "PASS" and entry["final"][g] == "FAIL"]
         report["cases"][case] = entry
     report["first_pass_cost_usd"] = first_cost
     report["escalation_cost_usd"] = sum(e.get("escalation_cost_usd", 0)
                                         for e in report["cases"].values())
     (out / "escalation.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     for case, e in report["cases"].items():
-        print(f"{case}: final {e['final']} · escalated {e['escalated']} · flipped "
-              f"{e['flipped_to_pass'] or 'none'}" + (f" · {e['error']}" if e.get("error") else ""))
+        print(f"{case}: final {e['final']} · escalated {e['escalated']} · FAIL->PASS "
+              f"{e['flipped_to_pass'] or 'none'} · PASS->FAIL {e['flipped_to_fail'] or 'none'}"
+              + (f" · {e['error']}" if e.get("error") else ""))
     return rows
 
 

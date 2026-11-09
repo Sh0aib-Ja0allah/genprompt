@@ -3,7 +3,9 @@
 | | |
 |---|---|
 | Status | **For PE and Planner review before any spend** |
-| Budget | **$11 cap** (Shoaib) for the re-baselines of v1.3.0 and v1.2.0 plus CP7. Running total starts at $0 |
+| Budget | **$13 cap** (Shoaib raised it from $11) for the re-baselines of v1.3.0 and v1.2.0 plus CP7. Running total starts at $0 |
+| Eval code | **frozen (X1)** at the commit that adds X1–X5, named in the report. It is the same for all three sides |
+| CP7 candidate | **`2fad0fa`**, frozen (R5): A's 1.3.1 (card-first Step 0, bare tool names, `{…}` slots, F headroom; plan floor 29,794) |
 | Code | evals/run.py at 5dc4c71 (`--judge-model`, debug log, `--escalate`, `--explain`; 17 tests, no spend) |
 | Baselines | v1.3.0 = `502a723`; v1.2.0 = `d584108` |
 | Candidate | A's 1.3.1 candidate, frozen when GO is given (R5) |
@@ -51,6 +53,40 @@
 - **J6. Spend guard.** A running total against $11. Before each step: if what's left can't cover
   that step's caps, stop and report before starting it.
 
+### Planner additions, fixed before any results
+
+- **X1. Eval code frozen** for all three sides at the commit that adds this section: evals/run.py,
+  evals/lint/ and evals/realuse/. Any change to them means re-running every side.
+- **X2. Flips both ways.** escalation.json records `flipped_to_pass` (FAIL on run 1, PASS in the
+  3-run majority) and `flipped_to_fail` (PASS on run 1, FAIL in the majority). Both are counted
+  and reported per side.
+- **X3. 1.3.1's own acceptance, gated in CP7.** Card-fresh 5×3 must show:
+  - **C1 at 0 of 15**: no run, whether it saw the card or not, Reads derive.md, guide/01 or
+    stack-matrix;
+  - **each case's card-fresh median strictly below its card-less median** from CP7's own
+    card-less probe.
+  - The probe prints this as check "X3".
+  - Risk, stated up front: if a case's card-less runs mostly *don't* read derive.md, its
+    card-less median is just the floor. The card-fresh median then equals it (not below), and
+    X3 fails that case on the measure rather than on a defect. Under 1.3.1's card-first Step 0
+    a card-less run is told `card … (absent)`, so it should derive. That is what X3 tests.
+- **X4. No load regression.** Each case's CP7 card-less median ≤ its v1.3.0 CP6 stored median
+  + 2%, and plan ≤ 30,615 (v1.1.0):
+
+  | Case | v1.3.0 stored median | limit |
+  |---|---|---|
+  | fix | 33,218 | 33,882 |
+  | plan | 30,059 | 30,615 (the v1.1.0 cap is tighter than +2% = 30,660) |
+  | redesign | 31,876 | 32,514 |
+  | slice | 32,435 | 33,084 |
+  | investigate | 34,953 | 35,652 |
+
+- **X5. Judge cost check.** If the first quality case's judge cost is above $0.10 (2× the
+  assumed $0.05), stop and re-estimate before the next case.
+- **X6.** Moot: Shoaib kept the v1.2.0 re-baseline and raised the cap to $13.
+- **Pre-stated remedy (Planner).** If plan regresses on any gated grader in CP7, the remedy is
+  to restore §4.19 to F (594595d removed it; the 821 B margin absorbs it), not a new patch.
+
 ## 2. Order
 
 1. Re-baseline **v1.3.0**: quality on 5 cases (J1–J2).
@@ -85,16 +121,16 @@ capped at about 2.3× expected, which caps the re-sample path per case.
 | Re-baseline v1.3.0 (5 cases) | $2.90 | +$1.0–1.6 |
 | Re-baseline v1.2.0 (4 cases) | $2.55 | +$1.0–1.6 |
 | **Re-baselines subtotal** | **$5.45** | |
-| CP7 load (card-less + card-fresh, haiku) | $0.85 (CP6 actuals: card-less $0.33–0.50, card-fresh $0.49) | — |
+| CP7 load (card-less + card-fresh incl. X3, haiku) | $0.90 (CP6 actuals: card-less $0.33–0.50, card-fresh $0.49) | — |
 | CP7 quality (5 cases) | $2.90 | +$1.0–1.6 |
-| **CP7 subtotal** | **$3.75** | |
+| **CP7 subtotal** | **$3.80** | |
 | `--explain` (only if the debug log lacks the reasoning) | $0–1.00 per side | — |
-| **Total** | **$9.20 with no escalation** | |
+| **Total** | **$9.25 with no escalation** (cap $13) | |
 
-- **$11 leaves $1.80 for escalations:** about one escalation at the expected $1.0–1.6, or none
+- **With the $13 cap (was $11): expected $9.25 leaves $3.75** for two escalations plus `--explain` on one side. (Original $11 note: about one escalation at the expected $1.0–1.6, or none
   if `--explain` is used too. CP6's history suggests about one gated FAIL per 5-case pass, so on
   expected numbers the plan fits with **one** escalation across all three sides, and two only if
-  they're cheap cases.
+  they're cheap cases.)
 - **Worst case is guarded, not funded.**
   - If every first run hits its cap: re-baselines $4.05 + $3.35, CP7 load about $1.20, CP7
     quality $4.05. That's $12.65 with no escalation, which J6 would stop before CP7's quality step.

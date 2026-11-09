@@ -118,6 +118,14 @@ class EscalateTest(unittest.TestCase):
         self.assertEqual(e["flipped_to_pass"], ["rubric-grounding"])   # O1: counted, reported
         self.assertAlmostEqual(rep["escalation_cost_usd"], 0.9)
 
+    def test_x2_pass_to_fail_flip_is_recorded(self):
+        # run 1 fails grounding (so it escalates) but passes scope; runs 2-3 fail scope
+        rep, _ = self.run_escalate([row(fail=("rubric-grounding",))],
+                                   [row(fail=("rubric-scope",)), row(fail=("rubric-scope",))])
+        e = rep["cases"]["fix"]
+        self.assertEqual(e["flipped_to_fail"], ["rubric-scope"])
+        self.assertEqual(e["flipped_to_pass"], ["rubric-grounding"])
+
     def test_fail_that_holds_stays_fail(self):
         rep, _ = self.run_escalate([row(fail=("rubric-scope",))],
                                    [row(fail=("rubric-scope",)), row()])

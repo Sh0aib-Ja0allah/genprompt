@@ -963,6 +963,17 @@ def compare(args) -> int:
             ("C2 card-fresh median (runs that saw the card) ≤ card-less median + seeded card "
              "bytes, every case", all(ok for ok, _ in gates), " · ".join(d for _, d in gates)),
         ]
+        # X3 (CP7, 1.3.1's own acceptance): C1 over all runs, card seen or not, and each case's
+        # card-fresh median strictly below its card-less median.
+        all_bad = card_bad + card_unseen_reads
+        x3 = [(case, c_med[case], cardless[case]) for case in args.cases]
+        checks.append(("X3 card-first: no card-fresh run Reads derive.md, guide/01 or "
+                       "stack-matrix (all runs), and every card-fresh median < card-less median",
+                       not all_bad and all(m < cl for _, m, cl in x3),
+                       f"forbidden Reads {len(all_bad)}/{sum(len(runs[c]['gp-cand']) for c in args.cases)}"
+                       + ("" if not all_bad else f" ({'; '.join(all_bad)})") + " · "
+                       + " · ".join(f"{c} {m:,.0f} {'<' if m < cl else '≥'} {cl:,.0f}"
+                                    for c, m, cl in x3)))
     checks.append(("A5 isolation: nothing outside the probe root returned content, no unsafe "
                    "Bash ran, no write outside the sandbox homes", not outside_bad,
                    "; ".join(outside_bad[:6]) or "every outside call was denied or harmless"))
