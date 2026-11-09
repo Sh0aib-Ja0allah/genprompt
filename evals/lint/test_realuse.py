@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -35,7 +36,10 @@ class HomeModeTest(unittest.TestCase):
         work = Path("C:/genprompt-probe/x") if run.os.name == "nt" else Path("/var/tmp/genprompt-probe/x")
         cand, base = run.deny_rules(work), run.deny_rules(work, base=True)
         self.assertNotIn("Bash", cand)
-        self.assertIn("Bash(ls:*)", cand)
+        # CP6 ruling: what the shims grant is not denied; builtins no shim grants are
+        for c in ("cd", "ls", "head", "tail", "wc", "git diff", "git grep", "git config"):
+            self.assertNotIn(f"Bash({c}:*)", cand)
+        self.assertIn("Bash(cat:*)", cand)
         self.assertNotIn("Bash(python:*)", cand)
         self.assertIn("Bash(python:*)", base)
         self.assertIn("Bash(python3:*)", base)
@@ -142,7 +146,11 @@ class DriveRootTest(unittest.TestCase):
                      + call(5, "C:/Windows", "C:/Windows/notes.md"))
             trace = work / "t.jsonl"
             trace.write_text("\n".join(lines), encoding="utf-8")
-            out = run.analyze(trace, work / "gp-cand", work)["outside"]
+            real, run.HOME = run.HOME, Path("C:/Users/nobody-here")  # tmp is under the real home
+            try:
+                out = run.analyze(trace, work / "gp-cand", work)["outside"]
+            finally:
+                run.HOME = real
         self.assertEqual(len(out), 2, out)
         self.assertIn("<other project>", out[0][2])      # call 4: a leaked name
         self.assertEqual(out[1][1], "C:/Windows")         # call 5: not a drive root, by path
@@ -210,6 +218,239 @@ class InvestigateCaseTest(unittest.TestCase):
         self.assertEqual(disc(sum(lines)), 6300)
         self.assertIn("for (let i = 1;",
                       (root / "src" / "invoice.js").read_text(encoding="utf-8").splitlines()[13])
+
+
+class ChainRuleTest(unittest.TestCase):
+    """CP6 ruling (b): a chain or pipeline is safe only if every part is safe on its own."""
+    P = "C:/genprompt-probe"
+    ARCH = "python3 C:/genprompt-probe/r/gp-cand/tools/archive.py"
+
+    def ok(self, cmd):
+        self.assertTrue(run.safe_bash(cmd, self.P), cmd)
+
+    def bad(self, cmd):
+        self.assertFalse(run.safe_bash(cmd, self.P), cmd)
+
+    def test_safe_chains(self):
+        self.ok("git branch --show-current; git branch --merged main; git rev-parse --short HEAD")
+        self.ok(f"{self.ARCH} --where 2>&1 || python C:/genprompt-probe/r/gp-cand/tools/"
+                f"archive.py --where 2>&1; cd \"C:/genprompt-probe/r/fixture\" && git log -1 "
+                f"--format=%h && ls -la")
+        self.ok('cd "C:/genprompt-probe/r/fixture" && git status --porcelain -uall && ls docs '
+                '2>/dev/null')
+        self.ok('cd "C:\\genprompt-probe\\r\\fixture" && head -3 package.json && wc -l src/cli.js')
+        self.ok("git grep -n discount -- src && git diff HEAD~1 -- src/invoice.js")
+
+    def test_safe_pipelines(self):
+        self.ok("git log --oneline | head -20")
+        self.ok(f"{self.ARCH} --where 2>&1 | head -5")
+
+    def test_unsafe_part_flags_the_chain(self):
+        self.bad(f"{self.ARCH} --where; cat ~/.gitconfig")
+        self.bad("git status; npm --version")
+        self.bad("git log && echo done")
+        self.bad("git log | tee out.txt")
+        self.bad("git ls-files | xargs wc -l")
+        self.bad("git log | sh")
+
+    def test_redirects(self):
+        self.ok("ls docs 2>/dev/null")
+        self.ok("git log -1 2>&1")
+        self.bad("git log > log.txt")
+        self.bad("git log >> log.txt")
+        self.bad("wc -l < C:/Users/x/secret.txt")
+        self.bad("git log 1>/dev/null")
+
+    def test_subshells_and_substitution(self):
+        self.bad(f"({self.ARCH} --where || python x)")
+        self.bad("ls $(git rev-parse --show-toplevel)")
+        self.bad("ls `pwd`")
+        self.bad("{ git log; }")
+        self.bad("git log &")
+
+    def test_paths_stay_inside_the_probe(self):
+        self.bad('ls "C:/Users/someone"')
+        self.bad("ls /c/Users/someone/.genprompt")
+        self.bad('cd "C:/Users/someone" && git log')
+        self.bad("head -5 C:\\Users\\someone\\.gitconfig")
+        self.bad("ls ~")
+        self.bad("ls $HOME")
+        self.bad("cd ../.. && ls")
+        self.bad("cd")             # a bare cd goes to $HOME
+        self.bad("git log --git-dir=C:/elsewhere/.git")
+        self.bad("ls C:/genprompt-probe-other")   # a sibling prefix is not the probe root
+        self.ok("ls C:/genprompt-probe/r/fixture")
+        self.ok("ls /c/genprompt-probe/r/fixture")
+
+    def test_v4_trace_commands(self):
+        # the V4 trace's chains, judged with the new rule: all safe (paths inside the probe)
+        root = "C:/genprompt-probe/genprompt-v4-20261109-094638"
+        self.ok(f"python {root}/gp-cand/tools/archive.py --where; git status --porcelain")
+        self.ok(f'cd "{root}/fixture" && git status --porcelain && ls -la && head -3 package.json')
+
+
+class BashRanTest(unittest.TestCase):
+    """CP6 ruling: "not run" is only a permission denial or the bare store-alias message."""
+
+    def test_not_run(self):
+        for t in ("Permission to use Bash with command ls ~ has been denied.",
+                  "Permission to use Bash has been denied because Claude Code is running in "
+                  "don't ask mode.",
+                  "<tool_use_error>Error: No such tool available: Bash. Bash is disabled",
+                  "ls from 'C:\\Users\\x' was blocked by a deny rule.",
+                  "Python was not found; run without arguments to install from the Microsoft "
+                  "Store, or disable this shortcut from Settings.",
+                  "Exit code 49\nPython was not found; run without arguments to install"):
+            self.assertFalse(run.bash_ran(t), t)
+
+    def test_ran(self):
+        for t in ("Python was not found; run without arguments to install\n"
+                  "home C:/genprompt-probe/x/homes/h",       # the fallback ran
+                  "File does not exist.\nREADME.md",           # no longer a pass
+                  "total 15\n-rw-r--r-- 1 a b 25 Nov 9 .gitignore",
+                  "(Bash completed with no output)"):
+            self.assertTrue(run.bash_ran(t), t)
+
+
+class HomeLeakTest(unittest.TestCase):
+    """CP6 ruling: A5 flags any tool output that names the real home."""
+    H = Path("C:/Users/someone")
+
+    def test_marks(self):
+        m = run.home_marks(self.H)
+        for s in ("c:/users/someone", "c:\\users\\someone", "/c/users/someone"):
+            self.assertIn(s, m)
+
+    def test_shows_home(self):
+        m = run.home_marks(self.H)
+        for t in ("HOME=/c/Users/someone", "C:\\Users\\someone\\.genprompt\\x.md",
+                  '{"path": "C:\\\\Users\\\\someone"}', "c:/users/someone"):
+            self.assertTrue(run.shows_home(t, m), t)
+        for t in ("C:/Users/someone-else/x", "C:/genprompt-probe/x", "~/.claude/CLAUDE.md",
+                  # the harness's own spill notice (CP6 card-less plan r3) is not a leak
+                  "<persisted-output>\nOutput too large (34KB). Full output saved to: "
+                  "C:\\Users\\someone\\.claude\\projects\\c--x\\abc\\tool-results\\t.txt"):
+            self.assertFalse(run.shows_home(t, m), t)
+        # ...but only that notice: the same path elsewhere in the output still flags
+        self.assertTrue(run.shows_home("Output too large (1KB). Full output saved to: "
+                                       "C:\\Users\\someone\\.claude\\projects\\x.txt\n"
+                                       "C:\\Users\\someone\\.genprompt\\client-a.md", m))
+
+    def test_analyze_flags_home_output(self):
+        import json
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp).resolve() / "genprompt-probe" / "run-1"
+            work.mkdir(parents=True)
+
+            def call(i, name, inp, result):
+                return [json.dumps({"type": "assistant", "message": {"content": [
+                    {"type": "tool_use", "id": f"t{i}", "name": name, "input": inp}]}}),
+                    json.dumps({"type": "user", "message": {"content": [
+                        {"type": "tool_result", "tool_use_id": f"t{i}", "content": result}]}})]
+            lines = (call(1, "Bash", {"command": "git log -1"}, "HOME=/c/Users/someone")
+                     + call(2, "Bash", {"command": "ls C:/Users/someone"},
+                            "Permission to use Bash with command ls C:/Users/someone has been "
+                            "denied.")
+                     + call(3, "Read", {"file_path": "C:/Users/someone/.genprompt/x.md"},
+                            "<tool_use_error>File is in a directory that is denied by your "
+                            "permission settings.</tool_use_error>"))
+            trace = work / "t.jsonl"
+            trace.write_text("\n".join(lines), encoding="utf-8")
+            real, run.HOME = run.HOME, self.H
+            try:
+                a = run.analyze(trace, work / "gp-cand", work)
+            finally:
+                run.HOME = real
+        bad = [x for x in a["outside"] if not x[2].startswith("denied")]
+        self.assertEqual(len(bad), 1, bad)
+        self.assertTrue(bad[0][2].startswith("SHOWS REAL HOME"))
+        self.assertNotIn("someone", bad[0][2])  # counts only, never the output
+
+
+class ValidityTest(unittest.TestCase):
+    """CP6 validity rule and V1-V3."""
+
+    def test_thresholds(self):
+        Y, n = True, False
+        ok = {c: [Y, Y, Y] for c in ("slice", "fix", "redesign", "plan")} | {"investigate": [Y, Y, n]}
+        self.assertTrue(run.card_validity(ok)["ok"])
+        twelve = {"slice": [Y, Y, n], "fix": [Y, Y, n], "redesign": [Y, Y, n],
+                  "plan": [Y, Y, Y], "investigate": [Y, Y, Y]}
+        v = run.card_validity(twelve)
+        self.assertTrue(v["ok"], v)
+        self.assertEqual((v["need_total"], v["need_case"]), (12, 2))
+        eleven = dict(twelve, plan=[Y, Y, n])
+        self.assertFalse(run.card_validity(eleven)["ok"])            # 11 of 15
+        one_case_short = dict({c: [Y, Y, Y] for c in twelve}, fix=[Y, n, n])
+        v = run.card_validity(one_case_short)                          # 13 of 15, fix 1/3
+        self.assertFalse(v["ok"])
+        self.assertIn("fix 1/3", v["detail"])
+        cp6 = {"slice": [Y, n, n], "fix": [n, n, n], "redesign": [n, n, n],
+               "plan": [n, Y, n], "investigate": [n, n, n]}
+        self.assertFalse(run.card_validity(cp6)["ok"])                 # the CP6 run: 2 of 15
+
+    def test_card_seen_from_read_or_where(self):
+        import json
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp).resolve() / "genprompt-probe" / "run-1"
+            work.mkdir(parents=True)
+            card = (work / "homes" / "h" / "generated-prompts" / "by-repo" /
+                    "fixture.profile.md").as_posix()
+
+            def trace(name, inp, result):
+                t = work / f"{name}.jsonl"
+                t.write_text("\n".join([
+                    json.dumps({"type": "assistant", "message": {"content": [
+                        {"type": "tool_use", "id": "t1", "name": name, "input": inp}]}}),
+                    json.dumps({"type": "user", "message": {"content": [
+                        {"type": "tool_result", "tool_use_id": "t1", "content": result}]}})]),
+                    encoding="utf-8")
+                real, run.HOME = run.HOME, Path("C:/Users/nobody-here")
+                try:
+                    return run.analyze(t, work / "gp-cand", work)["card_seen"]
+                finally:
+                    run.HOME = real
+            arch = (work / "gp-cand" / "tools" / "archive.py").as_posix()
+            self.assertTrue(trace("Read", {"file_path": card}, "1\t---\n2\trepo: fixture"))
+            self.assertTrue(trace("Bash", {"command": f"python {arch} --where"},
+                                  f"home {(work / 'homes' / 'h').as_posix()}\nlocal-rules x"))
+            self.assertFalse(trace("Bash", {"command": f"python {arch} --where; cd x && ls"},
+                                   f"Permission to use Bash with command python {arch} has been "
+                                   f"denied."))
+            self.assertFalse(trace("Glob", {"pattern": "*", "path": card}, card))
+
+
+class SandboxEnvTest(unittest.TestCase):
+    """CP6 ruling (a): HOME, USERPROFILE, XDG and git config point at a per-run sandbox."""
+
+    def test_env_file(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            env = run.sandbox_env(Path(tmp), "gp-cand-plan-r1")
+            script = Path(env["CLAUDE_ENV_FILE"]).read_text(encoding="utf-8")
+            prof = (Path(tmp) / "profiles" / "gp-cand-plan-r1").resolve().as_posix()
+            for k in ("HOME", "USERPROFILE", "XDG_CONFIG_HOME", "XDG_CACHE_HOME",
+                      "XDG_DATA_HOME", "GIT_CONFIG_GLOBAL"):
+                self.assertRegex(script, rf"(?m)^export {k}='?{re.escape(prof)}")
+            self.assertIn("export GIT_CONFIG_NOSYSTEM=1", script)
+            self.assertTrue((Path(prof) / run.PROFILE_MARK).is_file())
+            self.assertEqual(env["GIT_CONFIG_NOSYSTEM"], "1")
+
+    def test_isolation_helpers(self):
+        grant = run.shim_bash_grant()
+        for r in ("Bash(cd:*)", "Bash(ls:*)", "Bash(head:*)", "Bash(git status:*)"):
+            self.assertIn(r, grant)
+        self.assertTrue(run.real_home_sealed("ls from 'C:\\Users\\x' was blocked by a deny rule."))
+        self.assertTrue(run.real_home_sealed(
+            "Exit code 2\nls: cannot access 'C:/Users/x/.genprompt': No such file or directory"))
+        self.assertFalse(run.real_home_sealed("client-a\nclient-b"))
+        self.assertFalse(run.real_home_sealed("[user]\n\tname = x"))
+        self.assertTrue(run.sandbox_listing(f".\n..\n.cache\n.config\n.gitconfig\n.local\n"
+                                            f"{run.PROFILE_MARK}"))
+        self.assertFalse(run.sandbox_listing(f"{run.PROFILE_MARK}\nDesktop\nDocuments"))
+        self.assertFalse(run.sandbox_listing("Desktop\nDocuments"))
 
 
 if __name__ == "__main__":

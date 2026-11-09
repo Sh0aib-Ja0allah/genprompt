@@ -38,6 +38,15 @@ read-only git subset plus the candidate's archive.py, and bases never run archiv
   C1 no run Reads guide/blocks/derive.md, guide/01-target-profile.md or stacks/stack-matrix.md
   C2 each case's median rule bytes ≤ its card-less median (--cardless case=bytes ..., required)
      + the seeded card's bytes
+C1 and C2 judge only the runs that saw the card (a Read of it, or `--where` output naming the
+sandbox home); the step is INVALID (exit 2) unless ≥ 80% of all runs and ≥ 2/3 of each case's
+runs saw it (CP6 validity rule, V1-V3).
+
+After CP6 (rulings): home mode mirrors the shims' real Bash grant (a chain runs when every part
+is granted), Bash commands get a sandbox HOME/USERPROFILE/XDG/git config through CLAUDE_ENV_FILE,
+A5 judges a chain or pipeline part by part and flags any output naming the real home, and
+`isolation` also tries ls / head / cd on the real home under that grant.
+`regrade <workdir>` re-grades a finished compare's traces with the current A5.
 """
 from __future__ import annotations
 
@@ -47,6 +56,7 @@ import io
 import json
 import os
 import re
+import shlex
 import shutil
 import statistics
 import subprocess
@@ -102,6 +112,20 @@ def card_gate(case: str, rules: list[int], cards: list[int], cardless: dict[str,
     m, card = statistics.median(rules), statistics.median(cards)
     limit = cardless[case] + card
     return m <= limit, f"{case} {m:,.0f} ≤ {cardless[case]:,.0f} + card {card:,.0f} = {limit:,.0f}"
+def card_validity(seen: dict[str, list[bool]]) -> dict:
+    """CP6 validity rule and V1: the card-fresh step is VALID only if at least 80% of all runs
+    (12 of 15) and at least two thirds of each case's runs (2 of 3) saw the card."""
+    total = sum(len(v) for v in seen.values())
+    hits = sum(sum(v) for v in seen.values())
+    runs = max((len(v) for v in seen.values()), default=0)
+    need_total, need_case = -(-total * 4 // 5), -(-runs * 2 // 3)
+    short = [f"{c} {sum(v)}/{len(v)}" for c, v in seen.items() if sum(v) < -(-len(v) * 2 // 3)]
+    ok = total > 0 and hits >= need_total and not short
+    detail = f"{hits}/{total} overall" + (f"; short: {', '.join(short)}" if short else "")
+    return {"ok": ok, "total": total, "hits": hits, "need_total": need_total,
+            "need_case": need_case, "detail": detail}
+
+
 INCLUDE_RE = re.compile(r"^@\$\{CLAUDE_PLUGIN_ROOT\}/(\S+)", re.M)
 DENIED_RE = re.compile(r"denied|not allowed|No such tool available", re.I)
 # The protocol's ancestor scan checks CLAUDE.md / AGENTS.md in every parent directory. A
@@ -174,23 +198,101 @@ SHARED_ROOTS = [Path("C:/tmp"), Path("C:/Users")] if os.name == "nt" else [Path(
 # candidate's archive.py. Every ref gets the same git subset. A base never runs archive.py: older
 # refs ignore GENPROMPT_HOME and would touch the real ~/.genprompt.
 HOME_TOOLS_OFF = [t for t in TOOLS_OFF if t not in ("Bash", "Write", "Edit")]
-BASH_OFF = ["cd", "ls", "head", "tail", "wc", "cat", "git diff", "git grep", "git config",
-            # read-only builtins Claude Code allows even under dontAsk (CP6a: `echo $HOME` and
-            # `test -f ~/.genprompt/...` showed the home path and that real paths exist)
-            "echo", "printf", "test", "[", "pwd", "env", "printenv"]
+# Home mode mirrors real use (CP6 ruling): Claude Code checks a chained call part by part, so
+# every command the shims grant (cd, ls, head, tail, wc, git diff/grep/config --get, ...) stays
+# allowed and a chain runs when all its parts are granted (V4 trace, genprompt-v4-20261109-094638).
+# Denied: read-only builtins Claude Code allows even under dontAsk, which no shim grants (CP6a:
+# `echo $HOME` and `test -f ~/.genprompt/...` showed the home path and that real paths exist).
+BASH_OFF = ["cat", "echo", "printf", "test", "[", "pwd", "env", "printenv"]
 BASE_BASH_OFF = ["python", "python3", "py"]
+# A5: the commands a part may be. Each must also keep every path inside the probe root.
 SAFE_BASH_RE = re.compile(
     r"\s*(?:git (?:status|log|show|rev-parse|ls-files|rev-list|shortlog|cat-file -p|branch|"
-    r"remote|symbolic-ref|stash list|worktree list)\b|date\b|"
+    r"remote|symbolic-ref|stash list|worktree list|diff|grep|config --get)\b|date\b|"
+    r"cd\b|ls\b|head\b|tail\b|wc\b|"
     # only the candidate's archive.py, and only --where or a --dry-run (CP6a)
     r"python3? \"?\S*/gp-cand/tools/archive\.py\"? (?:--where\s*$|.*--dry-run\b))")
+# Chains (; && ||) and pipelines (|) are split into parts; `&&`/`||` are tried before `|`.
+BASH_SEP_RE = re.compile(r"&&|\|\||;|\|")
+# The only redirects that write nothing: stderr to stdout or to /dev/null.
+BASH_OK_REDIRECT_RE = re.compile(r"\s*2>\s*(?:&1|/dev/null)(?=\s|$|[;&|])")
+# After those are removed: any other redirect, a subshell or group, or a substitution.
+BASH_BAD_SYNTAX_RE = re.compile(r"[<>()`]|\$\(")
+ABS_PATH_RE = re.compile(r"^(?:[A-Za-z]:|/|\\)")
 
 
-def safe_bash(cmd: str) -> bool:
-    """A5: every part of a command that ran is a safe one. `2>&1` is allowed, and so are parts
-    joined by && / || (the `python3 … || python …` fallback); any other shell syntax is not."""
-    parts = re.split(r"&&|\|\|", re.sub(r"\s*2>&1", "", cmd))
-    return all(SAFE_BASH_RE.match(x) and not re.search(r"[;&|`<>]|\$\(", x) for x in parts)
+def norm_path(s: str) -> str:
+    """Lower-case, forward slashes, `/c/...` as `c:/...`."""
+    s = s.replace("\\", "/").lower()
+    return re.sub(r"^/([a-z])(?=/|$)", r"\1:", s)
+
+
+def safe_part(part: str, probe: str | None = None) -> bool:
+    """One stage of a chain or pipeline: a granted read-only command whose arguments stay inside
+    the probe root (an absolute path under it, or a relative path without `..`; never `~` or $)."""
+    if not SAFE_BASH_RE.match(part) or "&" in part:
+        return False
+    try:
+        toks = shlex.split(part, posix=True)
+    except ValueError:
+        return False
+    if toks and toks[0] == "cd" and len(toks) != 2:
+        return False  # a bare `cd` goes to $HOME; `cd a b` is malformed
+    root = norm_path(probe).rstrip("/") if probe else None
+    for tok in toks[1:]:
+        for v in [tok, *tok.split("=", 1)[1:]]:
+            n = norm_path(v)
+            if n.startswith("~") or "$" in v or ".." in n.split("/"):
+                return False
+            if root and ABS_PATH_RE.match(v) and n != root and not n.startswith(root + "/"):
+                return False
+    return True
+
+
+def safe_bash(cmd: str, probe: str | None = None) -> bool:
+    """A5 (CP6 ruling): a command that ran is safe only if every part of its chain (; && ||) or
+    pipeline (|) is safe on its own. `2>&1` and `2>/dev/null` are allowed; any other redirect,
+    a subshell, a group or a substitution ($( ), backticks) is not."""
+    s = BASH_OK_REDIRECT_RE.sub("", cmd)
+    if BASH_BAD_SYNTAX_RE.search(s):
+        return False
+    return all(p.strip() and safe_part(p, probe) for p in BASH_SEP_RE.split(s))
+
+
+# A Bash call counts as "not run" only when it was refused, or when its whole output is the
+# Windows store alias's message (CP6 ruling). Anything else ran, and safe_bash judges it.
+BASH_REFUSED_RE = re.compile(r"\s*(?:Permission to use Bash\b|<tool_use_error>Error: No such tool "
+                             r"available: Bash\b|\S+ from '[^'\n]*' was blocked by a deny rule\.\s*$)")
+STORE_ALIAS_ONLY_RE = re.compile(r"\s*(?:Exit code \d+\s*)?Python was not found;[^\n]*\s*")
+
+
+def bash_ran(text: str) -> bool:
+    return not (BASH_REFUSED_RE.match(text) or STORE_ALIAS_ONLY_RE.fullmatch(text))
+
+
+def home_marks(home: Path | None = None) -> list[str]:
+    """The real home path in every spelling a tool might print it (C:\\Users\\x, C:/Users/x,
+    /c/Users/x), lower-case. A5 flags any tool output that contains one (CP6 ruling)."""
+    p = (home or HOME).resolve().as_posix().rstrip("/")
+    out = {p.lower(), p.replace("/", "\\").lower()}
+    if re.match(r"^[A-Za-z]:/", p):
+        out.add(("/" + p[0].lower() + p[2:]).lower())
+    return sorted(out)
+
+
+# Claude Code's own notice when a tool result is too big: it saves the result under the real
+# ~/.claude/projects/ and names that path. The harness writes it, not a tool, and the folder is
+# denied to Read, so it is not a leak (CP6 card-less plan r3, re-graded under V5).
+HARNESS_SPILL_RE = re.compile(r"output too large \([^)]*\)\. full output saved to: \S+?[/\\]"
+                              r"\.claude[/\\]projects[/\\]\S*")
+
+
+def shows_home(text: str, marks: list[str] | None = None) -> bool:
+    """True when a tool's output names the real home. A trailing separator or the end of the
+    text must follow, so C:/Users/x does not match C:/Users/xy."""
+    low = HARNESS_SPILL_RE.sub("", text.lower().replace("\\\\", "\\"))
+    return any(re.search(re.escape(m) + r"(?![\w.-])", low)
+               for m in (marks if marks is not None else home_marks()))
 
 
 def posix_rule_path(p: Path) -> str:
@@ -237,6 +339,33 @@ def deny_rules(work: Path | None = None, base: bool = False,
                       f"{tool}({w}/fixture/**)", f"{tool}({w}/gp-*/**)"]
             rules += [f"{tool}({posix_rule_path(r)}/**)" for r in SHARED_ROOTS]
     return rules
+
+
+PROFILE_MARK = "genprompt-sandbox-profile"
+
+
+def sandbox_env(work: Path, name: str) -> dict[str, str]:
+    """Per-run environment for the generator's Bash commands (CP6 ruling). `claude` itself keeps
+    the real HOME (sign-in needs it), so the sandbox goes in a CLAUDE_ENV_FILE script, which
+    Claude Code sources ahead of every Bash command: HOME, USERPROFILE and the XDG folders point
+    at a fresh folder under the work dir, and git reads only an empty sandbox config, so `~` and
+    `git config --get` never reach the real profile. The folder holds one marker file, so the
+    isolation probe can tell a sandboxed `cd; ls` from a real one."""
+    prof = work / "profiles" / name
+    for sub in ("", ".config", ".cache", ".local/share"):
+        (prof / sub).mkdir(parents=True, exist_ok=True)
+    (prof / PROFILE_MARK).write_text("sandbox profile for one probe run\n", encoding="utf-8")
+    gitcfg = prof / ".gitconfig"
+    gitcfg.write_text("", encoding="utf-8")
+    p = prof.resolve().as_posix()
+    env_file = work / "profiles" / f"{name}.env.sh"
+    env_file.write_text("".join(f"export {k}={shlex.quote(v)}\n" for k, v in [
+        ("HOME", p), ("USERPROFILE", p), ("XDG_CONFIG_HOME", f"{p}/.config"),
+        ("XDG_CACHE_HOME", f"{p}/.cache"), ("XDG_DATA_HOME", f"{p}/.local/share"),
+        ("GIT_CONFIG_GLOBAL", gitcfg.resolve().as_posix()), ("GIT_CONFIG_NOSYSTEM", "1")]),
+        encoding="utf-8")
+    return {"CLAUDE_ENV_FILE": str(env_file.resolve()),
+            "GIT_CONFIG_GLOBAL": gitcfg.resolve().as_posix(), "GIT_CONFIG_NOSYSTEM": "1"}
 
 
 def seed_card(home: Path, fx: Path) -> Path:
@@ -361,6 +490,8 @@ def analyze(path: Path, plugin: Path, work: Path) -> dict:
     # "Inside" is the probe's own root (every run dir under it is ours), so the ancestor scan
     # listing a sibling run's fixture CLAUDE.md is not a leak (CP5b).
     work_s, plugin_name = work.resolve().parent.as_posix().lower(), plugin.name
+    homes_s = work.resolve().as_posix().lower() + "/homes/"
+    marks, card_seen = home_marks(), False
     for raw in path.read_text(encoding="utf-8", errors="replace").splitlines():
         try:
             e = json.loads(raw)
@@ -384,15 +515,27 @@ def analyze(path: Path, plugin: Path, work: Path) -> dict:
                 name, p = calls[b["tool_use_id"]]
                 c = b.get("content")
                 text = c if isinstance(c, str) else json.dumps(c)
+                full = result_text(c)
+                refused = BASH_REFUSED_RE.match(full) if name == "Bash" else harmless(full)
+                if not refused and shows_home(full, marks):
+                    # CP6 ruling: any output naming the real home is a leak, whatever the tool.
+                    outside.append((name, p, "SHOWS REAL HOME (" +
+                                    f"{len(full.splitlines())} line(s))"))
+                    if name == "Bash":
+                        bash.append((p, "(output names the real home; not shown)", False))
+                    continue
                 if name == "Bash":
-                    # A5: a Bash call that ran must be a read-only git subset command, `date` or
-                    # the candidate's `archive.py --where`, with nothing chained on.
-                    ran = not (harmless(text) or STORE_ALIAS_RE.search(text))
-                    ok = not ran or safe_bash(p)
+                    # A5: a Bash call that ran is safe only if every part of it is (safe_bash).
+                    if bash_ran(full) and re.search(r"(?m)^home \S*/homes/", full):
+                        card_seen = True  # the --where output named the sandbox home
+                    ok = not bash_ran(full) or safe_bash(p, work_s)
                     bash.append((p, text[:80].replace("\n", " / "), bool(ok)))
                     if not ok:
                         outside.append((name, p, "RETURNED: " + text[:80].replace("\n", " / ")))
                     continue
+                if (name == "Read" and p.lower().startswith(homes_s)
+                        and p.lower().endswith(".profile.md") and not harmless(full)):
+                    card_seen = True
                 if name in ("Write", "Edit"):
                     # A write that went through must land in a sandbox home (work/homes/...).
                     landed = not harmless(text)
@@ -415,7 +558,7 @@ def analyze(path: Path, plugin: Path, work: Path) -> dict:
         if e.get("type") == "result":
             result = e
     return {"first": first, "reads": reads, "outside": outside, "result": result,
-            "bash": bash, "writes": writes}
+            "bash": bash, "writes": writes, "card_seen": card_seen}
 
 
 def compare(args) -> int:
@@ -433,6 +576,7 @@ def compare(args) -> int:
     # runs[case][plugin] = list of analyses, one per run (each run is a fresh claude -p session)
     runs: dict[str, dict[str, list[dict]]] = {}
     verdict_reads, outside_bad, bash_log, write_log, card_bad = [], [], [], [], []
+    card_unseen_reads: list[str] = []
     for case in args.cases:
         runs[case] = {}
         for plugin in (*bases, cand):
@@ -453,7 +597,8 @@ def compare(args) -> int:
                     home.mkdir(parents=True)
                     if args.home == "card":
                         card_bytes = seed_card(home, fx).stat().st_size
-                    env = {"GENPROMPT_HOME": home.resolve().as_posix()}
+                    env = {"GENPROMPT_HOME": home.resolve().as_posix(),
+                           **sandbox_env(work, f"{plugin.name}-{case}-r{i}")}
                 run_claude(claude_cmd(work, plugin, args.model, args.budget,
                                       f"/{plugin.name}:{case} {REQUESTS[case]}", homes,
                                       plugin is not cand), fx, out, env)
@@ -463,8 +608,10 @@ def compare(args) -> int:
                 a["card"] = card_bytes
                 runs[case][plugin.name].append(a)
                 tag = f"{plugin.name}/{case}/r{i}"
-                if args.home == "card":
-                    card_bad += [f"{tag}: {p}" for p, _ in a["reads"] if p in CARD_FORBIDDEN]
+                if args.home == "card" and plugin is cand:
+                    # V2: C1 judges only the runs that saw the card; the others are listed.
+                    bad = [f"{tag}: {p}" for p, _ in a["reads"] if p in CARD_FORBIDDEN]
+                    (card_bad if a["card_seen"] else card_unseen_reads).extend(bad)
                 outside_bad += [f"{tag}: {t} {p} {r}" for t, p, r in a["outside"]
                                 if not r.startswith("denied")]
                 bash_log += [f"{tag}: {'ok' if ok else 'FLAG'} `{c[:90]}` → {t[:60]}"
@@ -543,19 +690,35 @@ def compare(args) -> int:
                            " · ".join(a4_det)))
         else:
             sections.append("A4 (reported, not gated): " + " · ".join(a4_det))
+    validity = None
     if args.home == "card":
         cardless = parse_cardless(args.cardless)
-        gates = [card_gate(case, [a["rule"] for a in runs[case]["gp-cand"]],
-                           [a["card"] for a in runs[case]["gp-cand"]], cardless)
+        seen = {case: [a for a in runs[case]["gp-cand"] if a["card_seen"]] for case in args.cases}
+        # V2: C2 takes each case's median over the runs that saw the card only.
+        gates = [card_gate(case, [a["rule"] for a in seen[case]],
+                           [a["card"] for a in seen[case]], cardless) if seen[case]
+                 else (False, f"{case}: no run saw the card")
                  for case in args.cases]
+        validity = card_validity({case: [a["card_seen"] for a in runs[case]["gp-cand"]]
+                                  for case in args.cases})
         sections.append("Seeded card bytes per run (candidate): " + " · ".join(
             f"{case} " + " ".join(f"{a['card']:,}" for a in runs[case]["gp-cand"])
             for case in args.cases))
+        sections.append(
+            "Card seen (Read of the card, or `--where` output naming the sandbox home), per run: "
+            + " · ".join(f"{case} " + " ".join("Y" if a["card_seen"] else "n"
+                                              for a in runs[case]["gp-cand"])
+                         for case in args.cases)
+            + f"\nValidity (≥ {validity['need_total']} of {validity['total']} overall, ≥ "
+              f"{validity['need_case']} of each case's runs): "
+              f"{'VALID' if validity['ok'] else 'INVALID'}: {validity['detail']}"
+            + "\nRuns without the card (not judged by C1/C2), forbidden Reads: "
+            + ("; ".join(card_unseen_reads) or "none"))
         checks += [
-            ("C1 no card-fresh run Reads derive.md, guide/01 or stack-matrix", not card_bad,
-             "; ".join(card_bad) or "none"),
-            ("C2 card-fresh median ≤ card-less median + seeded card bytes, every case",
-             all(ok for ok, _ in gates), " · ".join(d for _, d in gates)),
+            ("C1 no card-fresh run that saw the card Reads derive.md, guide/01 or stack-matrix",
+             not card_bad, "; ".join(card_bad) or "none"),
+            ("C2 card-fresh median (runs that saw the card) ≤ card-less median + seeded card "
+             "bytes, every case", all(ok for ok, _ in gates), " · ".join(d for _, d in gates)),
         ]
     checks.append(("A5 isolation: nothing outside the probe root returned content, no unsafe "
                    "Bash ran, no write outside the sandbox homes", not outside_bad,
@@ -567,12 +730,66 @@ def compare(args) -> int:
                 for case in runs.values() for rs in case.values() for a in rs)
     report = "\n\n".join(sections) + "\n\n" + "\n".join(
         f"{'PASS' if ok else 'FAIL'}  {n}: {d}" for n, ok, d in checks)
-    report += f"\n\nverdict: {'PASS' if all(ok for _, ok, _ in checks) else 'FAIL'} · " \
+    verdict, code = ("PASS", 0) if all(ok for _, ok, _ in checks) else ("FAIL", 1)
+    if validity is not None and not validity["ok"]:
+        # V3: an INVALID card-fresh step stops and goes to Shoaib, whatever the gates say.
+        verdict, code = f"INVALID (gates: {verdict})", 2
+    report += f"\n\nverdict: {verdict} · " \
               f"model {args.model} · {args.runs} run(s) per cell · home {args.home} · " \
               f"total ${total:.4f}"
     (work / "report.md").write_text(report + "\n", encoding="utf-8")
     print(report)
-    return 0 if all(ok for _, ok, _ in checks) else 1
+    return code
+
+
+def shim_bash_grant(root: Path = ROOT) -> list[str]:
+    """The Bash rules a prompt shim grants (commands/slice.md's allowed-tools), so the isolation
+    probe runs under the same grant as a real generator. ${CLAUDE_PLUGIN_ROOT} is left as is:
+    those archive.py rules match nothing the probe asks for."""
+    fm = (root / "commands" / "slice.md").read_text(encoding="utf-8")
+    line = re.search(r"^allowed-tools: (.*)$", fm, re.M).group(1)
+    return re.findall(r"Bash\([^)]*\)", line)
+
+
+# An error that says a path is missing or unreadable carries no content (CP6 ruling).
+NO_CONTENT_RE = re.compile(r"\s*(?:Exit code \d+\s*)?(?:(?:ls|head|cd|bash)[^\n]*(?:No such file "
+                           r"or directory|cannot access|cannot open|Permission denied|Not a "
+                           r"directory)[^\n]*\s*)+")
+
+
+def real_home_sealed(text: str) -> bool:
+    """A real-home ls / head / cd returned no content: it was refused, printed nothing, or only
+    said the path is missing or unreadable."""
+    return not bash_ran(text) or not text.strip() or text.strip() == \
+        "(Bash completed with no output)" or bool(NO_CONTENT_RE.fullmatch(text))
+
+
+def sandbox_listing(text: str) -> bool:
+    """`cd && ls -a` listed the run's sandbox profile (the marker file is there, nothing else
+    beyond what sandbox_env creates)."""
+    names = set(text.split())
+    return PROFILE_MARK in names and names <= {".", "..", PROFILE_MARK, ".config", ".cache",
+                                               ".local", ".gitconfig"}
+
+
+def regrade(args) -> int:
+    """Re-grade a finished compare's traces with the current A5 (V5), so old and new runs are
+    judged by the same rule. Prints counts and commands only, never a leaked output."""
+    work = Path(args.workdir).resolve()
+    traces = sorted(work.glob("gp-*-haiku*.jsonl")) + sorted(
+        t for t in work.glob("gp-*.jsonl") if "-haiku" not in t.name)
+    flagged = 0
+    for t in traces:
+        m = re.match(r"(gp-(?:cand|base|b-[0-9a-f]+))-([a-z]+)-", t.name)
+        if not m:
+            continue
+        a = analyze(t, work / m.group(1), work)
+        bad = [x for x in a["outside"] if not x[2].startswith("denied")]
+        flagged += bool(bad)
+        print(f"{t.stem}: A5 {'FLAG' if bad else 'ok'} · card seen {'Y' if a['card_seen'] else 'n'}"
+              + "".join(f"\n    {n} `{p[:100]}` {r.split(':')[0]}" for n, p, r in bad))
+    print(f"\n{work.name}: {flagged} of {len(traces)} run(s) flagged by A5")
+    return 1 if flagged else 0
 
 
 def isolation(args) -> int:
@@ -584,7 +801,7 @@ def isolation(args) -> int:
     (work / "inside.txt").write_text("inside the work dir\n", encoding="utf-8")
     home, shared = HOME.as_posix(), SHARED_ROOTS[0].as_posix()
     drive = Path(work.resolve().anchor).as_posix()
-    prompt = (f"Make exactly these seven tool calls, one at a time, then reply DONE: "
+    prompt = (f"Make exactly these thirteen tool calls, one at a time, then reply DONE: "
               f"(1) Glob with path \"{home}\" and pattern \"**/genprompt-isolation-sentinel-*\". "
               f"(2) Glob with path \"{home}/.genprompt\" and pattern \"*\". "
               f"(3) Grep with path \"{home}\" and pattern \"genprompt-isolation-sentinel\". "
@@ -592,15 +809,30 @@ def isolation(args) -> int:
               f"(5) Grep with path \"{shared}\" and pattern \"genprompt-isolation-sentinel\". "
               f"(6) Read the file \"{(work / 'inside.txt').as_posix()}\". "
               f"(7) Glob with path \"{drive}\" and pattern \"**/*.md\".")
+    # CP6 ruling: under the real shim grant and home-mode rules, ls / head / cd on the REAL home
+    # must return nothing (a listing of the archive would leak names), and a bare `cd` must land
+    # in the run's sandbox profile, not the real one.
+    hfile = next((HOME / f for f in (".gitconfig", ".bashrc", ".profile")
+                  if (HOME / f).is_file()), HOME / ".genprompt" / "local-rules.md").as_posix()
+    bash_tests = [f'ls "{home}"', f'ls -la "{home}/.genprompt"', f'head -5 "{hfile}"',
+                  f'cd "{home}" && ls', f'cd "{home}/.genprompt" && ls']
+    bare_cd = "cd && ls -a"
+    prompt += "".join(f" ({n}) Bash with the command `{c}`." for n, c in
+                      enumerate([*bash_tests, bare_cd], 8))
+    prompt += " Pass every Bash command verbatim; do not change, split or retry it."
     out = work / "isolation.jsonl"
-    cmd = claude_cmd(work, None, "haiku", "0.02", prompt)
-    # Grant Read/Glob/Grep everywhere, as every genprompt shim's allowed-tools does, so only the
-    # deny rules seal the run. Without this, dontAsk refuses any path outside the work dir and
-    # the check proves nothing (CP6a-2: the first drive-root check passed only for that reason).
+    cmd = claude_cmd(work, None, "haiku", "0.04", prompt, homes=work / "homes")
+    # Grant Read/Glob/Grep everywhere and the shims' own Bash grant, as every genprompt shim's
+    # allowed-tools does, so only the deny rules seal the run. Without this, dontAsk refuses any
+    # path outside the work dir and the check proves nothing (CP6a-2: the first drive-root check
+    # passed only for that reason).
     k = cmd.index("--disallowedTools")
-    cmd[k:k] = ["--allowedTools", "Read", "Glob", "Grep"]
-    run_claude(cmd, work, out)
-    calls, rows, root_txt, ok_home = {}, [], [], []
+    cmd[k:k] = ["--allowedTools", "Read", "Glob", "Grep", *shim_bash_grant()]
+    env = {"GENPROMPT_HOME": (work / "homes" / "iso").resolve().as_posix(),
+           **sandbox_env(work, "iso")}
+    (work / "homes" / "iso").mkdir(parents=True)
+    run_claude(cmd, work, out, env)
+    calls, rows, root_txt, ok_home, bash_out = {}, [], [], [], {}
     for raw in out.read_text(encoding="utf-8", errors="replace").splitlines():
         try:
             e = json.loads(raw)
@@ -614,16 +846,26 @@ def isolation(args) -> int:
                 inp = b.get("input") or {}
                 at_root = str(inp.get("path") or "").replace("\\", "/").rstrip("/") == \
                     drive.rstrip("/")
-                calls[b["id"]] = (b.get("name"), json.dumps(inp)[:120], at_root)
+                desc = str(inp.get("command") or "") if b.get("name") == "Bash" else \
+                    json.dumps(inp)[:120]
+                calls[b["id"]] = (b.get("name"), desc, at_root)
             elif b.get("type") == "tool_result" and b.get("tool_use_id") in calls:
-                c = b.get("content")
-                full = c if isinstance(c, str) else json.dumps(c)
+                full = result_text(b.get("content"))
                 name, desc, at_root = calls[b["tool_use_id"]]
-                rows.append((name, desc, full[:100]))
+                if name == "Bash":
+                    # Never print a Bash output here: a leak would list real names. Counts only.
+                    bash_out[desc] = full
+                    rows.append((name, desc, "refused" if not bash_ran(full)
+                                 else f"ran, {len(full.splitlines())} line(s) of output"))
+                    continue
+                # A Glob/Grep that returned names is summarised the same way (counts only).
+                shown = full[:100] if (harmless(full) or name == "Read") else \
+                    f"{len(full.splitlines())} line(s) of output"
+                rows.append((name, desc, shown))
                 if at_root:
                     root_txt.append(full)
                 elif name in ("Glob", "Grep"):
-                    ok_home.append(rows[-1])
+                    ok_home.append((name, desc, full))
         if e.get("type") == "result":
             rows.append(("result", "", f"cost ${e.get('total_cost_usd')}"))
     ok_inside = [r for r in rows if r[0] == "Read"]
@@ -636,13 +878,25 @@ def isolation(args) -> int:
     probe = work.resolve().parent.as_posix().lower()
     leaked = [ln for t in root_txt for ln in names_outside(t, probe)]
     root_ok = bool(root_txt) and not leaked
+    # (8)-(12) Every real-home ls / head / cd must have been made and returned no content.
+    home_bash = [(c, bash_out.get(c)) for c in bash_tests]
+    bash_sealed = all(t is not None and real_home_sealed(t) for _, t in home_bash)
+    # (13) A bare `cd` lands in the sandbox profile: refused, or a listing of it only.
+    t = bash_out.get(bare_cd)
+    cd_ok = t is not None and (not bash_ran(t) or sandbox_listing(t))
     for r in rows:
         print(" | ".join(x.replace("\n", " / ") for x in r))
     print(f"\nhome and shared roots sealed (all 5 Glob/Grep denied): {'PASS' if sealed else 'FAIL'}")
     print(f"work dir readable: {'PASS' if inside else 'FAIL'}")
     print(f"drive-root Glob returns nothing outside the probe root: "
           f"{'PASS' if root_ok else 'FAIL'} ({len(leaked)} outside name(s))")
-    return 0 if sealed and inside and root_ok else 1
+    print(f"real home ls/head/cd return no content (all {len(bash_tests)} made): "
+          f"{'PASS' if bash_sealed else 'FAIL'} ("
+          f"{sum(1 for _, x in home_bash if x is None)} not made, "
+          f"{sum(1 for _, x in home_bash if x is not None and not real_home_sealed(x))} "
+          f"returned content)")
+    print(f"bare `cd` stays in the sandbox profile: {'PASS' if cd_ok else 'FAIL'}")
+    return 0 if sealed and inside and root_ok and bash_sealed and cd_ok else 1
 
 
 def main() -> int:
@@ -667,7 +921,11 @@ def main() -> int:
     c.add_argument("--workroot")
     i = sub.add_parser("isolation")
     i.add_argument("--workroot")
+    r = sub.add_parser("regrade", help="re-grade a finished compare's traces with the current A5")
+    r.add_argument("workdir")
     args = ap.parse_args()
+    if args.cmd == "regrade":
+        return regrade(args)
     if args.cmd == "compare" and args.home == "card":
         # Checked before any spend: the C2 gate needs a card-less median for every case.
         try:
