@@ -71,10 +71,12 @@ DOCTOR = ", ".join(f"Bash({py} {q}{PLUGIN_ROOT}/tools/doctor.py{q}:*)"
 # ~/.genprompt and runs doctor's per-file lint itself, so no separate doctor --prompt grant.
 ARCHIVE = ", ".join(f"Bash({py} {q}{PLUGIN_ROOT}/tools/archive.py{q}:*)"
                     for py in ("python3", "python") for q in ("", '"'))
-# Dispatch (E-12, §10.8): `--send <session>` delivers the archived prompt to another Claude session,
-# so only the commands that emit a prompt (the archetype shims and the entry point) get these two
-# tools, appended like ARCHIVE. They write nothing; the yes per send is a protocol rule (§10.8).
-DISPATCH = "ListAgents, SendMessage"
+# Dispatch (E-12, §10.8): `--send <session>` delivers the archived prompt to another Claude session.
+# Only the commands that emit a prompt (the archetype shims and the entry point) get ListAgents,
+# appended like ARCHIVE, to resolve the target. SendMessage is deliberately NOT pre-approved anywhere:
+# the harness asks the user before every send, so the yes never rests on the model alone, even if
+# a request in words or text in a repo asks for a send (doctor --suite fails a shim that grants it).
+DISPATCH = "ListAgents"
 EXTRA_TOOLS = {
     "doctor": f", {DOCTOR}",
     "learn": "",

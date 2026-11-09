@@ -229,8 +229,11 @@ def check_suite() -> None:
 # file; :learn only its personal rules; :profile only the card; every other command writes nothing.
 WRITE_BOUNDARY_EMIT = ("generated-prompts/**", "tmp/**")
 WRITE_BOUNDARY = {"learn": ("local-rules.md",), "profile": ("generated-prompts/by-repo/**",)}
-# E-12: the dispatch tools (§10.8, `--send`) belong to the prompt-emitting commands only.
-DISPATCH_TOOLS = {"ListAgents", "SendMessage"}
+# E-12 (§10.8, `--send`): the prompt-emitting commands carry ListAgents to resolve a target; no
+# command pre-approves SendMessage, so the harness asks the user before every send (review HIGH).
+# Matched as words over the whole frontmatter, not as comma tokens, so no spelling slips past.
+DISPATCH_TOOLS = {"ListAgents"}
+NEVER_GRANTED = {"SendMessage"}
 WRITE_TOOL_RE = re.compile(r"\b(Write|Edit|MultiEdit|NotebookEdit)\b(?:\(([^)]*)\))?")
 
 
@@ -258,8 +261,12 @@ def check_write_grants(emitters: list[str], commands: Path = COMMANDS) -> None:
                                   f"boundary for :{p.stem} (allowed: {', '.join(sorted(want)) or 'none'})")
         for g in sorted(want - got):
             add("ERROR", "suite", f"commands/{p.name}: write grant {g} is missing for :{p.stem}")
-        m = re.search(r"^allowed-tools:(.*)$", text, re.M)
-        has = DISPATCH_TOOLS & {t.strip() for t in (m.group(1).split(",") if m else [])}
+        fm = text.split("\n---", 1)[0] if text.startswith("---") else ""
+        words = set(re.findall(r"\b(ListAgents|SendMessage)\b", fm))
+        for t in sorted(words & NEVER_GRANTED):
+            add("ERROR", "suite", f"commands/{p.name}: {t} must never be pre-approved: the harness asks "
+                                  f"before every send (§10.8)")
+        has = words & DISPATCH_TOOLS
         if p.stem in emitters and has != DISPATCH_TOOLS:
             add("ERROR", "suite", f"commands/{p.name}: dispatch grant {', '.join(sorted(DISPATCH_TOOLS - has))} "
                                   f"is missing for :{p.stem} (§10.8)")
@@ -504,7 +511,8 @@ STAT_FLAGS = ("--go", "--brief", "--dry-run", "--verbose", "--unattended")
 # E-12 (§10.8): `sent` is written only when --send was requested: the bare session name the prompt
 # went to, or `copy` when the user declined (or gave no explicit yes) and it stayed copy/paste.
 SENT_COPY = "copy"
-SENT_NAME_RE = re.compile(r"^[^\[\]|=\n]{1,100}$")   # a bare session name: no [ref], no header syntax
+# A bare session name as ListAgents lists it: no [ref], no header syntax, no edge whitespace.
+SENT_NAME_RE = re.compile(r"^[^\[\]|=\s](?:[^\[\]|=\n]{0,98}[^\[\]|=\s])?$")
 
 
 def known_flags() -> set[str]:
@@ -525,8 +533,12 @@ def vocab_problems(meta: dict[str, str], flags_known: set[str] | None = None) ->
     elif flags != "-":
         known = flags_known if flags_known is not None else known_flags()
         bad = [f for f in flags.split() if f not in known]
-        if bad:
-            out.append(f"unknown flag(s) {' '.join(bad)}")
+        values = [f for f in bad if not f.startswith("--")]
+        if values:                              # e.g. a --send session name recorded in flags
+            out.append(f"flags carries value(s) {' '.join(values)}: record flag names only "
+                       f"(--send, --from, --repo, --follows without their values)")
+        if len(bad) > len(values):
+            out.append(f"unknown flag(s) {' '.join(f for f in bad if f.startswith('--'))}")
     via = meta.get("via")
     if not via:
         out.append(f"via missing ({'|'.join(VIA_VALUES)})")

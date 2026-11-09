@@ -72,7 +72,7 @@ it in the TARGET LOCK.
 | `--dry-run` | Compose and print, but write nothing: no archive file, no shard row, no profile card (for testing) |
 | `--brief` | Aim for about 60% of the archetype's length budget |
 | `--follows <file>` | Set the chain link explicitly, when it cannot be inferred |
-| `--send <session>` | Opt-in: also send the archived prompt to that Claude session (exact name from ListAgents). Adds a `Send to` lock row and asks yes/no before sending, even under `--go`; a project mismatch is named. Copy/paste stays the default (§10.8) |
+| `--send <session>` | Opt-in: also send the archived prompt to that Claude session (the exact name from ListAgents, byte for byte; quote a name with spaces: `--send "genprompt : Worker B"`). Adds a `Send to` lock row and asks yes/no before sending, even under `--go`; a project mismatch is named. Copy/paste stays the default (§10.8) |
 | `--verbose` | Print the full self-check table in chat, not just the verdict line and the FAIL/N/A rows (the archive file always has the full table) |
 
 ### Per-command modifiers

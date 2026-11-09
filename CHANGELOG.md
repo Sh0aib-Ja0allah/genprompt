@@ -4,10 +4,17 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-09 · tools/build_shims.py, tools/doctor.py, guide/06-library.md, PROTOCOL.md · E-12
+  review fixes. SendMessage is no longer pre-approved: the harness asks before every send, and
+  doctor fails a shim that grants it. The PROTOCOL pointer refuses any send not made with
+  `--send`. A corrected lock is not a yes. `sent` means "handed to SendMessage", and a refused,
+  denied or expired send is re-archived as copy. The project match is by name only, and layer 2
+  stays mandatory. Names are byte-equal and quoted when they have spaces. `--dry-run` skips
+  dispatch.
 - 2026-11-09 · archetypes/J-next.md, guide/06-library.md, PROTOCOL.md, tools/build_shims.py ·
   E-12 `:next --from <session>`: the worker pushes its report and the generator never pulls. The
   report is that sender's latest cross-session message, ingested like a pasted report (§4.14
-  header, git-verified, `Repo` must match). None yet → paste. §10.8 item 9; a messaged report
+  header, git-verified, `Repo` must match). None yet → paste. §10.8 item 10; a messaged report
   counts as pasted (J).
 - 2026-11-09 · tools/build_shims.py, guide/06-library.md, PROTOCOL.md, tools/doctor.py,
   tools/archive.py · E-12 `--send <session>`: opt-in dispatch of the archived prompt to another

@@ -273,7 +273,8 @@ class BuildShims(unittest.TestCase):
             self.assertNotIn("archive.py --where", shim, cmd)
 
     # E-12: exactly the prompt-emitting commands (every archetype in ARCHETYPES, plus :auto) carry
-    # the dispatch tools and offer --send; no utility does. Counts come from the table, not literals.
+    # ListAgents and offer --send; no utility does. SendMessage is pre-approved nowhere, so the
+    # harness asks before every send (review HIGH). Counts come from the table, not literals.
     def test_dispatch_grant_is_on_exactly_the_emitting_commands(self):
         bs = load_build_shims()
         emitters = {r.cmd for r in bs.ARCHETYPES} | {bs.ENTRY}
@@ -283,8 +284,8 @@ class BuildShims(unittest.TestCase):
             tools = re.search(r"^allowed-tools:(.*)$", text, re.M).group(1)
             hint = re.search(r"^argument-hint:(.*)$", text, re.M).group(1)
             granted = {t.strip() for t in tools.split(",")}
-            if {"ListAgents", "SendMessage"} & granted:
-                self.assertTrue({"ListAgents", "SendMessage"} <= granted, path.name)
+            self.assertNotIn("SendMessage", text.split("\n---", 1)[0], path.name)
+            if "ListAgents" in granted:
                 self.assertIn("[--send <session>]", hint, path.name)
                 carriers.add(path.stem)
             else:
