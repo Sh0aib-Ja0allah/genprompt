@@ -69,25 +69,35 @@ Then restart Claude Code, or run `/reload-plugins`, and type `/genprompt:help`.
 **First run:** after installing, run `/genprompt:doctor --suite` once. It checks that the installed
 rules are complete and consistent, and it needs nothing but Python 3.
 
-**The core loop:** `:onboard` → `:slice` → `:next` → `:review` → `:commit`. Most work is these five.
+**Start here:** `/genprompt:auto <what you want>` picks the command for you. Six core commands
+cover most work:
+
+| I want to… | Command |
+|---|---|
+| build a feature or one change set | `/genprompt:slice` |
+| fix bugs that are already confirmed | `/genprompt:fix` |
+| commit and push finished work | `/genprompt:commit` |
+| rule on findings or change a prompt already sent | `/genprompt:approve` |
+| rebuild one screen, component or module | `/genprompt:redesign` |
+| continue from a worker's stop-report | `/genprompt:next` (or just paste the report) |
+
+Occasional, when the job calls for them:
 
 | I want to… | Command |
 |---|---|
 | understand a repo I haven't worked in | `/genprompt:onboard` |
-| build a feature or one change set | `/genprompt:slice` |
-| continue from a worker's stop-report | `/genprompt:next` (or just paste the report) |
-| rule on findings or change a prompt already sent | `/genprompt:approve` |
 | review what the worker just committed | `/genprompt:review` |
 | find out why a bug happens | `/genprompt:investigate` |
-| fix bugs that are already confirmed | `/genprompt:fix` |
 | deal with something broken in production now | `/genprompt:hotfix` |
 | plan work before any code | `/genprompt:plan` |
-| commit and push finished work | `/genprompt:commit` |
-| not sure | `/genprompt:help <your goal>` |
+| not sure | `/genprompt:help <your goal>` (it ends with the `:auto` line to run) |
+
+A typical loop on a new repo: `:onboard` → `:slice` → `:next` → `:review` → `:commit`.
 
 Open Claude Code **in the repo you want to work on** (or pass `--repo <path>`):
 
 ```text
+/genprompt:auto review what the worker just committed              ← picks the command
 /genprompt:help I need to review what the worker just committed    ← which command fits?
 /genprompt:onboard                                                  ← first contact with a repo
 /genprompt:slice Slice S3, scope: report builder column whitelist   ← build something
@@ -107,6 +117,10 @@ than the one you opened.
 Not sure which command? `/genprompt:auto <what you want>` picks one for you.
 
 ## Commands
+
+Core: `:auto`, then `:slice` · `:fix` · `:commit` · `:approve` · `:redesign` · `:next`. The rest
+are occasional; the picker in [archetypes/README.md](archetypes/README.md) groups them the same
+way.
 
 | Stage | Commands |
 |---|---|

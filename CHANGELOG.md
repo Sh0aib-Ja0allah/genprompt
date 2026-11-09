@@ -4,6 +4,10 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-10 · README.md, utilities/help.md, archetypes/README.md · R12 (1.4.1): the front door
+  leads with `:auto` plus six core commands (slice, fix, commit, approve, redesign, next); the
+  picker is grouped into Core and Occasional (nothing cut, letters kept); `:help <goal>` ends with
+  the exact `:auto` line to run. Archetype commands +0; `:auto` +125 B, `:help` +468 B.
 - 2026-11-10 · archetypes/H-commit.md · R10 (1.4.1): the commit prompt syncs only if
   `git rev-parse --abbrev-ref @{u}` names an upstream and the tree is free (`git fetch`, then
   `git pull --ff-only`), else skips the sync and says why; it used to pull `origin <branch>`

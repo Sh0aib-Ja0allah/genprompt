@@ -9,6 +9,19 @@ Letters are permanent: archived prompts reference them. New archetypes take the 
 
 ## Picker: "I want to…"
 
+### Core: most work is these six
+
+| I want to… | Use | # | Autonomy | Length tier |
+|---|---|---|---|---|
+| build one vertical slice | `:slice` | D | MODE or gate | Slice |
+| fix a list of confirmed defects | `:fix` | L | MODE or gate | Focused |
+| commit and push finished work (optionally verify first) | `:commit` | H | commit-only | Focused |
+| rule on findings, lock decisions, amend a running prompt | `:approve` | E | inherits | Delta |
+| rebuild one screen, component or module | `:redesign` | A | gate (or MODE) | Focused |
+| continue from a worker's stop-report | `:next` | J | the emitted archetype's | Delta |
+
+### Occasional
+
 | I want to… | Use | # | Autonomy | Length tier |
 |---|---|---|---|---|
 | understand an unfamiliar or empty repo, and draft its contract | `:onboard` | M | read-only + docs | Focused |
@@ -18,10 +31,7 @@ Letters are permanent: archived prompts reference them. New archetypes take the 
 | design one decision (ADR, API contract, schema/ERD, design-system map, spike) | `:design` | N | docs (+ scratch spike) | Program |
 | build a new layer after studying a reference repo | `:greenfield` | G | docs → gate → code | Program |
 | start a unit over messy uncommitted WIP | `:kickoff` | C | audit → gate → code | Focused |
-| build one vertical slice | `:slice` | D | MODE or gate | Slice |
 | drive a whole backlog doc to done | `:roadmap` | I | MODE + exit valve | Program |
-| rebuild one screen, component or module | `:redesign` | A | gate (or MODE) | Focused |
-| fix a list of confirmed defects | `:fix` | L | MODE or gate | Focused |
 | handle a live incident fast | `:hotfix` | U | MODE + approval per live action | Focused |
 | write, repair or harden tests | `:test` | O | MODE or gate | Focused |
 | review a diff, branch, PR or recent commits | `:review` | P | read-only | Focused |
@@ -30,10 +40,7 @@ Letters are permanent: archived prompts reference them. New archetypes take the 
 | upgrade a framework or dependencies, or migrate an ORM, platform or data | `:upgrade` | S | staged, gate | Program |
 | remove dead code, restore green, refactor with no behaviour change | `:cleanup` | V | MODE or gate | Focused |
 | write or repair docs, runbooks, guides | `:docs` | W | docs only | Focused |
-| commit and push finished work (optionally verify first) | `:commit` | H | commit-only | Focused |
 | cut a release, deploy, hand over | `:release` | T | approval per action | Program |
-| rule on findings, lock decisions, amend a running prompt | `:approve` | E | inherits | Delta |
-| continue from a worker's stop-report | `:next` | J | the emitted archetype's | Delta |
 | re-anchor a worker that lost its context | `:resume` | K | the resumed slice's | Focused |
 
 ## Index

@@ -470,6 +470,33 @@ class BuildShims(unittest.TestCase):
         self.assertNotIn("Always sync first", flat)
         self.assertNotIn("After pushing:", flat)
 
+    # R12 (1.4.1): the front door leads with :auto and six core commands; the picker is grouped
+    # into Core and Occasional with nothing cut and every letter kept; :help <goal> ends on :auto.
+    def test_front_door_leads_with_auto_and_six_core_commands(self):
+        core = ["slice", "fix", "commit", "approve", "redesign", "next"]
+        picker = (ROOT / "archetypes" / "README.md").read_text(encoding="utf-8")
+        sec = picker[picker.index("## Picker"):picker.index("## Index")]
+        core_part, occ_part = sec.split("### Occasional")
+        self.assertIn("### Core", core_part)
+        row = re.compile(r"^\| [^|]+ \| `:([a-z]+)` \| ([A-X]) \|", re.M)
+        self.assertEqual([c for c, _ in row.findall(core_part)], core)
+        occ = row.findall(occ_part)
+        self.assertEqual(len(occ), 18)
+        letters = {l for _, l in row.findall(sec)}
+        self.assertEqual(letters, {r.letter for r in load_build_shims().ARCHETYPES})
+        self.assertFalse({c for c, _ in occ} & set(core))
+
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        qs = readme[readme.index("## Quick start"):readme.index("## Commands")]
+        self.assertIn("**Start here:** `/genprompt:auto <what you want>`", qs)
+        first = re.findall(r"`/genprompt:([a-z]+)`", qs.split("Occasional")[0].split("cover most work")[1])
+        self.assertEqual(first, core)
+
+        helpt = " ".join((ROOT / "utilities" / "help.md").read_text(encoding="utf-8").split())
+        self.assertIn("first, `/genprompt:auto <what you want>`", helpt)
+        self.assertIn("(`:slice`, `:fix`, `:commit`, `:approve`, `:redesign`, `:next`)", helpt)
+        self.assertIn("end with the exact `:auto` line to run", helpt)
+
     def test_check_fails_when_a_template_has_no_414_insert(self):
         arch = self.copy / "archetypes" / "H-commit.md"
         text = arch.read_text(encoding="utf-8")
