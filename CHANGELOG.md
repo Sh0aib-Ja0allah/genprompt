@@ -7,9 +7,10 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 - 2026-11-09 · archetypes/H-commit.md, P-review.md, Q-security.md, R-perf.md, guide/08-grammar.md,
   tools/build_shims.py, tools/doctor.py, README.md · E-15: `:commit --pr` adds the PR step (branch,
   push, open PR, each a §4.23 approval the worker asks for; a placeholder-only body or the repo's
-  own template). Hidden options become per-command flags on their own argument-hints only:
-  `--chat-only` (review), `--verify` (commit; `verify+` still accepted), `--readonly-phase`
-  (security Phase 1, perf measure-only); the grammar gains a per-command modifier table.
+  own template), read on demand from §8.2 so only --pr runs load it. Hidden options become
+  per-command flags on their own argument-hints only: `--chat-only` (review), `--verify` (commit;
+  `verify+` still accepted), `--readonly-phase` (security Phase 1, perf measure-only); the grammar
+  gains a per-command modifier table.
 - 2026-11-09 · archetypes/F-plan.md, archetypes/I-roadmap.md, tools/build_shims.py, tools/doctor.py,
   README.md · E-13: :plan and :roadmap offer `--split <N>` (argument-hint; archive and doctor know
   the flag) and point to §8.1; F tightened to offset, so the plan floor stays 29,854 B.

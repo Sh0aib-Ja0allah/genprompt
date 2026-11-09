@@ -241,15 +241,23 @@ class BuildShims(unittest.TestCase):
         doctor = load_tool("doctor")
         self.assertTrue(own <= doctor.known_flags())
 
-    def test_commit_pr_step_asks_per_action_and_body_is_placeholders(self):
+    # E-15: the PR step lives on demand in §8.2, so only --pr runs pay for it; H only points there.
+    def test_commit_pr_step_is_on_demand_and_body_is_placeholders(self):
         h = (ROOT / "archetypes" / "H-commit.md").read_text(encoding="utf-8")
-        self.assertIn("§4.23", h)
-        self.assertIn("### 4.23", (ROOT / "guide" / "blocks" / "H-commit.md").read_text(encoding="utf-8"))
-        body = h.split("PR BODY (", 1)[1].split("Do not merge the PR", 1)[0]
+        self.assertIn("`--pr`: read §8.2", h)
+        self.assertNotIn("PR BODY", h)
+        self.assertNotIn("§4.23", h)
+        self.assertNotIn("### 4.23", (ROOT / "guide" / "blocks" / "H-commit.md").read_text(encoding="utf-8"))
+        grammar = (ROOT / "guide" / "08-grammar.md").read_text(encoding="utf-8")
+        sec = grammar.split("### 8.2 `--pr`", 1)[1]
+        self.assertIn("read §4.23", sec)
+        self.assertIn("[INSERT §4.23 APPROVAL PER ACTION", sec)
+        body = sec.split("PR BODY (", 1)[1].split("Do not merge the PR", 1)[0]
         for line in body.splitlines():
             if line.strip().startswith("## "):
                 self.assertRegex(line, r"\{[^}]+\}", line)
         self.assertIn("No client names, customer data, secrets", body)
+        self.assertIn("Do not merge the PR, request reviewers", sec)
 
     def test_step0_home_comes_from_archive_where_under_the_archive_grant(self):
         bs = load_build_shims()

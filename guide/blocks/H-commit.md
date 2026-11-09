@@ -136,15 +136,6 @@ VERIFY BEFORE STARTING. These were true when this prompt was written (<date/time
 If any other entry differs, STOP and report the difference. Do not adapt silently.
 ```
 
-### 4.23 Approval per action (release, deploy, destructive and outward-facing work)
-
-```text
-APPROVAL PER ACTION. Each action below needs my explicit "yes" in this chat AT THE MOMENT you are
-about to run it. Approval for one is not approval for the next, and not approval for a re-run:
-- <deploy / publish / push / migrate on non-local / DNS / credentials / store submission>
-Prepare everything up to the action, show me the exact command and what it will change, then wait.
-```
-
 ## §6 Emission checklist (compact; full rows: `guide/04-checklist.md`)
 
 Grade all 23 rows (Step 6). Judgement rows 5, 6, 7, 10, 13 and 23 cite evidence on PASS; no bulk-passing; fix a FAIL or say why it ships. Read-only and commit-only archetypes meet code-writing rows in their own terms. Read a row's full text only before marking it FAIL.
