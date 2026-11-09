@@ -291,23 +291,29 @@ def under_home(*parts_: str) -> str:
     return SEP.join((FAKE_HOME, *parts_))
 
 
-class HomePath(unittest.TestCase):
-    """R11: the user's home outside the repo path is a FAIL; user-level must be present|unreadable|none.
-    Path.home() is pointed at a fake home through HOME and USERPROFILE; nothing reads the real one."""
+class SensitivePath(unittest.TestCase):
+    """R11 (scope ruling): the temp dir (so the scratchpad), ~/.claude and the credential folders FAIL
+    in any spelling; the repo, a split lane, a sibling worktree, the genprompt home and other home
+    paths pass. Path.home() points at a fake home (HOME, USERPROFILE) and the temp dir at a sandbox
+    folder (TMPDIR, TEMP, TMP); nothing reads the real ones."""
 
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
-        self.home = Path(self._tmp.name)
+        base = Path(self._tmp.name)
+        self.home = base / "gp-home"
+        self.temp = base / "fake-temp"
+        self.temp.mkdir()
         self.file = self.home / "generated-prompts" / "lint-demo" / "2026-10-07-slice-s02-lint-pass.md"
 
     def tearDown(self):
         self._tmp.cleanup()
 
     def run_archive(self, data: dict, *flags: str) -> tuple[int, str]:
-        src = self.home.parent / f"{self.home.name}-parts.json"
+        src = self.home.parent / "parts.json"
         src.write_text(json.dumps(data), encoding="utf-8")
         env = dict(os.environ, GENPROMPT_HOME=str(self.home), PYTHONIOENCODING="utf-8",
-                   PYTHONDONTWRITEBYTECODE="1", HOME=FAKE_HOME, USERPROFILE=FAKE_HOME)
+                   PYTHONDONTWRITEBYTECODE="1", HOME=FAKE_HOME, USERPROFILE=FAKE_HOME,
+                   TMPDIR=str(self.temp), TEMP=str(self.temp), TMP=str(self.temp))
         try:
             proc = subprocess.run([sys.executable, str(ARCHIVE_PY), *flags, str(src)], env=env,
                                   capture_output=True, encoding="utf-8", errors="replace", check=False)
@@ -315,65 +321,97 @@ class HomePath(unittest.TestCase):
         finally:
             src.unlink()
 
-    def with_repo(self, repo: str, grounding: str) -> dict:
+    def archive(self, grounding: str, repo: str = "/srv/repos/lint-demo", block_line: str = "",
+                *flags: str) -> tuple[int, str]:
         body = BODY.replace("/srv/repos/lint-demo", repo).replace(
             "Grounding: the gates come from package.json:7-9 (fixture).", grounding)
-        return parts(path=repo, body=body)
+        if block_line:
+            body = body.replace("WHAT YOU CANNOT DO:", f"{block_line}\n\nWHAT YOU CANNOT DO:")
+        # --replace by default, so one test can archive several variants under the same name
+        return self.run_archive(parts(path=repo, body=body), *(flags or ("--replace",)))
 
-    def test_home_path_in_grounding_fails_but_is_archived(self):
-        repo = "/srv/repos/lint-demo"
-        code, out = self.run_archive(self.with_repo(
-            repo, f"Grounding: read {under_home('.claude', 'CLAUDE.md')} for the rules."))
+    def assert_pass(self, *args, **kw):
+        code, out = self.archive(*args, **kw)
+        self.assertEqual(code, 0, out)
+        self.assertIn("PASS  home-path", out)
+
+    def assert_fail(self, *args, **kw):
+        code, out = self.archive(*args, **kw)
         self.assertEqual(code, 1, out)
         self.assertIn("FAIL  home-path", out)
+        self.assertNotIn(FAKE_HOME, out)                   # reported by line number, never echoed
+        self.assertNotIn(str(self.temp), out)
+        return out
+
+    # must pass
+    def test_split_lane_workspace_passes(self):
+        repo = under_home("Work", "lint-demo")
+        self.assert_pass("Grounding: package.json:7-9.", repo,
+                         f"WORKSPACE: {under_home('Work', 'lint-demo-split-s02', 'w1')} (lane W1).")
+
+    def test_sibling_worktree_passes(self):
+        repo = under_home("Work", "lint-demo")
+        self.assert_pass(f"Grounding: {under_home('Work', 'lint-demo-wt-c')} is occupied by another "
+                         f"session; do not touch it.", repo)
+
+    def test_brief_under_the_genprompt_home_passes(self):
+        self.assert_pass(f"Grounding: the brief is {under_home('.genprompt', 'briefs', 'r1.md')}.")
+
+    def test_tilde_environment_fact_passes(self):
+        self.assert_pass("Grounding: composer runs as `php ~/bin/composer.phar` on this machine.")
+
+    def test_repo_scaffolded_under_the_temp_dir_passes(self):
+        repo = str(self.temp / "newapp")
+        self.assert_pass(f"Grounding: {repo}{SEP}package.json:7-9 (just scaffolded).", repo)
+
+    def test_other_home_paths_pass(self):
+        self.assert_pass(f"Grounding: {under_home('.config', 'gh')} and {under_home('Downloads', 'a.csv')} "
+                         f"and ~/.claude-mem/notes and {under_home('AppData', 'Roaming', 'x')}.")
+
+    # must fail
+    def test_scratchpad_in_autonomy_fails(self):
+        pad = SEP.join((str(self.temp), "claude", "abc123", "scratchpad", "notes.md"))
+        out = self.assert_fail("Grounding: package.json:7-9.", block_line=f"AUTONOMY: keep notes in {pad}.")
         self.assertIn("ARCHIVED WITH ERRORS", out)
-        self.assertNotIn(FAKE_HOME, out)                  # reported by line number, never echoed
         self.assertTrue(self.file.exists())
 
-    def test_dry_run_reports_the_home_path(self):
-        code, out = self.run_archive(self.with_repo(
-            "/srv/repos/lint-demo", f"Grounding: notes in {under_home('notes.md')}."), "--dry-run")
+    def test_home_appdata_temp_fails(self):
+        pad = under_home("AppData", "Local", "Temp", "claude", "abc", "scratchpad")
+        self.assert_fail("Grounding: package.json:7-9.", block_line=f"AUTONOMY: notes go in {pad}.")
+
+    def test_dot_claude_in_grounding_fails(self):
+        self.assert_fail(f"Grounding: read {under_home('.claude', 'CLAUDE.md')} for the rules.")
+
+    def test_tilde_spellings_fail(self):
+        self.assert_fail("Grounding: package.json:7-9.",
+                         block_line="AUTONOMY: keep notes in ~/AppData/Local/Temp/claude/abc/scratchpad.")
+        self.assert_fail("Grounding: read ~/.claude/CLAUDE.md for the rules.")
+
+    def test_home_variable_and_credential_folders_fail(self):
+        for g in ("Grounding: deploy key is $HOME/.ssh/id_ed25519.",
+                  "Grounding: profile in ${HOME}/.aws/credentials.",
+                  f"Grounding: {under_home('.kube', 'config')} selects the cluster.",
+                  "Grounding: ~/.docker/config.json and ~/.gnupg hold the logins."):
+            with self.subTest(g=g):
+                self.assert_fail(g)
+
+    def test_other_spellings_fail(self):
+        odd = FAKE_HOME.upper().replace("\\", "/") + "/.CLAUDE/settings.json"
+        self.assert_fail(f"Grounding: {odd}.")
+        if os.name == "nt":
+            self.assert_fail("Grounding: /c/Users/gp-test-user/.claude/settings.json.")
+
+    def test_dry_run_reports_it(self):
+        code, out = self.archive("Grounding: read ~/.claude/CLAUDE.md.", "/srv/repos/lint-demo", "",
+                                 "--dry-run")
         self.assertEqual(code, 1, out)
         self.assertIn("FAIL  home-path", out)
-
-    def test_repo_under_home_passes(self):
-        repo = under_home("Work", "lint-demo")
-        code, out = self.run_archive(self.with_repo(
-            repo, f"Grounding: the gates come from {repo}{SEP}package.json:7-9."))
-        self.assertEqual(code, 0, out)
-        self.assertIn("PASS  home-path", out)
-
-    def test_repo_directly_in_home_does_not_false_positive(self):
-        repo = under_home("lint-demo")
-        code, out = self.run_archive(self.with_repo(repo, "Grounding: package.json:7-9."))
-        self.assertEqual(code, 0, out)
-        self.assertIn("PASS  home-path", out)
-
-    def test_sibling_of_a_repo_in_home_still_fails(self):
-        repo = under_home("lint-demo")
-        code, out = self.run_archive(self.with_repo(
-            repo, f"Grounding: compare {under_home('lint-demo-old', 'x.md')}."))
-        self.assertEqual(code, 1, out)
-        self.assertIn("FAIL  home-path", out)
-
-    def test_other_case_and_slashes_still_match(self):
-        odd = FAKE_HOME.upper().replace("\\", "/") + "/.claude/CLAUDE.md"
-        code, out = self.run_archive(self.with_repo("/srv/repos/lint-demo", f"Grounding: {odd}."))
-        self.assertEqual(code, 1, out)
-        self.assertIn("FAIL  home-path", out)
-
-    def test_a_longer_user_name_is_not_the_home(self):
-        code, out = self.run_archive(self.with_repo(
-            "/srv/repos/lint-demo", f"Grounding: {FAKE_HOME}x{SEP}file.md is someone else's."))
-        self.assertEqual(code, 0, out)
 
     def test_user_level_path_is_a_fail_here(self):
-        code, out = self.run_archive(self.with_repo(
-            "/srv/repos/lint-demo", "Grounding: user-level: /etc/claude/CLAUDE.md read."))
+        code, out = self.archive("Grounding: user-level: /etc/claude/CLAUDE.md read.")
         self.assertEqual(code, 1, out)
         self.assertIn("FAIL  user-level", out)
-        code, out = self.run_archive(self.with_repo(
-            "/srv/repos/lint-demo", "Grounding: user-level: present."), "--replace")
+        code, out = self.archive("Grounding: user-level: present.", "/srv/repos/lint-demo", "", "--replace")
         self.assertEqual(code, 0, out)
         self.assertIn("PASS  user-level", out)
 

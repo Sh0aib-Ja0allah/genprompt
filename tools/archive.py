@@ -29,9 +29,11 @@ to a worker, so a gap in the archive (a broken follows chain) is worse than a fl
   3. runs doctor's per-file lint (the same code as `doctor.py --prompt`) on the file as written
      and checks that the row parses back into the same 5 fields.
      Two checks are stricter here than in the lint, because an archived prompt is pasted on (R11):
-     the user's home directory named anywhere in the file outside the repo path is a FAIL
-     (home-path; the header's `path` value and a `Repo:` anchor line are exempt), and a
-     `user-level:` slot that is not present/unreadable/none is a FAIL, not a WARN.
+     naming the generator's environment or credentials (the OS temp dir and so the Claude
+     scratchpad, ~/.claude, ~/.ssh, ~/.aws, ~/.gnupg, ~/.kube, ~/.docker) in any spelling is a
+     FAIL (home-path; the header's `path` value, a `Repo:` line and anything at or under the repo
+     are exempt; other home paths are fine), and a `user-level:` slot that is not
+     present/unreadable/none is a FAIL, not a WARN.
   FAIL -> "ARCHIVED WITH ERRORS" with every failure, exit 1. WARN only -> exit 0.
   4. after a clean run (exit 0), parts files (*.json) directly in <home>/tmp/ older than 7 days are
      deleted, never this run's own file and never anything outside <home>/tmp/ (R13).
@@ -54,7 +56,9 @@ from __future__ import annotations
 import importlib.util
 import json
 import re
+import os
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -85,20 +89,52 @@ def _forms(path: str) -> list[str]:
     return [p, f"/{m.group(1)}{m.group(2)}"] if m else [p]
 
 
-def user_home() -> str | None:
+# R11 (scope ruling): only the generator's environment and credentials FAIL. The temp dir covers
+# the Claude scratchpad; AppData as a whole, .config, Downloads, the genprompt home and every
+# other home path are fine. Known gap, accepted (evals only): a split workspace beside a repo that
+# itself sits in the temp dir (<tmp>/app-split-s02/w1 next to <tmp>/app) FAILs, because only the
+# repo path and what is under it are exempt.
+SENSITIVE_UNDER_HOME = (".claude", ".ssh", ".aws", ".gnupg", ".kube", ".docker", "appdata/local/temp")
+
+
+def sensitive_roots() -> list[str]:
+    """Every spelling (normalised) of the paths a prompt must not name: <home>/<each of
+    SENSITIVE_UNDER_HOME> absolute, Git Bash, ~/ and $HOME forms, and the OS temp dir."""
+    out = []
     home = doctor.user_home()
-    if home is None:
-        return None
-    norm = _norm(str(home)).rstrip("/")
-    return norm if norm and not re.fullmatch(r"[a-z]:", norm) else None
+    for tail in SENSITIVE_UNDER_HOME:
+        if home is not None:
+            out += _forms(f"{home}/{tail}")
+        out += [f"~/{tail}", f"$home/{tail}", f"${{home}}/{tail}"]
+    try:
+        tmp = tempfile.gettempdir()
+        for t in {tmp, os.path.realpath(tmp)}:
+            out += _forms(t)
+    except OSError:
+        pass
+    return sorted({r for r in out if "/" in r and not re.fullmatch(r"/?[a-z]?:?/?", r)},
+                  key=len, reverse=True)
 
 
-def home_path_lines(text: str, repo_path: str, home: str | None) -> list[int]:
-    """Line numbers naming the user's home directory outside the repo path (R11). Exempt: the
-    line-1 header's `path=` value, a `Repo:` anchor line, and any path at or under the repo."""
-    if not home:
-        return []
-    homes, repos = _forms(home), [r for r in _forms(repo_path or "") if r]
+def _names(ln: str, root: str, repos: list[str]) -> bool:
+    """True when the normalised line names root (whole path segments) outside every repo form."""
+    start = 0
+    while (i := ln.find(root, start)) >= 0:
+        start = i + 1
+        end = i + len(root)
+        if (end < len(ln) and PATH_CHAR.match(ln[end])) or (i > 0 and PATH_CHAR.match(ln[i - 1])):
+            continue                                   # ~/.claude-mem, src/tmp: not the root
+        if any(ln.startswith(r, i) and (i + len(r) == len(ln) or not PATH_CHAR.match(ln[i + len(r)]))
+               for r in repos):
+            continue                                   # at or under the repo: exempt first
+        return True
+    return False
+
+
+def sensitive_path_lines(text: str, repo_path: str, roots: list[str]) -> list[int]:
+    """Line numbers naming a sensitive root (R11). Exempt: the line-1 header's `path=` value, a
+    `Repo:` anchor line, and anything at or under the repo path."""
+    repos = [r for r in _forms(repo_path or "") if r]
     hits = []
     for n, raw in enumerate(text.splitlines(), 1):
         if n == 1 and raw.startswith("<!-- genprompt"):
@@ -106,28 +142,8 @@ def home_path_lines(text: str, repo_path: str, home: str | None) -> list[int]:
         if REPO_ANCHOR_RE.match(raw):
             continue
         ln = _norm(raw)
-        for h in homes:
-            start = 0
-            while (i := ln.find(h, start)) >= 0:
-                start = i + 1
-                end = i + len(h)
-                if end < len(ln) and PATH_CHAR.match(ln[end]):      # c:/users/x vs c:/users/xavier
-                    continue
-                if i > 0 and re.match(r"\w", ln[i - 1]):
-                    continue
-                inside = False
-                for r in repos:
-                    e = i + len(r)
-                    if ln.startswith(r, i) and (e == len(ln) or not PATH_CHAR.match(ln[e])):
-                        # a repo that IS the home exempts only the bare path, not what is under it
-                        inside = r != h or e == len(ln) or ln[e] != "/"
-                        if inside:
-                            break
-                if not inside:
-                    hits.append(n)
-                    break
-            if hits and hits[-1] == n:
-                break
+        if any(_names(ln, root, repos) for root in roots):
+            hits.append(n)
     return hits
 
 
@@ -135,10 +151,11 @@ def archive_checks(text: str, name: str, p: dict, cmd_by_letter: dict[str, str])
     """doctor's prompt lint, with the user-level WARN raised to FAIL, plus the home-path check."""
     res = [(c, doctor.FAIL if c == "user-level" and s == doctor.WARN else s, d)
            for c, s, d in doctor.lint_prompt(text, name, cmd_by_letter)]
-    hits = home_path_lines(text, p.get("path") or "", user_home())
+    hits = sensitive_path_lines(text, p.get("path") or "", sensitive_roots())
     res.append(("home-path", doctor.FAIL if hits else doctor.PASS,
-                f"line {', '.join(map(str, hits[:5]))}: names the user's home directory outside the "
-                f"repo path (use ~/ or a {{slot}})" if hits else "no home path outside the repo"))
+                f"line {', '.join(map(str, hits[:5]))}: names the temp dir or scratchpad, ~/.claude "
+                f"or a credential folder (use a {{slot}})" if hits else
+                "no temp, ~/.claude or credential path"))
     return res
 
 

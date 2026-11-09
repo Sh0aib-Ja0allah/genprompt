@@ -10,9 +10,12 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
   and WARNs when a load grows more than 5% over the previous release (pinned at aa96986 until
   v1.4.0 is tagged). The PROTOCOL.md core-budget WARN stays.
 - 2026-11-10 · tools/archive.py · R11 (1.4.1, privacy): the archive writer FAILs, not WARNs, when
-  the file names the user's home directory outside the repo path (the header's `path` value, a
-  `Repo:` anchor line and paths under the repo are exempt; reported by line number, never echoed),
-  and a `user-level:` slot that is not present/unreadable/none is a FAIL there too.
+  the file names the generator's environment or credentials in any spelling (absolute, Git Bash,
+  `~/`, `$HOME`): the OS temp dir (so the Claude scratchpad), `~/.claude`, `~/.ssh`, `.aws`,
+  `.gnupg`, `.kube`, `.docker`. Exempt first: the header's `path` value, the `Repo:` line and
+  anything at or under the repo. Other home paths (sibling worktrees, split lanes, the genprompt
+  home, `~/bin`) pass. Reported by line number, never echoed. A `user-level:` slot that is not
+  present/unreadable/none is a FAIL there too.
 - 2026-11-10 · tools/archive.py, README.md · R13 (1.4.1): after a clean run the archive writer
   deletes parts files (*.json) directly in `~/.genprompt/tmp/` older than 7 days, never this
   run's own file and never anything outside tmp/. README's "Where your files go" lists tmp/.
