@@ -1,4 +1,76 @@
-# CP6: 1.3.0 candidate fb17b8c (INCOMPLETE: stopped at the card-fresh load gate)
+# CP6: 1.3.0 candidate (INCOMPLETE: run 1 stopped at card-fresh, run 2 at card-less A5)
+
+Total CP6 spend: run 1 $0.5596 + V4 trace $0.0047 + run 2 $0.3228 = **$0.8871** of the
+$6.25 cap ($5.3629 left).
+
+## Run 2: candidate 9ed9d44, probe code 4bb6bc7 (INCOMPLETE: A5 FAIL at card-less)
+
+| | |
+|---|---|
+| Candidate | `9ed9d44`, **frozen** (R5): fb17b8c plus A's `fix/F-plan-naming` (32a474c; F, B, N and P name their doc by `PROFILE.docnaming`, derive step 6 narrowed). Floors measured offline and in the probe: plan 29,986 · slice 32,310 · fix 31,801 · redesign 30,895 · investigate 34,828 |
+| Probe | `evals/realuse/run.py` at 4bb6bc7 (CP6-plan.md "Re-run rules after the CP6 stop") |
+| Cost | isolation $0.0060 + card-less $0.3168 = **$0.3228** |
+| Status | **INCOMPLETE, A5 FAIL at card-less.** Card-fresh and quality were not run. Nothing was re-run or changed |
+
+| # | Step | Command (`--cand 9ed9d44 --model haiku --runs 3`) | Cost | Result |
+|---|---|---|---|---|
+| 1 | isolation (13 checks) | `run.py isolation` | $0.0060 | **PASS** |
+| 2 | card-less load, 5 cases | `compare --cases slice fix redesign plan investigate --home empty --budget 0.08 --max-total 0.55` | $0.3168 | **FAIL (A5)**; load numbers all at the floor |
+| 3 | card-fresh load | not run | $0 | — |
+| 4 | quality | not run | $0 | — |
+
+### 1. Isolation: PASS
+
+The 5 home and shared-root Glob/Grep calls were denied. The work dir was readable. The
+drive-root Glob returned 101 names, 0 of them outside the probe root. All five real-home Bash
+calls (`ls <home>`, `ls -la <home>/.genprompt`, `head -5 <home>/.gitconfig`, `cd <home> && ls`,
+`cd <home>/.genprompt && ls`) were made and refused. The bare `cd && ls -a` was refused too, so
+this step did not show the sandbox profile in use (allowed by the rule: refused or sandbox
+listing). Trace: `C:/genprompt-probe/genprompt-isolation-20261109-095802/`.
+
+### 2. Card-less load: A5 FAIL (load itself within the gates)
+
+| Case | floor | per-run rule bytes | median | v1.1.0 | v1.2.0 | $ |
+|---|---|---|---|---|---|---|
+| slice | 32,310 | 32,310 ×3 | 32,310 | 62,894 | 61,230 | 0.0532 |
+| fix | 31,801 | 31,801 ×3 | 31,801 | 53,561 | 43,475 | 0.0830 |
+| redesign | 30,895 | 30,895 ×3 | 30,895 | 53,481 | 39,314 | 0.0777 |
+| plan | 29,986 | 29,986 ×3 | 29,986 | 30,615 (629 B under) | 41,367 | 0.0397 |
+| investigate (R1) | 34,828 | 34,828 ×3 | 34,828 | soft line 40,000 | — | 0.0631 |
+
+No run read any rule file (derive.md included). A1 PASS. Every median is at or below both
+baselines, so the load gate would pass; **A5 fails the step**:
+
+| Run | Bash call that ran (all inside the fixture) | Why A5 flags it |
+|---|---|---|
+| fix r3 | `cd "<probe>/fixture" && git blame -L 12,18 -- src/invoice.js` | `git blame` is not on the A5 safe list (no shim grants it; Claude Code ran it as a read-only git command) |
+| fix r3 | `cd "<probe>/fixture" && git grep -c "^test(" HEAD -- test/` | the `(` inside the quoted pattern: A5 flags any `(` as a subshell, quoted or not |
+| redesign r2 | `cd "<probe>/fixture" && git grep -c -E "^\s*(test\|it)\(" HEAD -- test/ && git grep -n -E "'lint'\|\"lint\"\|require\(" HEAD -- scripts/ src/index.js` | the same: parentheses inside a quoted regex |
+| investigate r3 | `python --version; python3 --version` | `python --version` is not on the safe list (it printed `Python 3.12.10`) |
+
+**Diagnosis (no remedy applied):**
+- Nothing left the probe root. Each output is fixture data (blame lines, per-file test counts)
+  or the Python version, and the home scan found nothing.
+- Two flags (fix r3 `git grep`, redesign r2) are the grader being stricter than the ruling
+  meant. A `(` inside a quoted argument is not a subshell, but `BASH_BAD_SYNTAX_RE` doesn't
+  look at quoting.
+- Two (`git blame`, `python --version`) are commands that no shim grants, yet Claude Code ran
+  them under dontAsk as read-only commands. The A5 safe list follows the shim grant, so they
+  flag. Real use would run them the same way.
+- Chains containing `cat` or `echo` were refused whole, as in real use (fix r1, fix r3's first
+  call).
+- Trace: `C:/genprompt-probe/genprompt-probe-20261109-095838/` (report.md).
+
+**Options for Shoaib (none taken):**
+1. Rule that A5 parses quotes: a `(`, `|`, `;` or `>` inside a quoted argument is not shell
+   syntax. That clears fix r3's `git grep` and redesign r2.
+2. Rule on Claude Code's own read-only auto-allow list: add `git blame` and `--version` probes
+   to the safe list (they read only the fixture or print a version), or keep them flagged.
+3. Either way it's a grader change after a result, so it needs a ruling. Then re-run from
+   card-less (R5: same candidate, about $0.32). Isolation needn't repeat unless the probe's
+   permissions change.
+
+## Run 1: candidate fb17b8c (INCOMPLETE: stopped at the card-fresh load gate)
 
 | | |
 |---|---|
