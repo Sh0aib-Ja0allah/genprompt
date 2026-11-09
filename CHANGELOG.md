@@ -4,6 +4,9 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-09 · archetypes/F-plan.md · Fix: the plan template gains an OUT OF SCOPE line (item, ID
+  or path, because a reason, at file:line) in place of Constraints' `<out-of-scope areas>`, so a
+  plan bounds scope negatively without §4.13 (CP6 run 5 plan rubric-scope regression).
 - 2026-11-09 · archetypes/L-fix.md, A-redesign.md · Fix: fix and redesign regain the source-of-
   truth (§4.6, fix) and cannot-do (§4.13) blocks the E-09d cut dropped (CP6 grounding
   regression). Fix also marks unread claims `[UNVERIFIED]`, labels counts, and names
