@@ -416,6 +416,12 @@ class ValidityTest(unittest.TestCase):
             self.assertTrue(trace("Read", {"file_path": card}, "1\t---\n2\trepo: fixture"))
             self.assertTrue(trace("Bash", {"command": f"python {arch} --where"},
                                   f"home {(work / 'homes' / 'h').as_posix()}\nlocal-rules x"))
+            # 1.3.1 (2fd7dca): --where adds a third line, `card <path> (present|absent)`
+            h = (work / "homes" / "h").as_posix()
+            three = (f"home {h}\nlocal-rules {h}/local-rules.md (absent)\n"
+                     f"card {h}/generated-prompts/by-repo/fixture.profile.md (present)")
+            self.assertTrue(trace("Bash", {"command": f"python {arch} --where"}, three))
+            self.assertTrue(run.safe_bash(f"python {arch} --where", str(work.parent)))
             self.assertFalse(trace("Bash", {"command": f"python {arch} --where; cd x && ls"},
                                    f"Permission to use Bash with command python {arch} has been "
                                    f"denied."))
