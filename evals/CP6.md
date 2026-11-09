@@ -1,7 +1,83 @@
-# CP6: 1.3.0 candidate (INCOMPLETE: run 1 stopped at card-fresh, run 2 at card-less A5)
+# CP6: 1.3.0 candidate (INCOMPLETE: run 3 card-fresh INVALID)
 
-Total CP6 spend: run 1 $0.5596 + V4 trace $0.0047 + run 2 $0.3228 = **$0.8871** of the
-$6.25 cap ($5.3629 left).
+Total CP6 spend: run 1 $0.5596 + V4 trace $0.0047 + run 2 $0.3228 + run 3 $0.6173 =
+**$1.5044** of the $6.25 cap ($4.7456 left).
+
+**V4 outcome, stated plainly (P3).** Run 1's refusal of the chained `archive.py --where; git …`
+calls was a probe artefact. Real Claude Code checks a chained command one subcommand at a
+time: the V4 trace under slice.md's real grant ran `--where; git status` and the `||` / `cd`
+chains. So a real user whose generator chains `--where` with granted commands finds their card.
+The probe's own deny list (cd, ls, head, …) caused run 1's refusals, and 4bb6bc7 removed it.
+
+## Run 3: candidate 9ed9d44, probe code ddff904 (INCOMPLETE: card-fresh INVALID)
+
+| | |
+|---|---|
+| Candidate | `9ed9d44`, frozen (same as run 2) |
+| Probe | `evals/realuse/run.py` at ddff904: run 2's code plus the run 3 A5 rulings (quote-aware; Claude Code's read-only commands accepted). Isolation skipped (permissions unchanged since run 2) |
+| Pre-check (no spend) | run 2 card-less re-graded 0 of 15; P1 CP6a v1.2.0 drive-root leak still flags; P2 CP6a 3 of 36 (was 4), CP6a-2 0 of 12 |
+| Cost | card-less $0.3690 + card-fresh $0.2483 = **$0.6173** |
+| Status | **INCOMPLETE: card-fresh INVALID (2 of 15 runs saw the card).** Under V3 that stops CP6. Quality was not run |
+
+| # | Step | Command (`--cand 9ed9d44 --model haiku --runs 3`) | Cost | Result |
+|---|---|---|---|---|
+| 1 | card-less load, 5 cases | `compare --cases slice fix redesign plan investigate --home empty --budget 0.08 --max-total 0.55` | $0.3690 | **PASS** |
+| 2 | card-fresh load, 5 cases | `compare … --home card --cardless slice=32310 fix=31801 redesign=30895 plan=29986 investigate=34828 --budget 0.08 --max-total 0.55` | $0.2483 | **INVALID** (2/15) |
+| 3 | quality | not run | $0 | — |
+
+### 1. Card-less: PASS
+
+| Case | per-run rule bytes | median | v1.1.0 | v1.2.0 | $ |
+|---|---|---|---|---|---|
+| slice | 32,310 32,310 37,531 | 32,310 | 62,894 | 61,230 | 0.1062 |
+| fix | 31,801 ×3 | 31,801 | 53,561 | 43,475 | 0.0409 |
+| redesign | 30,895 ×3 | 30,895 | 53,481 | 39,314 | 0.0624 |
+| plan | 35,207 29,986 29,986 | 29,986 (629 B under v1.1.0) | 30,615 | 41,367 | 0.0726 |
+| investigate (R1) | 34,828 ×3 | 34,828 (under 40,000) | — | — | 0.0869 |
+
+derive.md was read once by slice (r3) and once by plan (r1). A1 PASS, A5 PASS (no flags).
+Trace: `C:/genprompt-probe/genprompt-probe-20261109-111114/`.
+
+### 2. Card-fresh: INVALID
+
+- Card seen per run: slice n n n · fix n Y n · redesign Y n n · plan n n n · investigate n n n.
+  That is **2 of 15** (12 needed), and three cases have 0 of 3 (2 needed).
+- Gates are reported but not counted (V3):
+  - A1 PASS, A5 PASS, C1 PASS (over the 2 runs that saw the card).
+  - C2 can't be judged for slice, plan or investigate (no run saw the card). It passes for fix
+    and redesign.
+- Every median equals its card-less one; the card is 1,245 B.
+- Trace: `C:/genprompt-probe/genprompt-probe-20261109-114445/`.
+
+**Why 13 runs never saw the card (diagnosis, no remedy):** each one put `archive.py --where` in
+a long chained first Bash call, the call was refused, and the run carried on without the card.
+The two runs that found it ran `--where` on its own. The refusals fall into three kinds:
+
+| Kind | Runs | What refused the chain |
+|---|---|---|
+| a part no shim grants (`cat`, `echo`, `find`, a `( … )` group, a relative `tools/archive.py`) | fix r1, investigate r1, investigate r3, plan r1, redesign r2, redesign r3, slice r2, slice r3 | the probe's deny rule (cat, echo) or dontAsk (find, relative path). In real use these prompt the user instead |
+| a chain whose parts all look granted, refused by dontAsk ("no matching allow rule") | fix r3, investigate r2, plan r2, plan r3, slice r1 | e.g. plan r2: `python3 <cand>/tools/archive.py --where; cd "<fixture>" && git status --porcelain -uall && git rev-parse --show-toplevel && git branch --show-current && git log --oneline -5 && ls -la && ls docs`. **Not explained.** The V4 trace ran a similar chain under the same grant, but without the probe's deny rules |
+| `python3` is the Windows store alias here | (also in slice r3, fix r2) | an `&&` chain stops at `python3 … --where` (exit 49) before any `--where` output |
+
+- The second kind is the open question. V4 showed that real Claude Code runs a chain of granted
+  parts. These chains look granted too, yet were refused.
+- Candidate causes:
+  - a deny rule the probe adds that V4 didn't have (Read denials on other top-level folders,
+    the home and the shared roots) changes how Claude Code judges the chain;
+  - or one part fails the grant's prefix match in a way I can't see from the trace.
+- A V4-style trace replaying plan r2's exact command under the probe's exact flags, with and
+  without the probe's deny rules, would settle it: one haiku run, about $0.01. Not run, under V3.
+- The first kind is generator behaviour: haiku builds big chains with `cat`/`echo`, which no shim
+  grants. In real use the user gets a permission prompt. Under the probe's dontAsk the call is
+  refused, and it is not retried with `--where` alone.
+
+**Options for Shoaib (none taken):**
+1. Authorise the about $0.01 replay to explain the second kind before deciding anything.
+2. Generator fix: Step 0 runs `archive.py --where` as its own Bash call (never chained) and
+   falls back to `python` if `python3` is the store alias. That makes card discovery independent
+   of the rest of the chain, in real use and in the probe.
+3. Accept card-fresh as unmeasurable in headless dontAsk and gate 1.3.0 on card-less plus
+   quality only. This changes R2, so it's the Planner's call.
 
 ## Run 2: candidate 9ed9d44, probe code 4bb6bc7 (INCOMPLETE: A5 FAIL at card-less)
 
