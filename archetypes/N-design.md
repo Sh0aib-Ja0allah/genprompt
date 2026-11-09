@@ -7,12 +7,12 @@
 | **Autonomy** | N/A: design docs only. A spike runs in a named scratch path and is never merged |
 | **Baseline delta** | Unchanged. Production code is untouched; a spike's own numbers go in the doc |
 | **Length tier** | Program (350) |
-| **Deliverable** | One design doc (ADR / contract / schema / mapping), named per §2.7, with the options considered, the recommendation and the consequences |
+| **Deliverable** | One design doc (ADR/contract/schema/mapping), named `<PROFILE.docnaming>`, with the options considered, the recommendation and the consequences |
 
 ## Generator: before emitting
 
 - Name the decision precisely, and the constraints that bind it (the contract, the stack, the
-  client docs, the existing schema). Read the parts of the code the decision touches.
+  client docs, the existing schema). Read the code the decision touches.
 - Set the output format for the decision type:
   - ADR: Context · Options (at least 2, with trade-offs) · Decision · Consequences ·
     Reversibility

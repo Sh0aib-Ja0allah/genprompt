@@ -118,7 +118,7 @@ order. Read a numbered section below only when its step names a condition that h
    vendored and generated code, dead code the contract names. `default_branch`: the basename of
    `git symbolic-ref refs/remotes/origin/HEAD`, else `origin/main` or `origin/master`, said to be
    inferred. `docnaming`: the pattern the repo's own docs show, else `docs/<kebab-topic>.md`;
-   read §2.7 only for an archetype whose deliverable is a doc.
+   read §2.7 only when the repo shows no naming pattern.
 7. Write the card to `~/.genprompt/generated-prompts/by-repo/<key>.profile.md`. `key`: the
    directory basename, lowercased, `_` and spaces turned into `-`. `stamp:` the manifests and the
    contract, each `<file>@<git log -1 --format=%h -- <file>>`. `--dry-run` never writes it.
