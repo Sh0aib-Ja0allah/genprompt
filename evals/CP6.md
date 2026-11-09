@@ -1,7 +1,57 @@
-# CP6: 1.3.0 candidate (INCOMPLETE: run 3 card-fresh INVALID)
+# CP6: 1.3.0 candidate (INCOMPLETE: run 4 stopped at card-less A5)
 
 Total CP6 spend: run 1 $0.5596 + V4 trace $0.0047 + run 2 $0.3228 + run 3 $0.6173 + replay
-$0.0169 = **$1.5213** of the $7.50 cap (raised from $6.25 by Shoaib; $5.9787 left).
+$0.0169 + run 4 $0.4977 = **$2.0190** of the $7.50 cap (raised from $6.25 by Shoaib; $5.4810
+left).
+
+## Run 4: candidate c8edb15, probe code eea02ad (INCOMPLETE: A5 FAIL at card-less)
+
+| | |
+|---|---|
+| Candidate | `c8edb15`, **frozen** (R5): 9ed9d44 plus B's 7ffe72d (Step 0 runs `archive.py --where` alone, retries with `python`, then reads one per call). Floors: plan 29,983 · slice 32,307 · fix 31,798 · redesign 30,892 · investigate 34,825 (measured offline, same as the probe's) |
+| Cost | card-less **$0.4977** |
+| Status | **INCOMPLETE, A5 FAIL at card-less.** Card-fresh and quality were not run. Nothing was re-run or changed |
+
+| # | Step | Command (`--cand c8edb15 --model haiku --runs 3`) | Cost | Result |
+|---|---|---|---|---|
+| 1 | card-less load | `compare --cases slice fix redesign plan investigate --home empty --budget 0.08 --max-total 0.55` | $0.4977 | **FAIL (A5)**; load within the gates |
+
+| Case | per-run rule bytes | median | v1.1.0 | v1.2.0 | $ |
+|---|---|---|---|---|---|
+| slice | 32,307 ×3 | 32,307 | 62,894 | 61,230 | 0.1010 |
+| fix | 31,798 37,019 37,019 | 37,019 | 53,561 | 43,475 | 0.1003 |
+| redesign | 36,113 30,892 30,892 | 30,892 | 53,481 | 39,314 | 0.0875 |
+| plan | 29,983 29,983 35,204 | 29,983 (632 B under) | 30,615 | 41,367 | 0.1022 |
+| investigate (R1) | 34,825 40,046 34,825 | 34,825 (under 40,000) | — | — | 0.1068 |
+
+- Every median is at or below both baselines. derive.md was read 5 times (fix ×2, redesign,
+  plan, investigate). investigate r2 went over the 40,000 soft line in one run; the median is
+  what R1 reports.
+- A1 PASS.
+- B's Step 0 works: `--where` output naming the sandbox home appears in **15 of 15** runs (run
+  3's card-fresh managed 2 of 15). That isn't gated in card-less, but card-fresh depends on it.
+- **A5 flags 2 runs, on 3 Bash calls that ran inside the fixture or the sandbox home:**
+
+| Run | Call | Why it flags |
+|---|---|---|
+| fix r1 | `cd "<fixture>" && git log --format='%h %s' -- src/invoice.js && git show 82de56a:src/invoice.js \| sed -n '12,18p'` | `sed` is not a granted command and not in the run 3 read-only list |
+| investigate r2 | the same chain with `git log -n 3 …` | the same (`sed -n`) |
+| investigate r2 | `python "<cand>/tools/archive.py" --dry-run "<home>/tmp/….json" \| grep -E "FAIL\|WARN\|DRY RUN\|would write"` | a pipeline stage `grep` (shell grep, not `git grep`) is not in the list |
+
+**Diagnosis (no remedy applied):** both are text filters on a pipe, with no file of their own.
+`sed -n '12,18p'` prints lines 12–18 of the `git show` output, and `grep -E …` filters the
+dry-run's output. Nothing left the probe root, and the home scan found nothing. Under the
+rules as written they flag: the run 3 ruling lists git subcommands and `--version` only.
+Claude Code ran both under dontAsk as read-only commands.
+
+**Options for Shoaib (none taken):**
+1. Extend the read-only list to pipe filters with no file argument and no write option:
+   `sed -n '<addr>p'` (print-only, no `w`, `-i` or `e`), `grep` / `grep -E` (no `-r` or path
+   arguments), `sort`, `uniq`, `cut` as later pipeline stages. Then re-grade run 4 (expect 0
+   flags) and continue from card-fresh on the same candidate, since card-less passes on load.
+2. Keep them flagged. Then the generator must avoid shell filters in Bash (use Read with
+   offset/limit instead), which is another candidate and a full re-run.
+- Trace: `C:/genprompt-probe/genprompt-probe-20261109-122027/`.
 
 **V4 outcome, stated plainly (P3).** Run 1's refusal of the chained `archive.py --where; git …`
 calls was a probe artefact. Real Claude Code checks a chained command one subcommand at a
