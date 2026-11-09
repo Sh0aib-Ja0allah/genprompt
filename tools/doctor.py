@@ -280,8 +280,9 @@ def check_write_grants(emitters: list[str], commands: Path = COMMANDS) -> None:
 
 # E-09c: every archetype command @-includes PROTOCOL.md, so its size is paid on every emission.
 # Budget: 1.2.0 (E-11b) was 16,800; E-09f cut PROTOCOL to 14,010 bytes, so 14,600 keeps the same
-# ~600 B headroom. Raise it only with a reason.
-PROTOCOL_MAX_BYTES = 14_600
+# ~600 B headroom. Raise it only with a reason. 1.4.1: 15,200 for the R4 untrusted-input rule
+# (1.4.1); per-command R5 budgets now govern (PROTOCOL 14,628, ~570 B headroom kept).
+PROTOCOL_MAX_BYTES = 15_200
 
 
 def check_protocol_size(path: Path = HOME / "PROTOCOL.md", limit: int = PROTOCOL_MAX_BYTES) -> None:
