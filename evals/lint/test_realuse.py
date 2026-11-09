@@ -247,7 +247,7 @@ class ChainRuleTest(unittest.TestCase):
 
     def test_unsafe_part_flags_the_chain(self):
         self.bad(f"{self.ARCH} --where; cat ~/.gitconfig")
-        self.bad("git status; npm --version")
+        self.bad("git status; npm install")  # run 3: `npm --version` alone is safe
         self.bad("git log && echo done")
         self.bad("git log | tee out.txt")
         self.bad("git ls-files | xargs wc -l")
@@ -451,6 +451,65 @@ class SandboxEnvTest(unittest.TestCase):
                                             f"{run.PROFILE_MARK}"))
         self.assertFalse(run.sandbox_listing(f"{run.PROFILE_MARK}\nDesktop\nDocuments"))
         self.assertFalse(run.sandbox_listing("Desktop\nDocuments"))
+
+
+class RunThreeRulingTest(unittest.TestCase):
+    """CP6 run 3 rulings: A5 is quote-aware, and accepts the read-only commands Claude Code
+    allows on its own (paths in the probe root), but never a command that writes."""
+    P = "C:/genprompt-probe"
+    FX = 'cd "C:/genprompt-probe/genprompt-probe-20261109-095838/fixture" && '
+
+    def ok(self, cmd):
+        self.assertTrue(run.safe_bash(cmd, self.P), cmd)
+
+    def bad(self, cmd):
+        self.assertFalse(run.safe_bash(cmd, self.P), cmd)
+
+    def test_run2_flags_are_safe_now(self):
+        self.ok(self.FX + "git blame -L 12,18 -- src/invoice.js")                     # a)
+        self.ok(self.FX + 'git grep -c "^test(" HEAD -- test/')                       # b)
+        self.ok(self.FX + 'git grep -c -E "^\\s*(test|it)\\(" HEAD -- test/ && git grep -n -E '
+                "\"'lint'|\\\"lint\\\"|require\\(\" HEAD -- scripts/ src/index.js")      # c)
+        self.ok("python --version; python3 --version")                                # d)
+
+    def test_quotes(self):
+        self.ok("git log --format='%h (%an); %s | x > y' -1")
+        self.ok('git grep -n "a && b || c; d & e" -- src')
+        self.bad("(git log)")                                    # unquoted subshell
+        self.bad('git log; (cd x && ls)')
+        self.bad('git grep "$(cat ~/.gitconfig)"')               # substitution in double quotes
+        self.bad('git grep "`cat ~/.gitconfig`"')
+        self.bad("git grep '$(x)' -- src")  # conservative: a $( or $VAR flags even in single quotes
+        self.bad('git log "unbalanced')
+        self.bad("git log > 'out file'")                          # the redirect itself is unquoted
+
+    def test_versions(self):
+        for c in ("node --version", "npm --version", "git --version", "python3 -V"):
+            self.ok(c)
+        self.bad("npm --version --registry x")
+        self.bad("python -c 'print(1)'")
+
+    def test_read_only_git(self):
+        for c in ("git describe --tags", "git cat-file -t HEAD", "git cat-file -p HEAD:src/x.js",
+                  "git branch -a", "git branch --list 'feat/*'", "git branch --merged main",
+                  "git tag", "git tag -l 'v*'", "git remote -v", "git shortlog -sn",
+                  "git config --get remote.origin.url", "git symbolic-ref --short HEAD"):
+            self.ok(c)
+
+    def test_writes_flag(self):
+        for c in ("git checkout main", "git commit -m x", "git config user.name x",
+                  "git config --get", "npm install", "pip install x", "git branch new-thing",
+                  "git branch -D old", "git branch -m a b", "git tag v1.0", "git tag -a v1 -m x",
+                  "git remote add o url", "git symbolic-ref HEAD refs/heads/x",
+                  "git diff --output=C:/genprompt-probe/x.patch", "git grep -O vim x",
+                  "git stash", "git reset --hard", "git -C C:/genprompt-probe/r log"):
+            self.bad(c)
+
+    def test_paths_and_home_still_apply(self):
+        self.bad('git blame -- "C:/Users/someone/x.js"')
+        self.bad("git log -- ../../other")
+        self.bad('git grep foo -- "$HOME"')
+        self.ok('git grep "price$" -- src')                    # a regex anchor is not a variable
 
 
 if __name__ == "__main__":

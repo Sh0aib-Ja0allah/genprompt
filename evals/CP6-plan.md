@@ -107,6 +107,24 @@ from the product. Trace: `C:/genprompt-probe/genprompt-v4-20261109-094638/`.
 | CP6 card-less (`…-083928`) | 0 of 15 | plan r3 tripped the home scan only on the harness spill notice (now exempt) |
 | CP6 card-fresh (`…-090719`) | 0 of 15 | slice r1's `git branch …; git branch --merged main; git rev-parse` now passes |
 
+**Run 3 rulings (after run 2's A5 stop; fixed before run 3)**
+- A5 is quote-aware: `( ) | ; > < &` inside single or double quotes are not shell syntax.
+  Unquoted ones are judged as before. `$( )` and backticks inside double quotes still
+  substitute, so they flag. A `$VAR` or `$(` flags even inside single quotes (conservative).
+- A5 also accepts the read-only commands Claude Code allows on its own, if every path stays in
+  the probe root and the output doesn't show the real home:
+  - git blame, log, show, diff, grep, status, rev-parse, ls-files, rev-list, cat-file -p/-t,
+    shortlog, describe;
+  - branch, tag and remote, listing only;
+  - `<cmd> --version` or `-V` with no other arguments.
+- Anything that writes still flags: checkout, commit, config set, branch or tag creation, any
+  install, `--output`, `-O`, and so on.
+- Pre-check before spending, re-graded with this A5:
+  - run 2 card-less (`…-095838`): 0 of 15 (was 4);
+  - P1: the CP6a v1.2.0 plan r2 drive-root Glob leak still flags;
+  - P2: CP6a 3 of 36 (V5 had 4: candidate redesign r1's `python --version` is now accepted);
+  - CP6a-2: 0 of 12 (unchanged); CP6 run 1 card-less and card-fresh: 0 of 15 each.
+
 ## Frozen candidate (R5)
 
 CP6 records the candidate SHA it ran on. If PROTOCOL, guide/ or archetypes/ change after that,
