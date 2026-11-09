@@ -101,6 +101,23 @@ MODE FOR THIS SESSION
 Use this or the §4.19 approval gate in a code-writing prompt: one of them, not both.
 Read-only and commit-only archetypes state `Autonomy: N/A` in the lock instead.
 
+### 4.13 WHAT YOU CANNOT DO: the stop-list
+
+```text
+WHAT YOU CANNOT DO: do not attempt, do not fake, do not stub as if live.
+These need something only I can supply. Build to the boundary, label it, and list exactly what you need:
+- <item>: <what is missing>, because <why only I can supply it>. Blocks <what>.
+  Would be unblocked by <what>.
+Keep this list current, and do not let it silently shrink.
+```
+
+Out-of-scope lines take the same reason clause, wherever a template writes them:
+
+```text
+OUT OF SCOPE: do not start these, do not drift into them:
+- <item, by path>, because <reason: a later slice / another owner / a live session / the contract>.
+```
+
 ### 4.14 Verification, DO/DON'T, DEFINITION OF DONE, REPORT
 
 ```text

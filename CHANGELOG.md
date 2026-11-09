@@ -4,6 +4,10 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-09 · archetypes/L-fix.md, A-redesign.md · Fix: fix and redesign regain the source-of-
+  truth (§4.6, fix) and cannot-do (§4.13) blocks the E-09d cut dropped (CP6 grounding
+  regression). Fix also marks unread claims `[UNVERIFIED]`, labels counts, and names
+  genprompt's tools bare (`archive.py`), never as a repo path.
 - 2026-11-09 · tools/build_shims.py, commands/ · Fix: since the profile card shipped in 1.2.0,
   Windows users whose `python3` is the Store alias (exit 49), and any run that chained Step 0's
   `archive.py --where` with an ungranted part, had their saved card silently ignored (CP6 run 3:
