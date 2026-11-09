@@ -94,7 +94,7 @@ Occupancy   <free | OCCUPIED: <evidence>; see §4.27>
 Scope       <single root | monorepo: apps/x IN, apps/y + services/ OUT>
 Stack       <stack + versions read from the manifest/lockfile> · role <role label> · card <Nd, stamps fresh | Nd, stale: <file> moved | new>
 Contract    <path to CLAUDE.md / AGENTS.md, or "none in-repo"> · hard rules: <branching / deploy / push / logging, quoted short with line numbers>
-Ancestors   <non-governing paths | none found> · user-level: <path | none>
+Ancestors   <non-governing paths | none found> · user-level: <present | unreadable | none>
 Truth       <source-of-truth docs, in order>
 Gates       <literal commands, in order, each (script|contract|derived); ⚠ destructive; test: NONE if true>
 New docs    <the naming convention and the default name a new doc would get here>

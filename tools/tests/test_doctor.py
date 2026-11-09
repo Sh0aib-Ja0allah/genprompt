@@ -81,7 +81,7 @@ class ProfileFreshness(unittest.TestCase):
     """§2.9: freshness is the file@sha stamps; doctor (which cannot run git in the repo) only
     enforces the 90-day ceiling, so a 30-day-old card that used to WARN at 14 days is now valid."""
 
-    def run_with_cards(self, ages: dict[str, int]) -> str:
+    def run_with_cards(self, ages: dict[str, int], body: str = "stack: x\n") -> str:
         import datetime as _dt
         with tempfile.TemporaryDirectory() as tmp:
             shards = Path(tmp) / "generated-prompts" / "by-repo"
@@ -93,7 +93,7 @@ class ProfileFreshness(unittest.TestCase):
                 derived = (_dt.date.today() - _dt.timedelta(days=age)).isoformat()
                 (shards / f"{key}.profile.md").write_text(
                     f"---\nrepo: {key}\npath: /srv/{key}\nkey: {key}\nderived: {derived}\n"
-                    f"stamp: package.json@abc1234 ; CLAUDE.md@def5678\n---\nstack: x\n", encoding="utf-8")
+                    f"stamp: package.json@abc1234 ; CLAUDE.md@def5678\n---\n{body}", encoding="utf-8")
             _code, out = run_tool(DOCTOR, "--archive", home=Path(tmp))
         return out
 
@@ -106,6 +106,14 @@ class ProfileFreshness(unittest.TestCase):
         out = self.run_with_cards({"old": 100})
         self.assertIn("profile old.profile.md is 100 days old, past the 90-day ceiling", out)
         self.assertNotIn("ERROR  [archive] profile", out)
+
+    def test_card_user_level_path_warns(self):
+        # LOCK-UL (1.4.0): the card slot is present / unreadable / none, never the user's home path
+        out = self.run_with_cards({"leak": 5}, "ancestors:   none found · user-level: /home/someone/.claude/CLAUDE.md\n")
+        self.assertIn("profile leak.profile.md: user-level is a path", out)
+        out = self.run_with_cards({"clean": 5}, "ancestors:   none found · user-level: present\n")
+        self.assertNotIn("user-level is a path", out)
+        self.assertIn("Summary: 0 ERROR, 0 WARN", out)
 
 
 def load_doctor():

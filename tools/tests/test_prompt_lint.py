@@ -31,7 +31,8 @@ DOC = load_doctor()
 CMDS = DOC.cmd_map()
 BASE = PASS_FILE.read_text(encoding="utf-8")
 ALL_CHECKS = {"header", "filename-words", "one-fence", "placeholders", "line-width", "length",
-              "terminal-imperative", "gates-labelled", "header-vocab", "report-line", "self-check"}
+              "terminal-imperative", "gates-labelled", "header-vocab", "report-line", "user-level",
+              "self-check"}
 
 
 def lint(text: str, name: str = PASS_FILE.name) -> dict[str, tuple[str, str]]:
@@ -66,6 +67,15 @@ class PassingFile(Base):
         old = BASE.replace(" | flags=- | via=cwd | lock=accepted", "", 1)
         self.assertStatus(old, "header", "PASS")
         self.assertStatus(old, "header-vocab", "WARN")
+
+    def test_user_level_path_warns_and_the_enum_passes(self):
+        # LOCK-UL (1.4.0): a user-level path names the user's home (CP7: lock, card, grounding)
+        for leak in ("C:\\Users\\someone\\.claude\\CLAUDE.md", "/home/someone/.claude/CLAUDE.md",
+                     "~/.claude/CLAUDE.md"):
+            text = BASE + f"\n- Ancestors: none found · user-level: {leak}\n"
+            self.assertStatus(text, "user-level", "WARN")
+        for ok in ("present", "unreadable", "none"):
+            self.assertStatus(BASE + f"\n- Ancestors: none found · user-level: {ok}\n", "user-level", "PASS")
 
     def test_lock_auto_is_a_valid_value(self):
         # E-11b: opt-in auto-go archives lock=auto
@@ -242,7 +252,7 @@ class Cli(unittest.TestCase):
     def test_prompt_mode_passes_on_fixture(self):
         code, out = run_tool(DOCTOR, "--prompt", str(PASS_FILE))
         self.assertEqual(code, 0, out)
-        self.assertIn("Prompt lint: 11 PASS, 0 WARN, 0 FAIL", out)
+        self.assertIn("Prompt lint: 12 PASS, 0 WARN, 0 FAIL", out)
 
     def test_warnings_alone_exit_0(self):
         code, out = self.run_on(BASE.replace("Start with CHECKPOINT A now.", "Thanks."))

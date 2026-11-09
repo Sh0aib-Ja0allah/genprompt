@@ -22,7 +22,7 @@ Format: `| # | Item | Verdict | Reason |`.
 | 1 | The target is resolved, and how is stated (argument / continuation / cwd / ask). Any conflict is shown in the lock, or in the printed lock facts under `--go` |
 | 2 | The repo anchor is absolute, with the branch. In a monorepo: the in-scope root, and the out-of-scope siblings named |
 | 3 | One sharp task statement at the top |
-| 4 | The conventions contract is named and given precedence, and its hard rules are pointed to (branching / deploy / push / logging). Ancestors are scanned (the four names in every ancestor, plus the user-level file) and the result is stated literally. No unscanned file is named |
+| 4 | The conventions contract is named and given precedence, and its hard rules are pointed to (branching / deploy / push / logging). Ancestors are scanned (the four names in every ancestor, plus the user-level file, as present / unreadable / none, never a path) and the result is stated literally. No unscanned file is named |
 | 5 | The source-of-truth order has authority annotations and at least one exclusion or staleness warning. Every `@ref` and path exists |
 | 6 | Skepticism carries a concrete falsifying artifact from THIS repo. N/A only for a delta E/J prompt whose running prompt already carries one |
 | 7 | Every load-bearing claim is grounded at `file:line` (at a named SHA when the tree is occupied or the prompt reviews a range). Unverified claims are marked `[UNVERIFIED]`. No path, script, line, SHA or count is invented |

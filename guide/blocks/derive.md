@@ -15,7 +15,8 @@ order. Read a numbered section below only when its step names a condition that h
 2. Ancestors. In every directory from the root's parent up to the drive root, check `CLAUDE.md`,
    `AGENTS.md`, `.claude/CLAUDE.md` and `CLAUDE.local.md` (`ls` or Glob). They describe other
    projects and govern this one only if its contract adopts them. Report `~/.claude/CLAUDE.md` as
-   `user-level: <path>`. Record the literal result, e.g. `none found`.
+   `user-level: present`, `unreadable` or `none`, never its path (it names the user's home).
+   Record the literal result, e.g. `none found`.
 3. Contract. Root `CLAUDE.md` binds, with `.claude/CLAUDE.md`; a body that is only `@AGENTS.md`
    points at the contract. No `CLAUDE.md`: `AGENTS.md`. Neither: the contract is unstated. Mine
    it for commands (fenced blocks, and inline "run `…`" lines: `(contract)` gates), hard rules
@@ -65,7 +66,7 @@ scope:       <single root | monorepo roots, IN/OUT>
 stack:       <stack label with versions>
 role:        <role label, or the contract's persona verbatim>
 contract:    <path> · hard rules: <one line each>
-ancestors:   <paths | none found> · user-level: <path | none>
+ancestors:   <paths | none found> · user-level: <present | unreadable | none>
 truth:       <ordered list with authority notes>
 docnaming:   <N-rule that applies, and the next name it would produce>
 code_roots:  <dirs>

@@ -295,6 +295,32 @@ class BuildShims(unittest.TestCase):
                 self.assertIn(rule, text, f.name)
                 self.assertIn("{scratch dir}", text, f.name)
 
+    # LOCK-UL (1.4.0): CP7 found the user-level CLAUDE.md path (the user's home) in TARGET LOCK
+    # Ancestors lines, a card slot and grounding notes. Every user-level slot is the enum, and no
+    # rule text asks for a user-level path.
+    def test_user_level_is_reported_present_unreadable_none_never_a_path(self):
+        files = [*sorted((ROOT / "commands").glob("*.md")), *sorted((ROOT / "archetypes").glob("*.md")),
+                 *sorted((ROOT / "guide").glob("*.md")), *sorted((ROOT / "guide" / "blocks").glob("*.md")),
+                 *sorted((ROOT / "utilities").glob("*.md")), ROOT / "PROTOCOL.md"]
+        slot = re.compile(r"user-level:\s*(<[^>]*>|`?\S+)")
+        seen = {"lock": False, "card": False, "grounding": False}
+        for f in files:
+            for n, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
+                where = f"{f.relative_to(ROOT)}:{n}: {line}"
+                self.assertNotRegex(line, r"user-level:\s*<[^>]*\bpath\b", where)
+                for m in slot.finditer(line):
+                    val = m.group(1).rstrip(",.;").strip("`")
+                    self.assertIn(val, ("<present | unreadable | none>", "present"), where)
+                if line.startswith("Ancestors ") and "user-level:" in line:
+                    seen["lock"] = True
+                if line.startswith("ancestors:") and "user-level:" in line:
+                    seen["card"] = True
+                if "User-level is" in line and f.parent.name == "blocks":
+                    seen["grounding"] = True
+        self.assertEqual(seen, {"lock": True, "card": True, "grounding": True})
+        derive = (ROOT / "guide" / "blocks" / "derive.md").read_text(encoding="utf-8")
+        self.assertIn("never its path", derive)
+
     # 1.3.1 C1: --where names the cwd repo's card, and Step 0 reads it before any repo survey.
     def test_step0_reads_the_card_before_any_repo_survey(self):
         bs = load_build_shims()

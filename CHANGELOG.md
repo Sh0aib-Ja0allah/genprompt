@@ -4,6 +4,11 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-09 · PROTOCOL.md, guide/01, 03-blocks.md §4.2, 04-checklist.md, tools/doctor.py ·
+  LOCK-UL (1.4.0, privacy): the user-level CLAUDE.md is reported as present / unreadable / none,
+  never by path, in the TARGET LOCK Ancestors line, the card's ancestors slot and the grounding
+  notes (CP7 found the user's home there; SEC-130 lock caveat). doctor's prompt lint and card
+  check WARN on a user-level path. +75 B on every floor (PROTOCOL +16, §4.2 +59).
 - 2026-11-09 · PROTOCOL.md, archetypes/F-plan.md, X-investigate.md · F-hr (1.4.0): cuts only, for
   headroom. PROTOCOL -255 B (five duplicate or wording cuts: the Step 0 home note, the root/git
   write bullet, the Ask aside, Step 5.5's notation repeat of §4.0, the no-python repeat); F -94
