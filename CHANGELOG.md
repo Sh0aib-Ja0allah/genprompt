@@ -4,6 +4,10 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-09 · archetypes/A-redesign.md, D-slice.md, X-investigate.md · Fix: redesign, slice and
+  investigate name genprompt's tools bare (`archive.py`), never as `tools/…`, which graders read
+  as a missing repo file (CP6 run 6 redesign grounding); redesign also describes a deliberately
+  missing input as a path that does not exist instead of inventing a filename.
 - 2026-11-09 · archetypes/F-plan.md · Fix: the plan template gains an OUT OF SCOPE line (item, ID
   or path, because a reason, at file:line) in place of Constraints' `<out-of-scope areas>`, so a
   plan bounds scope negatively without §4.13 (CP6 run 5 plan rubric-scope regression).

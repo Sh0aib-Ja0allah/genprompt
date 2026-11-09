@@ -15,6 +15,8 @@
   and the consequence. Ground each one.
 - If this follows a prior slice, put the relationship in the header, and confirm the prior
   instruction landed on the branch.
+- Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
+  is not in the target repo.
 
 ## Required blocks
 
