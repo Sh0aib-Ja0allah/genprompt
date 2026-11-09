@@ -1,12 +1,12 @@
-# CP6a-2: E-09f floor cut (f846d85) — load PASS; quality 2 of 3, INCOMPLETE (plan not run)
+# CP6a-2: E-09f floor cut (f846d85) — PASS (load 4 of 4, quality 3 of 3)
 
 | | |
 |---|---|
 | Candidate | `f846d85` (E-09f: every archetype's always-loaded floor cut by about 5.2 KB; plan's floor is 29,853 B) |
 | Rule (fixed before results) | load: card-less per-case median ≤ v1.1.0 and ≤ v1.2.0, using CP6a's stored baseline medians. Quality: fix, redesign and plan on opus vs CP5 `2026-11-08T19-07-58Z`. Stop at the first failure; an incomplete run is reported as incomplete |
 | Run | 2026-11-09: isolation check, then `realuse/run.py compare --cand f846d85 --cases slice fix redesign plan --model haiku --budget 0.15 --runs 3 --home empty --max-total 0.40` |
-| Cost | isolation $0.0033 + $0.0041, load $0.2623 + plan r3 $0.0155, quality fix $0.5270 + redesign $0.8258 = **$1.6380** of $2.13 ($0.4920 left) |
-| Status | **Load PASS** in all 4 cases after plan r3 (PE GO). **Quality INCOMPLETE:** fix and redesign show no regression; plan was not run because its expected cost (CP5: $0.51) is more than the $0.49 left |
+| Cost | isolation $0.0033 + $0.0041, load $0.2623 + plan r3 $0.0155, quality fix $0.5270 + redesign $0.8258 + plan $0.7100 = **$2.3480** of $2.44 (cap raised from $2.13 by Shoaib for plan) |
+| Status | **PASS.** Load passes in all 4 cases after plan r3 (PE GO). Quality: no regression in fix, redesign or plan on the four gated graders (plan ran after Shoaib raised the cap to $2.44) |
 
 ## Isolation check (drive root)
 
@@ -91,7 +91,7 @@ used doctor from the f846d85 worktree.
 |---|---|---|---|---|---|---|
 | fix | FPF → **PPP** (FAIL → PASS) | PPP → PFP (PASS → PASS, one vote fewer) | PASS (22 → 35 citations) | PASS (lint, start, test) | eval score 0.9 → 1.0; line-length PASS; archive-valid 8/0/0 | $0.5270 (CP5 $0.5267) |
 | redesign | PPP → PPP | PPP → PPP | PASS (17 → 15) | PASS (lint, test) | line-length FAIL → **PASS**; archive-valid 8/0/0 | $0.8258 (CP5 $0.5724) |
-| plan | **not run** | | | | | est. $0.51 |
+| plan | PPP → PPP | PPP → PPP | PASS (20 → 29) | PASS (lint, test) | eval score 1 → 1; skepticism PPP; line-length FAIL → **PASS**; no-placeholders PASS → **FAIL** (see below); archive-valid 7/1/0 | $0.7100 (CP5 $0.5090) |
 
 - **No regression in fix or redesign** on the four gated graders. fix's rubric-scope, which failed
   at CP4 and CP5, passes for the first time.
@@ -104,9 +104,27 @@ used doctor from the f846d85 worktree.
   the Planner's rule (an estimate over budget goes to Shoaib, and a partial set is never a pass),
   I stopped before spending it.
 
-### To finish
+### Plan (opus) under Shoaib's budget decision
 
-- One opus run of plan, about $0.51–0.75 (CP5 cost up to redesign's +44%). That is $0.02–0.26
-  more than the $0.49 left, so it needs a budget decision from Shoaib.
-- Quality results: `evals/results/2026-11-09T01-41-45Z` (fix) and `2026-11-09T01-44-22Z`
-  (redesign).
+- Shoaib raised CP6a-2's cap to $2.44 for one opus plan run with `--max-cost-usd 0.80`. It ran
+  once at f846d85 and cost **$0.7100** (+39% vs CP5's $0.5090, in line with redesign's +44%).
+  Results: `evals/results/2026-11-09T03-31-13Z`.
+- **No regression on the gated graders:** rubric-scope PPP, rubric-grounding PPP, cites-real PASS
+  (29 citations, CP5 20), gates-exist PASS (lint, test). Eval score 1, as at CP5.
+- **One ungated grader went PASS → FAIL: no-placeholders.** It matched `<WS letter>` and
+  `<two digits>` in one line of the emitted prompt: "Stable ids (<WS letter>-<two digits>), never
+  renumbered once written." That line describes the id format the plan must use; it is not an
+  unfilled slot. doctor rated it a WARN (placeholders), not a FAIL. It is outside the CP6a-2 gate;
+  noted for CP6 (the grader can't tell a format description from a placeholder, and the generator
+  could write `WS-01` style examples instead).
+- line-length went FAIL → PASS (CP5 had one 103-char line).
+
+### Verdict
+
+**CP6a-2 PASSES.** Load: every case's median is at or below both v1.1.0 and v1.2.0. Quality: fix,
+redesign and plan show no regression on rubric-scope, rubric-grounding, cites-real and gates-exist
+vs CP5. Notes for CP6, not gates: fix's rubric-grounding passed on 2 of 3 votes; plan's
+no-placeholders false alarm; the A5 drive-root false alarm (offline fix pending).
+
+Quality results: `evals/results/2026-11-09T01-41-45Z` (fix), `2026-11-09T01-44-22Z` (redesign),
+`2026-11-09T03-31-13Z` (plan).
