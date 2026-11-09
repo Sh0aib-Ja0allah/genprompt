@@ -4,6 +4,13 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-10 · tools/archive.py · R11 (1.4.1, privacy): the archive writer FAILs, not WARNs, when
+  the file names the user's home directory outside the repo path (the header's `path` value, a
+  `Repo:` anchor line and paths under the repo are exempt; reported by line number, never echoed),
+  and a `user-level:` slot that is not present/unreadable/none is a FAIL there too.
+- 2026-11-10 · tools/archive.py, README.md · R13 (1.4.1): after a clean run the archive writer
+  deletes parts files (*.json) directly in `~/.genprompt/tmp/` older than 7 days, never this
+  run's own file and never anything outside tmp/. README's "Where your files go" lists tmp/.
 - 2026-11-10 · guide/03-blocks.md §4.2 · LOCK-UL in all output: user-level is
   `present`/`unreadable`/`none` in all output, summary too, never a path to or in it (CP8 L1: a
   redesign closing note named the real user-level directory; lock, card and prompt were clean).

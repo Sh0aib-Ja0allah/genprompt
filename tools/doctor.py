@@ -43,6 +43,15 @@ def genprompt_home(env: dict | None = None) -> Path:
     return home if home.is_absolute() else home.resolve()
 
 
+def user_home() -> Path | None:
+    """The user's own home directory (not the genprompt home), or None when it cannot be found.
+    archive.py uses it only to FAIL a prompt that names it (R11); nothing is read or written there."""
+    try:
+        return Path.home()
+    except (RuntimeError, KeyError):
+        return None
+
+
 GENPROMPT_HOME = genprompt_home()
 ARCHIVE = GENPROMPT_HOME / "generated-prompts"
 SHARDS = ARCHIVE / "by-repo"

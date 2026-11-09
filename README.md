@@ -144,6 +144,7 @@ directory:
     by-repo/<repo>.profile.md a cached profile of the repo (stack, contract, branch)
     <repo>/<date>-<cmd>-<slug>.md
   local-rules.md              your personal rules (optional, written by /genprompt:learn)
+  tmp/                        parts files handed to the archive writer; deleted after 7 days
 ```
 
 This folder is outside the plugin, so plugin updates and reinstalls never touch it. It stays on

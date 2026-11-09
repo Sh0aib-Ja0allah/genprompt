@@ -28,7 +28,13 @@ to a worker, so a gap in the archive (a broken follows chain) is worse than a fl
      first gets the three §10 header lines).
   3. runs doctor's per-file lint (the same code as `doctor.py --prompt`) on the file as written
      and checks that the row parses back into the same 5 fields.
+     Two checks are stricter here than in the lint, because an archived prompt is pasted on (R11):
+     the user's home directory named anywhere in the file outside the repo path is a FAIL
+     (home-path; the header's `path` value and a `Repo:` anchor line are exempt), and a
+     `user-level:` slot that is not present/unreadable/none is a FAIL, not a WARN.
   FAIL -> "ARCHIVED WITH ERRORS" with every failure, exit 1. WARN only -> exit 0.
+  4. after a clean run (exit 0), parts files (*.json) directly in <home>/tmp/ older than 7 days are
+     deleted, never this run's own file and never anything outside <home>/tmp/ (R13).
 
 An existing file is never overwritten by accident (exit 3, nothing written). --replace is the
 deliberate fix-and-re-archive path: it overwrites that same file and rewrites its shard row in
@@ -49,6 +55,7 @@ import importlib.util
 import json
 import re
 import sys
+import time
 from pathlib import Path
 
 sys.dont_write_bytecode = True
@@ -61,6 +68,102 @@ KEY_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 EXIT_OK, EXIT_ERRORS, EXIT_INPUT, EXIT_EXISTS = 0, 1, 2, 3
 BODY_PARTS = ("header_table", "grounding", "prompt", "self_check", "rule")
 USAGE = "usage: archive.py [--dry-run | --replace] [<parts.json> | -]  |  archive.py --where"
+TMP_KEEP_DAYS = 7
+REPO_ANCHOR_RE = re.compile(r"^\W*Repo:")          # the prompt's `Repo:` anchor line (§4.14)
+PATH_CHAR = re.compile(r"[\w.-]")
+
+
+def _norm(path: str) -> str:
+    """Compare paths the same way everywhere: one forward slash per separator, lowercase."""
+    return re.sub(r"[\\/]+", "/", path).lower()
+
+
+def _forms(path: str) -> list[str]:
+    """A normalised path plus its Git Bash spelling (c:/users/x -> /c/users/x)."""
+    p = _norm(path).rstrip("/")
+    m = re.match(r"^([a-z]):(/.*)$", p)
+    return [p, f"/{m.group(1)}{m.group(2)}"] if m else [p]
+
+
+def user_home() -> str | None:
+    home = doctor.user_home()
+    if home is None:
+        return None
+    norm = _norm(str(home)).rstrip("/")
+    return norm if norm and not re.fullmatch(r"[a-z]:", norm) else None
+
+
+def home_path_lines(text: str, repo_path: str, home: str | None) -> list[int]:
+    """Line numbers naming the user's home directory outside the repo path (R11). Exempt: the
+    line-1 header's `path=` value, a `Repo:` anchor line, and any path at or under the repo."""
+    if not home:
+        return []
+    homes, repos = _forms(home), [r for r in _forms(repo_path or "") if r]
+    hits = []
+    for n, raw in enumerate(text.splitlines(), 1):
+        if n == 1 and raw.startswith("<!-- genprompt"):
+            raw = re.sub(r"(\|\s*path=)[^|]*", r"\1", raw)
+        if REPO_ANCHOR_RE.match(raw):
+            continue
+        ln = _norm(raw)
+        for h in homes:
+            start = 0
+            while (i := ln.find(h, start)) >= 0:
+                start = i + 1
+                end = i + len(h)
+                if end < len(ln) and PATH_CHAR.match(ln[end]):      # c:/users/x vs c:/users/xavier
+                    continue
+                if i > 0 and re.match(r"\w", ln[i - 1]):
+                    continue
+                inside = False
+                for r in repos:
+                    e = i + len(r)
+                    if ln.startswith(r, i) and (e == len(ln) or not PATH_CHAR.match(ln[e])):
+                        # a repo that IS the home exempts only the bare path, not what is under it
+                        inside = r != h or e == len(ln) or ln[e] != "/"
+                        if inside:
+                            break
+                if not inside:
+                    hits.append(n)
+                    break
+            if hits and hits[-1] == n:
+                break
+    return hits
+
+
+def archive_checks(text: str, name: str, p: dict, cmd_by_letter: dict[str, str]) -> list:
+    """doctor's prompt lint, with the user-level WARN raised to FAIL, plus the home-path check."""
+    res = [(c, doctor.FAIL if c == "user-level" and s == doctor.WARN else s, d)
+           for c, s, d in doctor.lint_prompt(text, name, cmd_by_letter)]
+    hits = home_path_lines(text, p.get("path") or "", user_home())
+    res.append(("home-path", doctor.FAIL if hits else doctor.PASS,
+                f"line {', '.join(map(str, hits[:5]))}: names the user's home directory outside the "
+                f"repo path (use ~/ or a {{slot}})" if hits else "no home path outside the repo"))
+    return res
+
+
+def prune_tmp(home: Path, keep: Path | None, now: float | None = None) -> int:
+    """Delete parts files (*.json) directly in <home>/tmp/ older than TMP_KEEP_DAYS (R13). Never
+    this run's file, never a link, never anything that resolves outside <home>/tmp/."""
+    tmp = home / "tmp"
+    if tmp.is_symlink() or not tmp.is_dir():
+        return 0
+    tmp_r = tmp.resolve()
+    keep_r = keep.resolve() if keep is not None else None
+    cutoff = (time.time() if now is None else now) - TMP_KEEP_DAYS * 86400
+    gone = 0
+    for f in tmp.iterdir():
+        try:
+            if f.suffix.lower() != ".json" or f.is_symlink() or not f.is_file():
+                continue
+            r = f.resolve()
+            if r.parent != tmp_r or r == keep_r or f.stat().st_mtime >= cutoff:
+                continue
+            f.unlink()
+            gone += 1
+        except OSError:
+            continue
+    return gone
 
 
 def say(msg: str = "") -> None:
@@ -243,7 +346,7 @@ def main(argv: list[str]) -> int:
             exists = " (exists: needs --replace)" if target.exists() else ""
             say(f"would write  {target}  ({len(text.splitlines())} lines){exists}")
             say(f"line 1       {text.splitlines()[0]}")
-            fails, _warns = report_lint(doctor.lint_prompt(text, target.name, cmd_by_letter))
+            fails, _warns = report_lint(archive_checks(text, target.name, p, cmd_by_letter))
         say(f"would update {shard} ({how})")
         say(f"row          {row}")
         return EXIT_ERRORS if fails else EXIT_OK
@@ -258,7 +361,8 @@ def main(argv: list[str]) -> int:
     # 2. validate what is on disk: the file, and that the row parses back into the same 5 fields
     fails = warns = 0
     if target is not None:
-        fails, warns = report_lint(doctor.lint_prompt(target.read_text(encoding="utf-8"), target.name, cmd_by_letter))
+        fails, warns = report_lint(archive_checks(target.read_text(encoding="utf-8"), target.name, p,
+                                                  cmd_by_letter))
     shard_lines = shard.read_text(encoding="utf-8").splitlines()
     sep = doctor.shard_separator(shard_lines)
     rows = [doctor.split_row(ln, sep) for ln in shard_lines if ln.strip() and not ln.startswith("#")]
@@ -276,6 +380,10 @@ def main(argv: list[str]) -> int:
         return EXIT_ERRORS
     say(f"ARCHIVED  {where}" + (f"  ({warns} warning(s))" if warns else ""))
     say(f"ROW       {shard.name} ({how}): {row}")
+    src = Path(rest[0]) if rest and rest[0] != "-" else None
+    pruned = prune_tmp(doctor.genprompt_home(), src)
+    if pruned:
+        say(f"PRUNED    {pruned} parts file(s) older than {TMP_KEEP_DAYS} days from tmp/")
     return EXIT_OK
 
 

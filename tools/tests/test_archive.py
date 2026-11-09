@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -280,6 +281,155 @@ class ArchiveWriter(unittest.TestCase):
                               capture_output=True, encoding="utf-8", check=False)
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         self.assertTrue(self.file.exists())
+
+
+FAKE_HOME = r"C:\Users\gp-test-user" if os.name == "nt" else "/home/gp-test-user"
+SEP = "\\" if os.name == "nt" else "/"
+
+
+def under_home(*parts_: str) -> str:
+    return SEP.join((FAKE_HOME, *parts_))
+
+
+class HomePath(unittest.TestCase):
+    """R11: the user's home outside the repo path is a FAIL; user-level must be present|unreadable|none.
+    Path.home() is pointed at a fake home through HOME and USERPROFILE; nothing reads the real one."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.home = Path(self._tmp.name)
+        self.file = self.home / "generated-prompts" / "lint-demo" / "2026-10-07-slice-s02-lint-pass.md"
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def run_archive(self, data: dict, *flags: str) -> tuple[int, str]:
+        src = self.home.parent / f"{self.home.name}-parts.json"
+        src.write_text(json.dumps(data), encoding="utf-8")
+        env = dict(os.environ, GENPROMPT_HOME=str(self.home), PYTHONIOENCODING="utf-8",
+                   PYTHONDONTWRITEBYTECODE="1", HOME=FAKE_HOME, USERPROFILE=FAKE_HOME)
+        try:
+            proc = subprocess.run([sys.executable, str(ARCHIVE_PY), *flags, str(src)], env=env,
+                                  capture_output=True, encoding="utf-8", errors="replace", check=False)
+            return proc.returncode, proc.stdout + proc.stderr
+        finally:
+            src.unlink()
+
+    def with_repo(self, repo: str, grounding: str) -> dict:
+        body = BODY.replace("/srv/repos/lint-demo", repo).replace(
+            "Grounding: the gates come from package.json:7-9 (fixture).", grounding)
+        return parts(path=repo, body=body)
+
+    def test_home_path_in_grounding_fails_but_is_archived(self):
+        repo = "/srv/repos/lint-demo"
+        code, out = self.run_archive(self.with_repo(
+            repo, f"Grounding: read {under_home('.claude', 'CLAUDE.md')} for the rules."))
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL  home-path", out)
+        self.assertIn("ARCHIVED WITH ERRORS", out)
+        self.assertNotIn(FAKE_HOME, out)                  # reported by line number, never echoed
+        self.assertTrue(self.file.exists())
+
+    def test_dry_run_reports_the_home_path(self):
+        code, out = self.run_archive(self.with_repo(
+            "/srv/repos/lint-demo", f"Grounding: notes in {under_home('notes.md')}."), "--dry-run")
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL  home-path", out)
+
+    def test_repo_under_home_passes(self):
+        repo = under_home("Work", "lint-demo")
+        code, out = self.run_archive(self.with_repo(
+            repo, f"Grounding: the gates come from {repo}{SEP}package.json:7-9."))
+        self.assertEqual(code, 0, out)
+        self.assertIn("PASS  home-path", out)
+
+    def test_repo_directly_in_home_does_not_false_positive(self):
+        repo = under_home("lint-demo")
+        code, out = self.run_archive(self.with_repo(repo, "Grounding: package.json:7-9."))
+        self.assertEqual(code, 0, out)
+        self.assertIn("PASS  home-path", out)
+
+    def test_sibling_of_a_repo_in_home_still_fails(self):
+        repo = under_home("lint-demo")
+        code, out = self.run_archive(self.with_repo(
+            repo, f"Grounding: compare {under_home('lint-demo-old', 'x.md')}."))
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL  home-path", out)
+
+    def test_other_case_and_slashes_still_match(self):
+        odd = FAKE_HOME.upper().replace("\\", "/") + "/.claude/CLAUDE.md"
+        code, out = self.run_archive(self.with_repo("/srv/repos/lint-demo", f"Grounding: {odd}."))
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL  home-path", out)
+
+    def test_a_longer_user_name_is_not_the_home(self):
+        code, out = self.run_archive(self.with_repo(
+            "/srv/repos/lint-demo", f"Grounding: {FAKE_HOME}x{SEP}file.md is someone else's."))
+        self.assertEqual(code, 0, out)
+
+    def test_user_level_path_is_a_fail_here(self):
+        code, out = self.run_archive(self.with_repo(
+            "/srv/repos/lint-demo", "Grounding: user-level: /etc/claude/CLAUDE.md read."))
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL  user-level", out)
+        code, out = self.run_archive(self.with_repo(
+            "/srv/repos/lint-demo", "Grounding: user-level: present."), "--replace")
+        self.assertEqual(code, 0, out)
+        self.assertIn("PASS  user-level", out)
+
+
+class TmpPrune(unittest.TestCase):
+    """R13: after a clean run, parts files in <home>/tmp/ older than 7 days go; nothing else does."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.home = Path(self._tmp.name) / "gp-home"
+        self.tmp = self.home / "tmp"
+        self.tmp.mkdir(parents=True)
+        self.old = time.time() - 8 * 86400
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def make(self, path: Path, old: bool, text: str = "{}") -> Path:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+        if old:
+            os.utime(path, (self.old, self.old))
+        return path
+
+    def test_prunes_only_old_parts_files_in_tmp(self):
+        stale = self.make(self.tmp / "stale.json", True)
+        fresh = self.make(self.tmp / "fresh.json", False)
+        other = self.make(self.tmp / "keep.txt", True, "x")
+        nested = self.make(self.tmp / "sub" / "deep.json", True)
+        outside = self.make(self.home / "outside.json", True)
+        current = self.make(self.tmp / "current.json", True, json.dumps(parts()))
+        os.utime(current, (self.old, self.old))
+        code, out = run_tool(ARCHIVE_PY, str(current), home=self.home)
+        self.assertEqual(code, 0, out)
+        self.assertIn("PRUNED    1 parts file(s)", out)
+        self.assertFalse(stale.exists())
+        for kept in (fresh, other, nested, outside, current):
+            self.assertTrue(kept.exists(), kept.name)
+
+    def test_no_prune_after_a_failed_or_dry_run(self):
+        stale = self.make(self.tmp / "stale.json", True)
+        bad = BODY.split("| # | Item |")[0]
+        src = self.make(self.tmp / "bad.json", False, json.dumps(parts(body=bad)))
+        self.assertEqual(run_tool(ARCHIVE_PY, str(src), home=self.home)[0], 1)
+        self.assertTrue(stale.exists())
+        src.write_text(json.dumps(parts(slug="s03-dry")), encoding="utf-8")
+        self.assertEqual(run_tool(ARCHIVE_PY, "--dry-run", str(src), home=self.home)[0], 0)
+        self.assertTrue(stale.exists())
+
+    def test_no_tmp_folder_is_fine(self):
+        self.tmp.rmdir()
+        src = Path(self._tmp.name) / "p.json"
+        src.write_text(json.dumps(parts()), encoding="utf-8")
+        code, out = run_tool(ARCHIVE_PY, str(src), home=self.home)
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("PRUNED", out)
 
 
 if __name__ == "__main__":
