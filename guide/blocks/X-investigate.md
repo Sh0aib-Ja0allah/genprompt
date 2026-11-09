@@ -210,35 +210,6 @@ you checked and retired goes in a FALSE POSITIVES table with its evidence.
 For a multi-commit review, cite lines at the range head (`file:line@<sha>`) and add the Commit
 column. For a single state, drop both.
 
-### 4.27 Occupied tree (another session is working in the repo)
-
-Use this when PROTOCOL Step 4's occupancy check fires. The signals (moved here from PROTOCOL
-Step 4):
-- dirty or untracked files modified in the last ~30 minutes (`ls -lt` on a few of them)
-- untracked files that match the plan of the latest archived prompt
-- a latest shard row that is a MODE or roadmap prompt with no commit or closeout after it
-
-If one fires, say so in the lock (`Occupancy OCCUPIED: <evidence>`) and carry this block:
-
-```text
-OCCUPIED TREE. Another session is working in this repository right now (<evidence>). Its work is
-out of scope: do not touch it, stage it, stash it or review it.
-- Read COMMITTED content by SHA, never the working tree, for any file under review:
-  `git show {sha}:{path}`, `git grep -n {pattern} {sha} -- {path}`, `git diff {base} {head} -- {path}`.
-- Run gates ONLY if the tree is clean and HEAD is <sha>. Otherwise write "not run: <reason>".
-  Never run a suite that shares <test database> with the live session.
-- Write no new file into the repo while it is occupied. Report in chat (or in the doc path I name
-  outside the repo).
-- Drift in docs that the live session's plan owns is RECORD, not FIX-NOW.
-- In any hand-off, flag items that touch a file the live session has dirty.
-- The final `git status` may differ from the start ONLY in the live session's paths; list any other
-  difference.
-```
-
-It pairs with §4.22 verify-at-start: HEAD moving and the dirty count growing are expected drift
-in an occupied tree, not a stop. On the generator side, the lock's `landed:` verdict (PROTOCOL
-Step 4) counts only committed SHAs in an occupied tree, never the live session's dirty files.
-
 ## §6 Emission checklist (compact; full rows: `guide/04-checklist.md`)
 
 Grade all 23 rows (Step 6). Judgement rows 5, 6, 7, 10, 13 and 23 cite evidence on PASS; no bulk-passing; fix a FAIL or say why it ships. Read-only and commit-only archetypes meet code-writing rows in their own terms. Read a row's full text only before marking it FAIL.

@@ -21,7 +21,8 @@
   a known-bad commit (name the known-good one if the history shows it); "only some inputs" → shrink
   the input; "only in some environments" → diff the configuration.
 - Bisect never moves the user's checkout: it runs in a temporary `git worktree` under the scratch
-  path and is removed at the end. In a dirty or occupied tree (§4.27), read by SHA instead.
+  path and is removed at the end. In a dirty or occupied tree, read by SHA instead (PROTOCOL
+  Step 5.2 says when to read the occupied-tree block).
 - Set the stop conditions up front: the bug does not reproduce; reproducing it needs production
   data, credentials or a live system; the cause sits in a dependency or a service outside the repo.
 
