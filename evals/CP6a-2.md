@@ -112,7 +112,7 @@ used doctor from the f846d85 worktree.
 - **No regression on the gated graders:** rubric-scope PPP, rubric-grounding PPP, cites-real PASS
   (29 citations, CP5 20), gates-exist PASS (lint, test). Eval score 1, as at CP5.
 - **One ungated grader went PASS → FAIL: no-placeholders.** It matched `<WS letter>` and
-  `<two digits>` in one line of the emitted prompt: "Stable ids (<WS letter>-<two digits>), never
+  `<two digits>` in one line of the emitted prompt: "Stable ids (`<WS letter>-<two digits>`), never
   renumbered once written." That line describes the id format the plan must use; it is not an
   unfilled slot. doctor rated it a WARN (placeholders), not a FAIL. It is outside the CP6a-2 gate;
   noted for CP6 (the grader can't tell a format description from a placeholder, and the generator

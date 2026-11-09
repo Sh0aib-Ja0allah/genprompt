@@ -150,13 +150,30 @@ EXTRA: dict[str, dict] = {
                     "packages/ledger-core/test/money.test.js covers only the largest-remainder "
                     "split",
     },
+    # E-14: archetype X. Joins CP6 with an absolute gate (no earlier version has X). The request
+    # gives a symptom only; the cause (src/invoice.js:14) is for the generator to ground.
+    "investigate": {
+        "variant": "base",
+        "cap": 200,
+        "request": "/genprompt:investigate `npm start -- examples/sample.json --lines` prints "
+                   "each line's amount as expected (25.00, 40.00 and 5.00 EUR) but TOTAL 40.50 "
+                   "EUR, where 63.00 EUR (70.00 less the 10% discount) is expected; the cause is "
+                   f"unknown {FLAGS}",
+        "label": r"\bX\b",
+        "scope_fail": "it lets the worker change src/ or test/ files (fixing the bug instead of "
+                      "handing the root cause off), commit, or start the CSV export or tax lines",
+        "artifact": "the --lines amounts are right, so lineTotal() and formatCents() are not the "
+                    "cause; src/invoice.js:14 (`for (let i = 1; ...`) drops the first line item "
+                    "in subtotal(); test/invoice.test.js has no multi-line invoice test, so `npm "
+                    "test` is green while the bug is live",
+    },
 }
 
 # Archetype letters and the archive filename's command words, for doctor --prompt's length tier.
 ARCHIVE_META = {"slice": ("D", "slice"), "fix": ("L", "fix"), "redesign": ("A", "redesign"),
                 "next-hybrid": ("J+D", "next+slice"), "commit": ("H", "commit"),
                 "plan": ("F", "plan"), "commit-finished": ("H", "commit"),
-                "slice-monorepo": ("D", "slice")}
+                "slice-monorepo": ("D", "slice"), "investigate": ("X", "investigate")}
 VARIANT_ROOT = {"mono": EVALS / "fixtures" / "tallyhub"}
 
 VARIANT_CALLS = {

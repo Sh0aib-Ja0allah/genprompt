@@ -82,5 +82,135 @@ class HomeModeTest(unittest.TestCase):
         self.assertFalse(run.safe_bash('echo "$HOME"'))
 
 
+class DriveRootTest(unittest.TestCase):
+    """A drive-root Glob/Grep is judged by the names it returns (CP6a-2 false alarm)."""
+    PROBE = "C:/genprompt-probe"
+
+    def test_is_drive_root(self):
+        for p in ("C:", "C:/", "C:\\", "c:/", "/c", "/c/", "/"):
+            self.assertTrue(run.is_drive_root(p), p)
+        for p in ("", "C:/genprompt-probe", "C:/Users", "/c/x", "relative"):
+            self.assertFalse(run.is_drive_root(p), p)
+
+    def test_probe_names_pass(self):
+        # The CP6a-2 slice r1 / plan r1 result, verbatim in shape: Windows separators and the
+        # run's own CLAUDE.md printed relative to its cwd.
+        text = ("C:\\genprompt-probe\\genprompt-probe-1\\fixture\\CLAUDE.md\n"
+                "C:\\genprompt-probe\\genprompt-homeiso-2\\fixture\\CLAUDE.md\n"
+                "CLAUDE.md")
+        self.assertEqual(run.names_outside(text, self.PROBE), [])
+        self.assertEqual(run.names_outside("/c/genprompt-probe/x/CLAUDE.md", self.PROBE), [])
+
+    def test_messages_pass(self):
+        for t in ("No files found", "Found 2 files\nC:/genprompt-probe/a.md\nb/CLAUDE.md",
+                  "Ripgrep search timed out after 20 seconds. The search may have matched "
+                  "files but did not complete in time.",
+                  "Permission to use Glob has been denied.",
+                  "(Results are truncated. Consider using a more specific path or pattern.)"):
+            self.assertEqual(run.names_outside(t, self.PROBE), [], t)
+
+    def test_outside_names_flagged(self):
+        text = ("C:/genprompt-probe/a/CLAUDE.md\n"
+                "C:\\Windows\\System32\\denied.md\n"   # "denied" must not hide a name
+                "/c/<other project>/CLAUDE.md\n"
+                "C:/genprompt-probe-other/CLAUDE.md\n"  # a sibling prefix is not the probe
+                "../../<other project>/AGENTS.md\n"
+                "C:/<other project>/x.md:12:matched text")  # Grep content mode
+        self.assertEqual(len(run.names_outside(text, self.PROBE)), 5)
+
+    def test_analyze_judges_drive_root_by_names(self):
+        import json
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            probe = Path(tmp).resolve() / "genprompt-probe"
+            work = probe / "run-1"
+            work.mkdir(parents=True)
+            inside = (probe / "run-0" / "fixture" / "CLAUDE.md").as_posix()
+
+            def call(i, path, result):
+                use = {"type": "assistant", "message": {"content": [
+                    {"type": "tool_use", "id": f"t{i}", "name": "Glob",
+                     "input": {"pattern": "CLAUDE*.md", "path": path}}]}}
+                res = {"type": "user", "message": {"content": [
+                    {"type": "tool_result", "tool_use_id": f"t{i}", "content": result}]}}
+                return [json.dumps(use), json.dumps(res)]
+
+            lines = (call(1, "C:/", f"{inside}\nCLAUDE.md")
+                     + call(2, "C:\\", [{"type": "text", "text": inside}])
+                     + call(3, "C:/", "No files found")
+                     + call(4, "C:/", f"{inside}\nC:/<other project>/CLAUDE.md")
+                     + call(5, "C:/Windows", "C:/Windows/notes.md"))
+            trace = work / "t.jsonl"
+            trace.write_text("\n".join(lines), encoding="utf-8")
+            out = run.analyze(trace, work / "gp-cand", work)["outside"]
+        self.assertEqual(len(out), 2, out)
+        self.assertIn("<other project>", out[0][2])      # call 4: a leaked name
+        self.assertEqual(out[1][1], "C:/Windows")         # call 5: not a drive root, by path
+
+
+class CardGateTest(unittest.TestCase):
+    """CP6 R2: card-fresh gates C1 (no derivation Reads) and C2 (≤ card-less + card bytes)."""
+
+    def test_forbidden_files_exist(self):
+        root = Path(__file__).resolve().parents[2]
+        for rel in run.CARD_FORBIDDEN:
+            self.assertTrue((root / rel).is_file(), rel)
+
+    def test_parse_cardless(self):
+        self.assertEqual(run.parse_cardless(["slice=32,178", "fix=31530"]),
+                         {"slice": 32178.0, "fix": 31530.0})
+        for bad in (["slice"], ["nosuch=1"], ["fix=abc"]):
+            with self.assertRaises(ValueError):
+                run.parse_cardless(bad)
+
+    def test_card_gate(self):
+        cl = {"plan": 29853}
+        ok, det = run.card_gate("plan", [31000, 30500, 36000], [1500, 1500, 1500], cl)
+        self.assertTrue(ok, det)                      # 31,000 ≤ 29,853 + 1,500
+        ok, det = run.card_gate("plan", [31400, 31400, 29000], [1500] * 3, cl)
+        self.assertFalse(ok, det)                     # 31,400 > 31,353
+        self.assertFalse(run.card_gate("fix", [1], [1], cl)[0])
+
+    def test_card_mode_needs_cardless_before_spend(self):
+        argv = sys.argv
+        try:
+            for extra in ([], ["--cardless", "slice=1"]):
+                sys.argv = ["run.py", "compare", "--cand", "HEAD", "--cases", "slice", "fix",
+                            "--home", "card", *extra]
+                with self.assertRaises(SystemExit) as cm:
+                    run.main()
+                self.assertEqual(cm.exception.code, 2)
+        finally:
+            sys.argv = argv
+
+
+class InvestigateCaseTest(unittest.TestCase):
+    """E-14: the probe request and the eval case for archetype X agree."""
+
+    def test_request_matches_case(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        import build_cases
+        spec = build_cases.EXTRA["investigate"]
+        self.assertEqual(spec["request"], f"/genprompt:investigate {run.REQUESTS['investigate']}")
+        self.assertEqual(build_cases.ARCHIVE_META["investigate"], ("X", "investigate"))
+        files = build_cases.case_files("investigate", spec)
+        self.assertIn("tags: [extra, investigate]", files["prompt.md"])
+        self.assertIn(r"?\bX\b'", files["graders/archetype-label.md"])
+        self.assertNotIn("\b", "".join(files.values()))   # no backspace from a bad escape
+
+    def test_symptom_is_true_of_the_fixture(self):
+        # The request claims per-line amounts 25.00/40.00/5.00 and TOTAL 40.50 vs 63.00 EUR.
+        import json
+        root = Path(__file__).resolve().parents[1] / "fixtures" / "ledgerlite"
+        inv = json.loads((root / "examples" / "sample.json").read_text(encoding="utf-8"))
+        lines = [ln["qty"] * ln["unitCents"] for ln in inv["lines"]]
+        self.assertEqual(lines, [2500, 4000, 500])
+        disc = lambda c: c - round(c * inv["discountPct"] / 100)  # noqa: E731
+        self.assertEqual(disc(sum(lines[1:])), 4050)   # the bug: the loop starts at i = 1
+        self.assertEqual(disc(sum(lines)), 6300)
+        self.assertIn("for (let i = 1;",
+                      (root / "src" / "invoice.js").read_text(encoding="utf-8").splitlines()[13])
+
+
 if __name__ == "__main__":
     unittest.main()
