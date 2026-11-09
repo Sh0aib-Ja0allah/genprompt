@@ -6,6 +6,38 @@
 | Spend | **$5.7298 of $13** (re-baselines $4.6481 + CP7 card-less interrupted $0.5377 + card-less re-run $0.5440; $7.2702 left) |
 | Status | Re-baselines complete under Shoaib's X6 ruling. Every case PASSES all four gated graders 3/3 on its first run, so none escalated: 0 flips either way on both sides (X2). CP7 (candidate 2fad0fa) waits for the PE's GO |
 
+## Shoaib's rulings on card-fresh, and what's next
+
+- **Redesign X3: stated, not a FAIL.** It's the pre-stated artefact: the card-less median is the floor
+  because of the (i) skip-derive runs. V-d passes for redesign.
+- **Investigate A5: a product fix.** The leak is **in both investigate runs, r1 and r2**. A5's Grep only
+  surfaced r2. A is changing X-investigate so the scratch area is a worker variable, never a generator
+  path. That gives a new candidate (R5).
+- **On the merged SHA:** if slice, fix, redesign and plan's include sets are unchanged (md5, checked by
+  the PE), their card-less and card-fresh results stand. Then investigate re-runs card-less 3× and
+  card-fresh 3× (X3, V-d, A5), then quality on all 5 cases.
+
+**Guards and budget, prepared before the run** (running total $6.3602 of $13; $6.6398 left):
+
+| Step | Command shape | per-run cap | `--max-total` | expected (CP7 actuals) |
+|---|---|---|---|---|
+| investigate card-less 3× | `compare --cand <SHA> --cases investigate --home empty --runs 3` | $0.08 | **$0.30** (worst case 3 × 0.08 = 0.24 fits) | $0.13 |
+| investigate card-fresh 3× | same with `--home card --cardless investigate=<new card-less median>` | $0.08 | **$0.30** | $0.14 |
+| quality, 5 cases (J1–J2) | scratch rb_driver, opus generator + judge, `--escalate`, plugin = a temp worktree at `<SHA>` | first / escalation per case (below) | J6 before every case | $3.83 (the re-baselines' actuals: slice 0.83, redesign 0.64, plan 1.01, fix 0.66, investigate 0.69) |
+| **Expected total** | | | | **$4.10, finishing at about $10.46 of $13**; about $2.54 left, enough for **one** escalation |
+
+- **Quality order:** largest caps first, so J6 is least likely to block a case late:
+  **slice** (1.40/2.30) → **redesign** (1.10/1.75) → **plan** (1.00/1.60) → **fix** (0.95/1.55) →
+  **investigate** (0.95/1.55).
+- **J6 walk.** With load at the worst case $0.60, the total is $6.96 and $6.04 is left. Each case's
+  first + escalation cap fits when its turn comes, at expected costs with no escalation: slice 3.70 ≤ 6.04,
+  redesign 2.85 ≤ 5.21, plan 2.60 ≤ 4.57, fix 2.50 ≤ 3.56, investigate 2.50 ≤ 2.90.
+  - With load at its expected $0.27, each check has $0.33 more room.
+  - An escalation early on (about $1.3–2.0) would make J6 stop before investigate, or before fix and
+    investigate. That's a cap stop for Shoaib, not an overrun.
+- **Gates.** R4 / J4 against the re-baselined v1.3.0 on all 5, and against v1.2.0 on redesign. R3 for
+  investigate. `--explain` only for a gated FAIL or a split. The §4.19 remedy stays armed for plan (V-c).
+
 ## CP7 card-fresh 5×3 (`--max-total 1.00`): **FAIL: X3 (redesign) and A5 (investigate r2). STOPPED**
 
 `C:/genprompt-probe/genprompt-probe-20261109-212154/`, **$0.5775**, haiku. Running total: **$6.3602 of $13**.
