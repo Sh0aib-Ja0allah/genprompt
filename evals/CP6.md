@@ -147,6 +147,63 @@ cap and $8.50 minus the running total.
   regression.
 - **This is my reading, not a ruling:** under R4 it is a FAIL.
 
+**Why the fix judge failed it: offline investigation, no spend (Shoaib: "find out why
+first")**
+
+- **The reasoning isn't stored anywhere.**
+  - aggregate.json, aggregate-result.json and structural.json keep only `judgeVotes` (true or
+    false) and "judge votes: FAIL FAIL FAIL"; report.html has the same.
+  - The eval's temp dir (`claude-eval-eMoaRc`) holds only the scaffolded workspace.
+  - No judge transcript exists under the projects folder.
+- **The harness can't re-grade stored output.** `claude plugin eval` has no judge-only or
+  re-grade mode. `--verbose` with `--debug-file` logs per-message trace events, but only on a new
+  run, and it is untested whether that includes judge text. `evals/run.py --regrade` re-applies
+  only the deterministic graders.
+- **The judge is haiku** (`--judge-model`, default haiku) with 3 votes per rubric, which explains
+  the vote swings run to run (fix grounding: CP5 PPP, CP6a-2 PFP, now FFF).
+- **Rubric "grounding"** (cases/fix/graders/rubric-grounding.md) FAILS a response that "cites a
+  file that is not in the list" of 13 workspace files, a line past a file's end, a script that
+  doesn't exist, or a claim contradicting the ground truth. Unchecked claims must be marked
+  [UNVERIFIED].
+
+**The three stored fix outputs compared** (CP5 `2026-11-08T19-07-58Z`, CP6a-2 `…01-41-45Z`, now
+`…13-37-09Z`):
+
+| | CP5 (grounding PPP, scope FPF) | CP6a-2 (PFP, PPP) | now (FFF, FFF) |
+|---|---|---|---|
+| file paths outside the 13-file list | bare `archive.py` (×3) | bare `archive.py` (×2), `~/.genprompt`, `local-rules.md` | **`tools/archive.py` (×2)**: "couldn't run `tools/archive.py --dry-run`", "run `python3 tools/archive.py --where`" |
+| `[UNVERIFIED]` tags | 0 | 0 | 0 |
+| "not run" disclosure | "Grounded by: I read every file … without running anything" | "**Environment limits this run:** Bash is disabled …" up top, and "Nothing was run" | "I confirmed this by reading the code and the fixture, not by running anything"; "(pass/fail not run by me)" |
+| FALSE POSITIVES heading | "(re-checked, all correct)" | "(re-checked by reading)" | no qualifier |
+| SCOPE names a src/cli.js refactor | **yes**: "Refactoring src/cli.js (its comment at :4 admits accretion)" | **no** | **yes**: "src/cli.js refactor (its own comment, src/cli.js:4, invites one)" |
+
+- I checked every `path:line` and code claim in the new output against the fixture (above), and
+  all of them hold. The only citation outside the rubric's file list is `tools/archive.py`, a
+  repo-relative path to genprompt's own tool that doesn't exist in the workspace. It's also wrong
+  as an instruction: run from the repo, that path is missing.
+- **Best explanation (inference, not proven):**
+  - **Grounding FFF:** the haiku judge took `tools/archive.py` as a cited file that isn't in the
+    workspace, which is the rubric's first FAIL clause. Older outputs wrote bare `archive.py`,
+    which reads as a tool name, not a path. This is model wording variance in the self-check
+    notes, not a change in the generator's rules: B's Step 0 text says
+    `"${CLAUDE_PLUGIN_ROOT}/tools/archive.py"` both before and after.
+  - **Scope FFF:** the scope rubric FAILS if the prompt "also asks for … a refactor of
+    src/cli.js". CP5 and now both *name* the cli.js refactor as out of scope and both fail
+    (FPF, FFF). CP6a-2 didn't name it and passed PPP. The haiku judge appears to match the
+    mention, not the negation. That one isn't gated (no regression vs CP5) but has the same
+    cause: haiku reading surface text.
+- **Re-grade cost estimate (not run):** the harness can't re-grade, so a replica judge would be
+  `claude -p --model haiku` with the rubric plus the stored final message, asked for a verdict
+  *and a reason*.
+  - The harness's own judge costs about $0.0007 a vote (this run: $0.0059 for 9 votes). Through
+    `claude -p` the Claude Code system prompt dominates, so about $0.01–0.03 a vote.
+  - Grounding only, the new output, 3 votes: about $0.06.
+  - An A/B to test the explanation (the new output as is, and with `tools/archive.py` →
+    `archive.py`), 3 votes each: about $0.12.
+  - Both rubrics on all three stored outputs: about $0.36.
+  - It isn't the harness's exact judge wrapper, so it explains a verdict rather than replacing
+    one.
+
 **Options for Shoaib (none taken):**
 1. One fix re-run (about $0.45) to separate judge variance from a real regression. A re-run
    needs your OK under the stop rules.
