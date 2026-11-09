@@ -1,9 +1,9 @@
-# CP6: 1.3.0 candidate (INCOMPLETE: run 4 card-fresh VALID but C1 FAIL)
+# CP6: 1.3.0 candidate (INCOMPLETE: run 4 quality FAIL at fix, R4 rubric-grounding)
 
 Total CP6 spend: run 1 $0.5596 + V4 trace $0.0047 + run 2 $0.3228 + run 3 $0.6173 + replay
 $0.0169 + run 4 card-less $0.4977 + run 4 card-fresh (interrupted) $0.4877 + run 4 card-fresh
-re-run $0.4948 = **$3.0015** of the $8.50 cap (raised from $6.25, then $7.50, by Shoaib; $5.4985
-left).
+re-run $0.4948 + run 4 quality fix $0.4492 = **$3.4507** of the $8.50 cap (raised from $6.25,
+then $7.50, by Shoaib; $5.0493 left).
 
 ## Run 4: candidate c8edb15, probe code eea02ad (INCOMPLETE: A5 FAIL at card-less)
 
@@ -108,6 +108,52 @@ read derive.md in 5 of 15 (run 4), card-fresh in 3 of 15.
    reads derive.md only if the card is missing or stale.
 2. Planner ruling on C1 (a gate change after a result): e.g. C1 judged only on runs that never
    Read the card, or a rate instead of zero.
+
+**C1 result and decision (Shoaib).**
+- C1 is recorded as a FAIL and is not re-ruled: 3 of 15 card-fresh runs read derive.md before
+  the card.
+- The medians are unaffected: every card-fresh median equals its card-less one, and C2 passes.
+- Decision: 1.3.0 ships with this stated as a known issue, and the card-first ordering fix goes
+  to 1.3.1.
+
+### Run 4 quality (opus-5-5, plugin eval at c8edb15): FAIL at fix (R4, rubric-grounding)
+
+Order: fix, plan, redesign, slice, investigate. Each case is capped at the lower of its planned
+cap and $8.50 minus the running total.
+
+| Case | cap used | cost | rubric-scope | rubric-grounding | cites-real | gates-exist | others |
+|---|---|---|---|---|---|---|---|
+| fix | $0.77 (left $5.4985) | **$0.4492** | FAIL (FFF), CP5 FAIL (FPF): no regression | **FAIL (FFF), CP5 PASS (PPP): REGRESSION** | PASS (25 citations; CP5 22) | PASS (lint, start, test) | eval score 0.8 (CP5 0.9); skepticism PPP; line-length PASS; no-placeholders PASS; self-check PASS; archive-valid 8/0/0 |
+
+- **R4 FAILS at fix:** rubric-grounding's majority verdict went from PASS to FAIL (0 of 3 votes,
+  against 3 of 3 at CP5). CP6 stops here. plan, redesign, slice and investigate were not run.
+- Results: `evals/results/2026-11-09T13-37-09Z` (run from the probe tree with
+  `--plugin ../genprompt-wt-c-cand --doctor ../genprompt-wt-c-cand/tools/doctor.py`).
+
+**What I could check (no remedy applied):**
+- The judge sees the whole emitted prompt: the eval's `focus` is the last message, and the run
+  had a single text message holding the lock, the fence and the notes.
+- The harness doesn't expose the judge's reasoning, only its votes.
+- Every claim I could check against the fixture holds:
+  - each cited `path:line` is inside the file;
+  - src/invoice.js:14's loop, :32's export, and :21's NaN gap in applyDiscount;
+  - test/invoice.test.js:14/:18 and the 6 test declarations;
+  - CLAUDE.md:6–9, :12–13, :16–18; package.json:9, :11–12; src/cli.js:4, :24–29;
+  - only `lint`, `start` and `test` are used as gates.
+- So I can't name the claim the judge found false.
+- The same prompt shape passed grounding at CP6a-2 (PFP) and at CP5 (PPP). The same fix
+  output is also FAIL 3/3 on scope, although its SCOPE section names the out-of-scope items by
+  path and ID. That points at judge variance or a reading I can't see, not a clear generator
+  regression.
+- **This is my reading, not a ruling:** under R4 it is a FAIL.
+
+**Options for Shoaib (none taken):**
+1. One fix re-run (about $0.45) to separate judge variance from a real regression. A re-run
+   needs your OK under the stop rules.
+2. Accept the FAIL as recorded and decide 1.3.0 on it.
+3. Expose the judge's reasoning in the eval harness offline (no spend), then re-grade this
+   result if the harness allows (`run.py --regrade` re-applies the deterministic graders only;
+   the LLM votes would need a re-run).
 
 **V4 outcome, stated plainly (P3).** Run 1's refusal of the chained `archive.py --where; git …`
 calls was a probe artefact. Real Claude Code checks a chained command one subcommand at a
