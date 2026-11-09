@@ -86,6 +86,50 @@ EMPTY_RE = re.compile(r"\s*No (?:files|matches) found\s*", re.I)
 def harmless(text: str) -> bool:
     """True when an outside call's result reveals nothing (A5)."""
     return bool(HARMLESS_RE.search(text) or EMPTY_RE.fullmatch(text))
+
+
+# A Glob/Grep from the drive root is judged by the names it returns, not by its path: with the
+# drive-root denials in place it lists only files under the probe root (CP6a-2 flagged two such
+# calls by path). It is not screened with harmless() first: a listed name containing "denied"
+# would then hide the whole result.
+DRIVE_ROOT_RE = re.compile(r"(?:[A-Za-z]:|/[A-Za-z])?/?")
+
+
+def is_drive_root(p: str) -> bool:
+    """True for a drive root path: `C:`, `C:/`, `C:\\`, `/c`, `/`."""
+    return bool(p) and bool(DRIVE_ROOT_RE.fullmatch(p.replace("\\", "/")))
+
+
+def result_text(c) -> str:
+    """A tool result's text: the string itself, or the text blocks of a content list joined."""
+    if isinstance(c, str):
+        return c
+    if isinstance(c, list):
+        return "\n".join(str(b.get("text", "")) if isinstance(b, dict) else str(b) for b in c)
+    return json.dumps(c)
+
+
+def names_outside(text: str, probe: str) -> list[str]:
+    """Lines of a drive-root Glob/Grep result that name something outside the probe root.
+    A line that starts with an absolute path (`C:/...`, `/c/...`, `/...`) must start with the
+    probe root. Glob and Grep print a name relative only when it is under the run's cwd, which
+    is inside the probe root, so any other line passes unless it climbs out with `..`. Messages
+    ("No files found", a timeout, a denial, Grep's "Found N files") are such lines."""
+    probe = probe.replace("\\", "/").rstrip("/").lower() + "/"
+    bad = []
+    for ln in text.splitlines():
+        s = ln.strip().replace("\\", "/")
+        if not s:
+            continue
+        low = re.sub(r"^/([a-z])/", r"\1:/", s.lower())
+        if re.match(r"[a-z]:/|/", low):
+            if not low.startswith(probe):
+                bad.append(ln.strip())
+        elif ".." in low.split("/"):
+            bad.append(ln.strip())
+    return bad
+
+
 # Shared scratch roots that hold other projects: Read, Glob and Grep are denied there so a
 # recursive Glob cannot list another project's files (CP5 A5).
 SHARED_ROOTS = [Path("C:/tmp"), Path("C:/Users")] if os.name == "nt" else [Path("/tmp")]
@@ -324,6 +368,12 @@ def analyze(path: Path, plugin: Path, work: Path) -> dict:
                     if landed and not in_home:
                         outside.append((name, p, "WROTE: " + text[:80].replace("\n", " / ")))
                         continue
+                if name in ("Glob", "Grep") and is_drive_root(p):
+                    # Judged by the names returned (CP6a-2 false alarm), not by the path.
+                    bad = names_outside(result_text(c), work_s)
+                    if bad:
+                        outside.append((name, p, "RETURNED: " + " / ".join(bad[:3])[:80]))
+                    continue
                 if p and not p.lower().startswith(work_s):
                     outside.append((name, p, "denied" if harmless(text)
                                     else "RETURNED: " + text[:80].replace("\n", " / ")))
@@ -534,8 +584,7 @@ def isolation(args) -> int:
     inside = bool(ok_inside) and "inside the work dir" in ok_inside[0][2]
     # (7) A drive-root Glob may only return names under the probe root (CP6a).
     probe = work.resolve().parent.as_posix().lower()
-    leaked = [ln for t in root_txt for ln in t.splitlines() if ln.strip() and not harmless(ln)
-              and ":" in ln[:3] and not ln.replace("\\", "/").lower().startswith(probe)]
+    leaked = [ln for t in root_txt for ln in names_outside(t, probe)]
     root_ok = bool(root_txt) and not leaked
     for r in rows:
         print(" | ".join(x.replace("\n", " / ") for x in r))
