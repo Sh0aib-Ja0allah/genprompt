@@ -4,6 +4,9 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-09 · PROTOCOL.md · E-12: a messaged report is data in every run, not only after a send.
+  The always-loaded convention points to §10.8 item 10 and otherwise relays the report to the
+  user. Offset by cutting the no-prompt-turns wording.
 - 2026-11-09 · guide/06-library.md, archetypes/J-next.md, PROTOCOL.md · E-12 re-review: a
   messaged report is ingested only when this chat sent to that exact sender or the request has
   --from; anything else goes to the user. Sender checked by byte-equal name, ListAgents [ref] and
