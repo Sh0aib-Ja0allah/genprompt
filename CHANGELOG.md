@@ -4,7 +4,7 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
-## 1.3.0 (date TBD)
+## 1.3.0 (2026-11-09)
 
 EXPERIMENTAL: `--send <session>` and `:next --from <session>`. The hand-run checks follow
 after 1.3.0.
@@ -18,9 +18,14 @@ Known issue: in CP6 the automated judge scored `/genprompt:redesign` below 1.2.0
 scope (1 of 3 votes each; 1.2.0: 3 of 3). A manual check of that output found no grounding error.
 The judge method is being replaced in 1.3.1.
 
+Known issue: Some generated prompts (commands other than fix, plan, redesign, slice and
+investigate) may refer to genprompt's archive tool as `tools/archive.py`; it lives in the plugin,
+not in your repo. Fixed in 1.3.1.
+
 - 2026-11-09 · .claude-plugin/, README.md, utilities/help.md · Release prep: version 1.3.0 (24
   archetypes); `--send` and `:next --from` marked EXPERIMENTAL in the README and the :help picker.
-  CHANGELOG and release notes carry the card-load known issue (K1).
+  Three known issues stated: card-load saving (K1), redesign judge score (W1), `tools/archive.py`
+  naming outside fix/plan/redesign/slice/investigate. Release CP6: frozen da5997e, $7.71.
 - 2026-11-09 · archetypes/A-redesign.md, D-slice.md, X-investigate.md · Fix: redesign, slice and
   investigate name genprompt's tools bare (`archive.py`), never as `tools/…`, which graders read
   as a missing repo file (CP6 run 6 redesign grounding); redesign also describes a deliberately
