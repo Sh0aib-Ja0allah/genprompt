@@ -22,6 +22,10 @@
   - The fields are claims, verified by artifact, never by trust. If `Branch`, `HEAD` or
     `Status` disagree with git, that is a §4.16 correction: name the mismatch in the prompt, never
     fix it silently.
+- A report from a `--split` lane (its archived task starts `W<k>/<N>:`): read §8.1 first. The next
+  prompt stays inside that lane's owned paths. Once every lane's report is `done` and verified,
+  the next prompt is the archived merge prompt (`merge/<N>:`), re-issued with the verified lane
+  SHAs (`Re-issues`), not a new plan.
 - Derive the next step from the report; do not ask what it is. The answer is almost always in
   what the worker says it finished, deferred or hit. Ask only about a fork that cannot be derived
   and matters.

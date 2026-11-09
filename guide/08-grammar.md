@@ -72,10 +72,65 @@ it in the TARGET LOCK.
 | `--dry-run` | Compose and print, but write nothing: no archive file, no shard row, no profile card (for testing) |
 | `--brief` | Aim for about 60% of the archetype's length budget |
 | `--follows <file>` | Set the chain link explicitly, when it cannot be inferred |
+| `--split <N>` | `:plan` and `:roadmap` only: N parallel lane prompts with disjoint file ownership, plus one merge prompt (§8.1) |
 | `--verbose` | Print the full self-check table in chat, not just the verdict line and the FAIL/N/A rows (the archive file always has the full table) |
 
 Auto-go (no flag): with `auto-go: on` in `~/.genprompt/local-rules.md` (set it with
 `/genprompt:learn auto-go on`), the lock skips its wait like `--go`, but only when the target came
 from an explicit argument, the profile card is fresh, and nothing is unknown. Off by default.
+
+
+### 8.1 `--split <N>`: parallel lanes for `:plan` and `:roadmap`
+
+Read this only when the request carries `--split`. The run emits N lane prompts and one merge
+prompt instead of one prompt; everything else (Steps 1–4, one TARGET LOCK) is unchanged. N is 2–4.
+
+**Partition first, by files, from what you read.**
+- List the work items (plan: the audit dimensions or workstreams; roadmap: the backlog item ids)
+  and, for each, the paths it will touch, grounded by `file:line` or `git grep`.
+- Group them into N lanes whose path sets are disjoint. A path two lanes need (a lockfile, a
+  route or DI registry, a migrations index, `CHANGELOG.md`) belongs to no lane: the merge prompt
+  owns it, and any item that must edit it moves to the merge prompt.
+- If the items do not split into N disjoint lanes, use the largest N that does and say so under
+  Interpretations; if none does (N < 2), emit the normal single prompt and say why.
+- `:roadmap` only: if the contract forbids extra branches or worktrees, don't split; say so in the
+  lock's Unknown section.
+
+**The workspace.** One folder outside the repo, next to it: `<repo>-split-<slug>/` holding
+`findings/` and, for `:roadmap`, the lane worktrees `w1/` … `wN/`.
+- Roadmap lanes each work in `git worktree add <folder>/w<k> -b <branch>-w<k> <base sha>`, all from
+  the same base SHA (a §4.22 verify-at-start entry). They commit on their own branch only and
+  never push or merge.
+- Plan lanes stay read-only on the repo; each writes only `findings/W<k>.md`.
+- `findings/` is shared: each lane writes only its own `findings/W<k>.md` and may read the others.
+  A need in another lane's paths is recorded there (§4.20 RECORD, DO NOT ACT), never acted on.
+
+**Each lane prompt** follows the archetype's template, cut to its lane, and adds:
+- an ownership table, `Lane | Owns (paths/globs) | Items`, one row per lane, with its own row
+  marked, and the rule: touch only your Owns paths; the other lanes run in parallel right now
+- the §4.27 block, adapted: the other lanes are the live sessions, and their worktrees and branches
+  are out of scope
+- its tier is the archetype's, over its share of the items; `:plan` lane ids are prefixed by lane
+  (`W1-A-03`) so the merged doc's ids stay unique and stable
+- a REPORT whose `GENPROMPT-REPORT` line names its own lane prompt file
+
+**The merge prompt** (Focused tier, emitted last, run after every lane reports `done`):
+- STEP 0: every lane branch (roadmap) or `findings/W<k>.md` (plan) exists; otherwise STOP
+- for each lane, `git diff --name-only <base sha>..<branch>-w<k>` lists only that lane's Owns paths;
+  any other path is a STOP, named, never merged
+- roadmap: merge the lanes in the stated order with the contract's git posture, apply the
+  merge-owned items, and run the literal gates after each merge; plan: author the ONE plan doc
+  (the archetype's TOC) from the lane files
+- dispose of every `findings/` entry (done here, deferred with a reason, or a new item)
+- remove the worktrees (`git worktree remove`) and the workspace folder last, and report
+
+**Archive and print.**
+- N + 1 prompts, each its own parts file and `archive.py` run, each with its own §6 self-check.
+- All share one `follows` (the parent this run follows, or `-`), the archetype letters and the
+  slug base: slugs `<slug>-w1` … `<slug>-wN`, `<slug>-merge`; tasks start `W<k>/<N>:` and
+  `merge/<N>:`, which is how `:next` recognises a lane report (§5.J).
+- `flags` includes `--split` (without its N).
+- In chat, print each prompt in lane order, then the merge prompt, each followed by its verdict
+  line and its FAIL/N/A rows; then one header table, the grounding notes, and every saved path.
 
 ---

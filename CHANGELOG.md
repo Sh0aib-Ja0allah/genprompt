@@ -4,6 +4,9 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-09 · guide/08-grammar.md, archetypes/J-next.md · E-13: new §8.1 `--split <N>` for :plan
+  and :roadmap (N disjoint-ownership lanes in worktrees, a shared findings folder, one merge prompt,
+  siblings archived under one follows); :next recognises a lane report and re-issues the merge prompt.
 - 2026-11-09 · archetypes/X-investigate.md, tools/build_shims.py, .claude-plugin/ · New archetype X,
   /genprompt:investigate: an unknown-cause bug traced to a root cause at path:line and handed to
   :fix, read-only plus a scratch repro; 24 archetypes.
