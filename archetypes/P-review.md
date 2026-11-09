@@ -31,8 +31,8 @@
   side effects listed. Don't run a suite that shares a test database with a live session, because
   the runs corrupt each other.
 - Report destination: a review doc named per §2.7 (default `code-review-<date>` in the repo's
-  case style), or chat-only when the tree is occupied or a doc would land in someone else's
-  commit.
+  case style), or chat-only when the request has `--chat-only`, the tree is occupied, or a doc
+  would land in someone else's commit.
 - The worker never edits. Fixes are a separate `:fix` prompt that consumes this register.
 
 ## Required blocks

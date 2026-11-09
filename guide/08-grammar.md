@@ -44,7 +44,7 @@ it in the TARGET LOCK.
 
 ```text
 /genprompt:approve    decisions: <list>; order: <...>  |  amend <prior prompt>  E  rulings / amendment
-/genprompt:commit     <work to commit> [verify+]                      H  commit & push, staged by path
+/genprompt:commit     <work to commit>                                H  commit & push, staged by path
 /genprompt:next       <paste the worker's report, or nothing if it is already in the chat>  J  the next prompt
 /genprompt:resume     <unit/slice the worker was mid-way through>     K  re-anchor after compaction
 /genprompt:release    <version | environment | handover>              T  release/deploy, approval per action
@@ -72,8 +72,19 @@ it in the TARGET LOCK.
 | `--dry-run` | Compose and print, but write nothing: no archive file, no shard row, no profile card (for testing) |
 | `--brief` | Aim for about 60% of the archetype's length budget |
 | `--follows <file>` | Set the chain link explicitly, when it cannot be inferred |
-| `--split <N>` | `:plan` and `:roadmap` only: N parallel lane prompts with disjoint file ownership, plus one merge prompt (§8.1) |
 | `--verbose` | Print the full self-check table in chat, not just the verdict line and the FAIL/N/A rows (the archive file always has the full table) |
+
+### Per-command modifiers
+
+Each is offered only by the commands named (their argument-hint lists it).
+
+| Flag | Commands | Effect |
+|---|---|---|
+| `--split <N>` | `:plan`, `:roadmap` | N parallel lane prompts with disjoint file ownership, plus one merge prompt (§8.1) |
+| `--chat-only` | `:review` | The findings register is reported in chat; no review doc is written |
+| `--verify` | `:commit` | A read-only verification pass first; commit only once it is clean (the older bare `verify+` means the same) |
+| `--pr` | `:commit` | After the commits: create the branch, push it and open a PR with a body template, each step a separate approval (§4.23). The worker runs them; the generator never pushes (a bare `pr` means the same) |
+| `--readonly-phase` | `:security`, `:perf` | Emit only the read-only first phase: security's Phase 1 (threat model and findings), perf's measurement and plan. The prompt stops there and changes no code |
 
 Auto-go (no flag): with `auto-go: on` in `~/.genprompt/local-rules.md` (set it with
 `/genprompt:learn auto-go on`), the lock skips its wait like `--go`, but only when the target came

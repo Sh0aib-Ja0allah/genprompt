@@ -124,8 +124,10 @@ Each command is `/genprompt:<name>`. The "I want to… → use…" picker is in
 
 **Modifiers** (on any prompt command): `--repo <name|path>`, `--go` (skip the lock wait),
 `--attended` / `--unattended`, `--dry-run` (archive nothing), `--brief`, `--follows <file>`,
-`--verbose` (full self-check table in chat). `:plan` and `:roadmap` also take `--split <N>`: N
-parallel worker prompts with disjoint file ownership, plus one merge prompt.
+`--verbose` (full self-check table in chat). Per command: `--split <N>` (`:plan`, `:roadmap`:
+parallel worker prompts with disjoint file ownership, plus one merge prompt), `--chat-only`
+(`:review`), `--verify` and `--pr` (`:commit`: verify first; branch, push and open a PR, each
+approved by you), `--readonly-phase` (`:security`, `:perf`: the read-only first phase only).
 
 ## Where your files go
 
