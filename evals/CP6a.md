@@ -111,3 +111,35 @@ E-09d works as designed:
 
 Traces: `C:/genprompt-probe/genprompt-probe-20261109-014033/` (36 jsonl, sandbox homes,
 `report.md`). Isolation check: `C:/genprompt-probe/genprompt-homeiso-20261109-013949/`.
+
+## Offline fixes after CP6a (no spend)
+
+- **Home mode denies the auto-allowed builtins:** `echo printf test [ pwd env printenv`, for every
+  ref.
+- **A5 harmless list.** A5 now also accepts:
+  - deny-rule refusals ("… was blocked by a deny rule");
+  - "Python was not found" (the Windows store alias ran nothing);
+  - the candidate's own `archive.py` with `--where` or `--dry-run`, alone or joined by `&&`/`||`
+    with `2>&1`.
+
+  A base's archive.py, any other chained shell, and an archive.py call without `--dry-run` are
+  still flagged.
+- **Correction to the Isolation section above: a drive-root Glob listed names.** Re-checking the
+  CP6a traces with the new grader found what the report's first six A5 lines hid:
+  - One v1.2.0 plan run (r2) Globbed `*.md` from `C:/` and got **101 file names** under
+    Program Files, Windows and a local web-server install. These are system and third-party
+    software, not user projects. Nothing under the denied `C:/Users` or `C:/tmp` appeared, which
+    shows that Glob filters its results by the deny rules.
+  - Other drive-root Globs, the ancestor scan for `CLAUDE.md`, returned only our own earlier probe
+    fixture, or nothing.
+  - No file content was read outside the probe root.
+- **Fix.** Read/Glob/Grep are now also denied on every top-level folder of the probe root's drive
+  except the probe root's own folder. The list is computed at run time, and `(`/`)` become `?` in
+  the rule.
+- **Verification.** The `isolation` probe gains a 7th call (a drive-root `**/*.md` Glob) that must
+  return nothing outside the probe root. This needs about $0.003 to run. It runs first thing under
+  the next GO and was not run now (no spend).
+- The CP6a traces under the new grader still flag 7 calls: the drive-root Globs above, `echo
+  $HOME`, the `test -f` existence check, and one candidate `python --version`. The new denials
+  would block all of them except `python --version`, which shows only the Python version.
+- Tests: 37 OK (`lint/test_realuse.py`).

@@ -49,6 +49,38 @@ class HomeModeTest(unittest.TestCase):
         self.assertFalse(run.SAFE_BASH_RE.match("cat ~/.gitconfig"))
         self.assertFalse(run.SAFE_BASH_RE.match("python3 C:/p/gp-cand/tools/archive.py --parts x"))
 
+    def test_builtins_denied(self):
+        rules = run.deny_rules(Path("C:/genprompt-probe/x"))
+        for c in ("echo", "printf", "test", "[", "pwd", "env", "printenv"):
+            self.assertIn(f"Bash({c}:*)", rules)
+
+    def test_drive_root_dirs(self):
+        # on this machine: the probe root's own top folder is never denied, its siblings are,
+        # and "(" ")" never reach a rule
+        root = run.default_workroot()
+        dirs = run.drive_root_dirs(root)
+        self.assertTrue(all(d.parent == Path(root.anchor) for d in dirs))
+        self.assertNotIn(root.resolve().parents[len(root.resolve().parents) - 2], dirs)
+        rules = run.deny_rules(root=root)
+        self.assertFalse(any("genprompt-probe" in r for r in rules))
+        self.assertFalse(any(r.count("(") != 1 or r.count(")") != 1
+                             for r in rules if r.startswith(("Read(", "Glob(", "Grep("))))
+        self.assertEqual(run.drive_root_dirs(Path(root.anchor)), [])
+
+    def test_cp6a_harmless(self):
+        self.assertTrue(run.harmless("ls from 'C:\\Users\\x' was blocked by a deny rule."))
+        self.assertTrue(run.STORE_ALIAS_RE.search(
+            "Exit code 49 / Python was not found; run without arguments to install"))
+        arch = 'python "C:/p/gp-cand/tools/archive.py"'
+        self.assertTrue(run.safe_bash(f"{arch} --dry-run --parts C:/p/homes/h/tmp/x.json 2>&1"))
+        self.assertTrue(run.safe_bash(f"python3 C:/p/gp-cand/tools/archive.py --where 2>&1 || "
+                                      f"{arch} --where"))
+        # a base's archive.py, chained shell or a non-dry-run write is never safe
+        self.assertFalse(run.safe_bash('python "C:/p/gp-b-fb4db7b/tools/archive.py" --where'))
+        self.assertFalse(run.safe_bash(f"{arch} --where; cat ~/.gitconfig"))
+        self.assertFalse(run.safe_bash(f"{arch} --parts C:/p/x.json"))
+        self.assertFalse(run.safe_bash('echo "$HOME"'))
+
 
 if __name__ == "__main__":
     unittest.main()

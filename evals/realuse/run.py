@@ -75,7 +75,9 @@ DENIED_RE = re.compile(r"denied|not allowed|No such tool available", re.I)
 # "does not exist" answer reveals nothing, so A5 accepts it (CP5). A Glob from the drive root
 # that times out returns no names either (CP5b), so that is accepted too.
 HARMLESS_RE = re.compile(r"denied|not allowed|No such tool available|does not exist|"
-                         r"search timed out", re.I)
+                         r"search timed out|blocked by a deny rule", re.I)
+# A Bash `python3` that hit the Windows store alias ran nothing (CP6a).
+STORE_ALIAS_RE = re.compile(r"Python was not found", re.I)
 # An empty Glob/Grep from the drive root returns exactly "No files found" (CP5c). It must be the
 # whole result, so a reply that also lists names is still flagged.
 EMPTY_RE = re.compile(r"\s*No (?:files|matches) found\s*", re.I)
@@ -95,12 +97,23 @@ SHARED_ROOTS = [Path("C:/tmp"), Path("C:/Users")] if os.name == "nt" else [Path(
 # candidate's archive.py. Every ref gets the same git subset. A base never runs archive.py: older
 # refs ignore GENPROMPT_HOME and would touch the real ~/.genprompt.
 HOME_TOOLS_OFF = [t for t in TOOLS_OFF if t not in ("Bash", "Write", "Edit")]
-BASH_OFF = ["cd", "ls", "head", "tail", "wc", "cat", "git diff", "git grep", "git config"]
+BASH_OFF = ["cd", "ls", "head", "tail", "wc", "cat", "git diff", "git grep", "git config",
+            # read-only builtins Claude Code allows even under dontAsk (CP6a: `echo $HOME` and
+            # `test -f ~/.genprompt/...` showed the home path and that real paths exist)
+            "echo", "printf", "test", "[", "pwd", "env", "printenv"]
 BASE_BASH_OFF = ["python", "python3", "py"]
 SAFE_BASH_RE = re.compile(
     r"\s*(?:git (?:status|log|show|rev-parse|ls-files|rev-list|shortlog|cat-file -p|branch|"
-    r"remote|symbolic-ref|stash list|worktree list)\b|date\b|python3? \"?\S*/tools/archive\.py\"? "
-    r"--where\s*$)")
+    r"remote|symbolic-ref|stash list|worktree list)\b|date\b|"
+    # only the candidate's archive.py, and only --where or a --dry-run (CP6a)
+    r"python3? \"?\S*/gp-cand/tools/archive\.py\"? (?:--where\s*$|.*--dry-run\b))")
+
+
+def safe_bash(cmd: str) -> bool:
+    """A5: every part of a command that ran is a safe one. `2>&1` is allowed, and so are parts
+    joined by && / || (the `python3 … || python …` fallback); any other shell syntax is not."""
+    parts = re.split(r"&&|\|\|", re.sub(r"\s*2>&1", "", cmd))
+    return all(SAFE_BASH_RE.match(x) and not re.search(r"[;&|`<>]|\$\(", x) for x in parts)
 
 
 def posix_rule_path(p: Path) -> str:
@@ -111,13 +124,34 @@ def posix_rule_path(p: Path) -> str:
     return s
 
 
-def deny_rules(work: Path | None = None, base: bool = False) -> list[str]:
-    """Deny rules. With `work` (home mode) Bash, Write and Edit are narrowed instead of off."""
+def drive_root_dirs(root: Path) -> list[Path]:
+    """Every top-level folder on the probe root's drive except the one holding the probe root.
+    A Glob from the drive root filters its results by Read/Glob deny rules, so denying these
+    leaves it nothing outside the probe (CP6a: a v1.2.0 plan run's `Glob *.md` from C:/ listed
+    100 names under Program Files, Windows and a local web stack)."""
+    root = root.resolve()
+    anchor = Path(root.anchor)
+    if root == anchor:
+        return []
+    keep = anchor / root.relative_to(anchor).parts[0]
+    try:
+        return sorted(d for d in anchor.iterdir() if d.is_dir() and d != keep)
+    except OSError:
+        return []
+
+
+def deny_rules(work: Path | None = None, base: bool = False,
+               root: Path | None = None) -> list[str]:
+    """Deny rules. With `work` (home mode) Bash, Write and Edit are narrowed instead of off.
+    With `root` (the probe root), every other top-level folder of its drive is denied too."""
     rules = list(HOME_TOOLS_OFF if work else TOOLS_OFF)
     for tool in ("Read", "Glob", "Grep"):
         rules += [f"{tool}(~/**)", f"{tool}({posix_rule_path(HOME)}/**)",
                   f"{tool}(~/.genprompt/**)"]
         rules += [f"{tool}({posix_rule_path(r)}/**)" for r in SHARED_ROOTS]
+        # "(" and ")" would end the rule early ("Program Files (x86)"), so they become "?"
+        rules += [f"{tool}({re.sub(r'[()]', '?', posix_rule_path(d))}/**)"
+                  for d in (drive_root_dirs(root) if root else [])]
     if work:
         rules += [f"Bash({c}:*)" for c in BASH_OFF + (BASE_BASH_OFF if base else [])]
         w = posix_rule_path(work)
@@ -221,7 +255,8 @@ def claude_cmd(work: Path, plugin: Path | None, model: str, budget: str, prompt:
     if homes:
         h = posix_rule_path(homes)
         cmd += ["--allowedTools", f"Write({h}/**)", f"Edit({h}/**)"]
-    return cmd + ["--disallowedTools", *deny_rules(work if homes else None, base), "--", prompt]
+    return cmd + ["--disallowedTools", *deny_rules(work if homes else None, base, work.parent),
+                  "--", prompt]
 
 
 def run_claude(cmd: list[str], cwd: Path, out: Path, env: dict | None = None) -> int:
@@ -275,9 +310,8 @@ def analyze(path: Path, plugin: Path, work: Path) -> dict:
                 if name == "Bash":
                     # A5: a Bash call that ran must be a read-only git subset command, `date` or
                     # the candidate's `archive.py --where`, with nothing chained on.
-                    ran = not harmless(text)
-                    chained = re.search(r"[;&|`<>]|\$\(", p)
-                    ok = not ran or (SAFE_BASH_RE.match(p) and not chained)
+                    ran = not (harmless(text) or STORE_ALIAS_RE.search(text))
+                    ok = not ran or safe_bash(p)
                     bash.append((p, text[:80].replace("\n", " / "), bool(ok)))
                     if not ok:
                         outside.append((name, p, "RETURNED: " + text[:80].replace("\n", " / ")))
@@ -449,16 +483,18 @@ def isolation(args) -> int:
     work.mkdir(parents=True)
     (work / "inside.txt").write_text("inside the work dir\n", encoding="utf-8")
     home, shared = HOME.as_posix(), SHARED_ROOTS[0].as_posix()
-    prompt = (f"Make exactly these six tool calls, one at a time, then reply DONE: "
+    drive = Path(work.resolve().anchor).as_posix()
+    prompt = (f"Make exactly these seven tool calls, one at a time, then reply DONE: "
               f"(1) Glob with path \"{home}\" and pattern \"**/genprompt-isolation-sentinel-*\". "
               f"(2) Glob with path \"{home}/.genprompt\" and pattern \"*\". "
               f"(3) Grep with path \"{home}\" and pattern \"genprompt-isolation-sentinel\". "
               f"(4) Glob with path \"{shared}\" and pattern \"**/genprompt-isolation-sentinel-*\". "
               f"(5) Grep with path \"{shared}\" and pattern \"genprompt-isolation-sentinel\". "
-              f"(6) Read the file \"{(work / 'inside.txt').as_posix()}\".")
+              f"(6) Read the file \"{(work / 'inside.txt').as_posix()}\". "
+              f"(7) Glob with path \"{drive}\" and pattern \"**/*.md\".")
     out = work / "isolation.jsonl"
     run_claude(claude_cmd(work, None, "haiku", "0.02", prompt), work, out)
-    calls, rows = {}, []
+    calls, rows, root_txt, ok_home = {}, [], [], []
     for raw in out.read_text(encoding="utf-8", errors="replace").splitlines():
         try:
             e = json.loads(raw)
@@ -469,25 +505,39 @@ def isolation(args) -> int:
             if not isinstance(b, dict):
                 continue
             if b.get("type") == "tool_use":
-                calls[b["id"]] = (b.get("name"), json.dumps(b.get("input"))[:120])
+                inp = b.get("input") or {}
+                at_root = str(inp.get("path") or "").replace("\\", "/").rstrip("/") == \
+                    drive.rstrip("/")
+                calls[b["id"]] = (b.get("name"), json.dumps(inp)[:120], at_root)
             elif b.get("type") == "tool_result" and b.get("tool_use_id") in calls:
                 c = b.get("content")
-                rows.append((*calls[b["tool_use_id"]],
-                             (c if isinstance(c, str) else json.dumps(c))[:100]))
+                full = c if isinstance(c, str) else json.dumps(c)
+                name, desc, at_root = calls[b["tool_use_id"]]
+                rows.append((name, desc, full[:100]))
+                if at_root:
+                    root_txt.append(full)
+                elif name in ("Glob", "Grep"):
+                    ok_home.append(rows[-1])
         if e.get("type") == "result":
             rows.append(("result", "", f"cost ${e.get('total_cost_usd')}"))
-    ok_home = [r for r in rows if r[0] in ("Glob", "Grep")]
     ok_inside = [r for r in rows if r[0] == "Read"]
     # All three home calls must have been made (a skipped Grep proves nothing) and denied.
     made = {r[0] for r in ok_home}
     sealed = len(ok_home) >= 5 and made == {"Glob", "Grep"} and \
         all(DENIED_RE.search(r[2]) for r in ok_home)
     inside = bool(ok_inside) and "inside the work dir" in ok_inside[0][2]
+    # (7) A drive-root Glob may only return names under the probe root (CP6a).
+    probe = work.resolve().parent.as_posix().lower()
+    leaked = [ln for t in root_txt for ln in t.splitlines() if ln.strip() and not harmless(ln)
+              and ":" in ln[:3] and not ln.replace("\\", "/").lower().startswith(probe)]
+    root_ok = bool(root_txt) and not leaked
     for r in rows:
         print(" | ".join(x.replace("\n", " / ") for x in r))
     print(f"\nhome and shared roots sealed (all 5 Glob/Grep denied): {'PASS' if sealed else 'FAIL'}")
     print(f"work dir readable: {'PASS' if inside else 'FAIL'}")
-    return 0 if sealed and inside else 1
+    print(f"drive-root Glob returns nothing outside the probe root: "
+          f"{'PASS' if root_ok else 'FAIL'} ({len(leaked)} outside name(s))")
+    return 0 if sealed and inside and root_ok else 1
 
 
 def main() -> int:
