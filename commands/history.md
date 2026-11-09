@@ -8,9 +8,9 @@ disable-model-invocation: true
 @${CLAUDE_PLUGIN_ROOT}/PROTOCOL.md
 @${CLAUDE_PLUGIN_ROOT}/utilities/history.md
 
-Paths for this run: the genprompt root (these rules, read-only) is `${CLAUDE_PLUGIN_ROOT}`. The genprompt home (the archive and your personal rules) is `~/.genprompt/`.
+Paths: the genprompt root (read-only rules) is `${CLAUDE_PLUGIN_ROOT}`.
 
-Step 0: the files listed above are already in your context: their text follows the `@` lines, and PROTOCOL.md's third line contains `GENPROMPT-PROTOCOL v3 LOADED`. Do not Read them again. Read one only if its text is truly absent from your context (for example, the marker is nowhere above): `${CLAUDE_PLUGIN_ROOT}/PROTOCOL.md`, `${CLAUDE_PLUGIN_ROOT}/utilities/history.md`. Then run `ls -d ~ ~/.genprompt/local-rules.md` once: it prints your absolute home directory (use it for every Write), and if `local-rules.md` exists, Read it (personal rules, see PROTOCOL). Everything below assumes they are loaded.
+Step 0: the files above are already in context (their text follows the `@` lines; PROTOCOL's third line says `GENPROMPT-PROTOCOL v3 LOADED`). Don't Read them again unless that marker is absent. Then run `ls -d ~ ~/.genprompt/local-rules.md` once: it prints your absolute home (for every Write); if `local-rules.md` exists, Read it.
 
 Utility `/genprompt:history`: follow `utilities/history.md`. It emits no worker prompt.
 

@@ -8,10 +8,10 @@ allowed-tools: Read, Glob, Grep, Write(~/.genprompt/generated-prompts/**), Edit(
 @${CLAUDE_PLUGIN_ROOT}/archetypes/E-approve.md
 @${CLAUDE_PLUGIN_ROOT}/guide/blocks/E-approve.md
 
-Paths for this run: the genprompt root (these rules, read-only) is `${CLAUDE_PLUGIN_ROOT}`. The genprompt home (the archive and your personal rules) is `~/.genprompt/` unless Step 0's `archive.py --where` prints another.
+Paths: the genprompt root (read-only rules) is `${CLAUDE_PLUGIN_ROOT}`.
 
-Step 0: the files listed above are already in your context: their text follows the `@` lines, and PROTOCOL.md's third line contains `GENPROMPT-PROTOCOL v3 LOADED`. Do not Read them again. Read one only if its text is truly absent from your context (for example, the marker is nowhere above): `${CLAUDE_PLUGIN_ROOT}/PROTOCOL.md`, `${CLAUDE_PLUGIN_ROOT}/archetypes/E-approve.md`, `${CLAUDE_PLUGIN_ROOT}/guide/blocks/E-approve.md`. Then run `python3 ${CLAUDE_PLUGIN_ROOT}/tools/archive.py --where` once (if `python3` is missing or only a store alias, run the same command with `python`). Its `home` line is the genprompt home as an absolute path: use it wherever these rules write `~/.genprompt/`, and for every Write. If its `local-rules` line says `present`, Read that file (personal rules, see PROTOCOL). Everything below assumes they are loaded.
+Step 0: the files above are already in context (their text follows the `@` lines; PROTOCOL's third line says `GENPROMPT-PROTOCOL v3 LOADED`). Don't Read them again unless that marker is absent. Then run `python3 ${CLAUDE_PLUGIN_ROOT}/tools/archive.py --where` once (`python` if `python3` is missing or a store alias): its `home` line is the absolute home for every `~/.genprompt/` path and Write; if its `local-rules` line says `present`, Read that file.
 
-Command `/genprompt:approve` → archetype **E: Approval / rulings / amendment** (§5.E). Follow PROTOCOL Steps 1–7 with this archetype. If the request is really a different archetype, say so in the TARGET LOCK and use the right one (hybrids are fine).
+Command `/genprompt:approve` → archetype **E: Approval / rulings / amendment** (§5.E): follow PROTOCOL Steps 1–7. If the request is really another archetype, say so in the lock and use it (hybrids are fine).
 
 Request: $ARGUMENTS

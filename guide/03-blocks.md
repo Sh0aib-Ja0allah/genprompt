@@ -7,21 +7,18 @@ never leak.
 Which blocks are core. Every code-writing prompt carries 4.5, 4.6, 4.7 and 4.14, plus 4.8
 or 4.19. The archetype file lists what else it requires. The rest are situational.
 
-### 4.0 Template notation (applies to every template in `archetypes/`)
+### 4.0 Template notation
 
 | Notation | Meaning |
 |---|---|
-| `<PROFILE.field>` | A value from the profile card (§2.9). The only fields are: `path branch default_branch scope stack role contract ancestors truth gates docnaming code_roots forbidden blockers` |
-| `<…>` | Fill it from grounding. Every one must be filled before emitting. None may reach the user. |
-| `[INSERT §x.y]` | Insert that block, adapted to this repo. |
-| `[generator: …]` | An instruction to you. Strip it; it never appears in the emitted prompt. |
-| `{…}` | A worker-side variable inside a command the worker will run (`git show {sha}:{path}`). It stays in the emitted prompt; it is not a generator placeholder. |
-| `═══` banner | The only banner character. Keep one width, 79 characters. |
+| `<PROFILE.field>` | From the profile card (§2.9). Fields: `path branch default_branch scope stack role contract ancestors truth gates docnaming code_roots forbidden blockers` |
+| `<…>` | Fill from grounding before emitting; none may reach the user. |
+| `[INSERT §x.y]` | That block, adapted to this repo. |
+| `[generator: …]` | An instruction to you; strip it. |
+| `{…}` | A worker-side variable in a command the worker runs (`git show {sha}:{path}`); it stays in the prompt. |
+| `═══` banner | The only banner character, 79 wide. |
 
-Fences. When the emitted prompt itself contains a fenced block, the outer fence is four
-backticks, so the prompt stays exactly one copyable block.
-
-### 4.1 Header (generator- and user-facing: printed in chat and saved in the archive file, never inside the worker's block)
+### 4.1 Header (chat and archive, never inside the worker's block)
 
 ```text
 | Date | <YYYY-MM-DD> |
@@ -30,9 +27,8 @@ backticks, so the prompt stays exactly one copyable block.
 | Follows | <prior prompt filename>   (or Amends / Depends on / Re-issues / Reviews) |
 ```
 
-Order in the archive file: line-1 HTML comment (§10) → this table → grounding (§4.2) → the
-fenced prompt → the self-check (§6). `Follows`, `Amends`, `Depends on`, `Re-issues` and `Reviews`
-are what make the library a chain. Never omit one that applies.
+`Follows`, `Amends`, `Depends on`, `Re-issues` and `Reviews` make the library a chain; never
+omit one that applies (archive.py orders the file).
 
 ### 4.2 Grounding notes (above the block; never sent to the worker)
 
@@ -54,8 +50,8 @@ If a claim has no line here, it does not belong in the prompt.
 **<decision>.** <why the literal words imply it, and what the other reading would destroy>
 ```
 
-The costliest failure in this workflow is silently turning "disable X" into "delete X". This
-block makes a reinterpretation visible before the prompt is pasted.
+It shows a reinterpretation before pasting, because silently turning "disable X" into
+"delete X" is this workflow's costliest failure.
 
 ### 4.4 Situation: the worker's report, ingested with hard numbers
 
@@ -78,10 +74,9 @@ disagree, follow the contract and tell me.<If the prompt deliberately deviates f
 "This prompt deviates from <rule> in one way: <how>. That deviation is authorised for this task only.">
 ```
 
-If the path makes the `Repo:` line pass 100 characters, put the path alone on the next line.
-
-Mention ancestor files only when the scan found some: `CLAUDE.md files above this repo
-(<paths>) describe other projects and do not govern it.` Never name a file the scan did not find.
+A path that pushes `Repo:` past 100 characters goes alone on the next line. Name ancestor files
+only when the scan found some: `CLAUDE.md files above this repo (<paths>) describe other projects
+and do not govern it.` Never name an unscanned file.
 
 ### 4.6 Source of truth, with authority annotations
 
@@ -203,16 +198,13 @@ reconciled against `git status`; the gate numbers; any existing test you touched
 explicit confirmation of each DON'T.
 ```
 
-The report header line (`GENPROMPT-REPORT · …`) is required in every emitted prompt that asks
-for a report, including templates whose own REPORT text replaces the rest of this block, and
-delta prompts (E, J) that continue a running one.
-- The generator fills `Prompt:` with the archive file name at emission (the name it would have
-  under `--dry-run`). Every other field is a worker-side `{…}` variable (§4.0).
-- The worker prints it as one line, the fields in this order, separated by ` · `. The prompt shows
-  it wrapped at a ` · ` (§4.21), with the fields and their order unchanged. The worker keeps
-  `Status:` to one of the three words: `partial` means some checkpoints landed, `blocked` means it stopped on the stop-list.
-- The fields are claims, not facts. The generator verifies `Branch`, `HEAD` and the gate
-  numbers by artifact (Step 4) before building on them (§5.J).
+Every prompt that asks for a report carries the `GENPROMPT-REPORT` line, including templates
+whose own REPORT text replaces the rest of this block and deltas (E, J).
+- You fill `Prompt:` (the archive file name, as under `--dry-run`); the rest are `{…}`
+  variables. The worker prints one line, fields in this order, joined by ` · ` (the prompt wraps
+  it at a ` · `, §4.21). `Status:` `partial` = some checkpoints landed, `blocked` = stopped on
+  the stop-list.
+- The fields are claims: verify `Branch`, `HEAD` and the gate numbers by artifact (Step 4).
 
 ### 4.15 Falsifiability standard
 
@@ -280,33 +272,19 @@ Do not start coding until I approve the plan, unless I explicitly say "continue 
 
 ### 4.21 Shape and length budget
 
-- Three zones in the archive file: preamble (grounding, interpretations) · **exactly one
-  fenced block**, which is the whole prompt · footers (self-check, caveats, the transferable rule).
-- Banner-delimited ALL-CAPS parts: `PART A…F` / `STEP 1…4` / `CHECKPOINT A…C`, under `═`
-  rules.
-- Canonical order inside the block:
-  1. anchor, role, contract precedence
-  2. mode/autonomy
-  3. verification (hoisted early for unattended runs) and environment facts
-  4. verify-at-start (§4.22)
-  5. source of truth
-  6. skepticism, or the central problem
-  7. parts: goal, defect, decisions, build list, traps, gate, commit
-  8. WHAT YOU CANNOT DO
-  9. standing rules
-  10. DO/DON'T
-  11. definition of done
-  12. report spec
-  13. terminal imperative
-- Wrap every line in the block at 100 characters. Break prose at a word, a list at its
-  separator, and the GENPROMPT-REPORT spec at ` · ` (continuation lines indented two spaces; the
-  worker still prints its own report line unwrapped). Only one thing may run past 100: a single
-  unbreakable token (an absolute path, URL or command) on a line of its own.
-- Length budget: a hard cap, counted in lines inside the block. The archetype file names its
-  tier. `--brief` means about 60% of the cap.
-  - A measured-large scope may use up to +20%: a review of more than 3 commits or 50 files, or
-    a plan or roadmap of more than 20 items. Row 21 of the self-check names the measure.
-  - Any other overrun needs a one-line reason in the self-check.
+- Parts are banner-delimited ALL-CAPS (`PART A…F`, `STEP 1…4`, `CHECKPOINT A…C`) under `═` rules.
+- Order in the block: anchor, role, contract precedence → mode/autonomy → verification (early
+  when unattended) and environment facts → verify-at-start (§4.22) → source of truth →
+  skepticism or the central problem → parts (goal, defect, decisions, build list, traps, gate,
+  commit) → WHAT YOU CANNOT DO → standing rules → DO/DON'T → definition of done → report spec →
+  terminal imperative.
+- Wrap every block line at 100 characters: prose at a word, a list at its separator, the
+  GENPROMPT-REPORT spec at ` · ` (continuations indented two spaces; the worker prints its line
+  unwrapped). Only a lone unbreakable token (absolute path, URL, command) may run past 100.
+- Length budget: a hard cap in lines inside the block; the archetype names its tier; `--brief` is
+  about 60%. A measured-large scope (a review of over 3 commits or 50 files, a plan or roadmap
+  of over 20 items) may use +20%, row 21 naming the measure; any other overrun needs a one-line
+  reason in the self-check.
 
 | Tier | Cap | Archetypes |
 |---|---|---|
@@ -315,12 +293,9 @@ Do not start coding until I approve the plan, unless I explicitly say "continue 
 | Slice | 260 | D (320 for a multi-checkpoint slice) |
 | Program | 350 | F, G, I, N, Q, R, S, T |
 
-- Compression pass, before archiving:
-  - cut context the worker already holds
-  - replace restated contract rules with a one-line pointer to the contract
-  - drop praise and narrative closings
-  - merge repeated DO/DON'T lines
-  - keep every gate, file:line and stop-list item
+- Compression pass before archiving: cut what the worker already holds, restated contract
+  rules (point instead), praise, narrative closings and repeated DO/DON'T lines; keep every gate,
+  file:line and stop-list item.
 
 ### 4.22 Verify-at-start (volatile facts)
 
@@ -331,9 +306,6 @@ VERIFY BEFORE STARTING. These were true when this prompt was written (<date/time
   do instead>. This is not a stop.
 If any other entry differs, STOP and report the difference. Do not adapt silently.
 ```
-
-Use it for SHAs the prompt builds on, quotas, counts that change daily, and whether a remote or
-service is reachable. Never assert such a fact bare.
 
 ### 4.23 Approval per action (release, deploy, destructive and outward-facing work)
 
