@@ -6,6 +6,35 @@
 | Spend | **$5.7298 of $13** (re-baselines $4.6481 + CP7 card-less interrupted $0.5377 + card-less re-run $0.5440; $7.2702 left) |
 | Status | Re-baselines complete under Shoaib's X6 ruling. Every case PASSES all four gated graders 3/3 on its first run, so none escalated: 0 flips either way on both sides (X2). CP7 (candidate 2fad0fa) waits for the PE's GO |
 
+## CP7 card-fresh 5×3 (`--max-total 1.00`): **FAIL: X3 (redesign) and A5 (investigate r2). STOPPED**
+
+`C:/genprompt-probe/genprompt-probe-20261109-212154/`, **$0.5775**, haiku. Running total: **$6.3602 of $13**.
+
+| Case | card-fresh per-run rule bytes | median | card-less median | X3 (strictly <) | V-d limit (X4) | V-d |
+|---|---|---|---|---|---|---|
+| slice | 32,458 ×3 | 32,458 | 37,679 | PASS | 33,084 | PASS |
+| fix | 33,241 ×3 | 33,241 | 38,462 | PASS | 33,882 | PASS |
+| redesign | 31,899 ×3 | 31,899 | 31,899 | **FAIL (equal)** | 32,514 | PASS |
+| plan | 29,794 ×3 | 29,794 | 35,015 | PASS | 30,615 | PASS |
+| investigate | 35,016 ×3 | 35,016 | 40,237 | PASS | 35,652 | PASS |
+
+- Validity: VALID, 15/15 runs saw the card. **C1 PASS** (0/15 forbidden Reads; X3's all-runs part is
+  0/15 too). **C2 PASS. A1 PASS.** V-d (by hand, not in the frozen probe): **PASS on all five**. Every
+  card-fresh run sits exactly on its case's floor.
+- **X3 FAIL, redesign.** This is the risk stated up front in the plan. Redesign's card-less median is its
+  floor, because 2 of its 3 card-less runs were known-issue (i) skip-derive runs. So card-fresh equals it
+  rather than beating it. The candidate is at its floor; the comparison side was depressed by (i).
+- **A5 FAIL, investigate r2.** Two Greps of the run's *own* sandbox parts file printed the real home.
+  The cause is in the generated prompt itself: its AUTONOMY line names a write area under the real
+  user's home.
+  - r2: `<REALHOME>/AppData/Local/Temp/claude/<id>/<session>/scratchpad/investigate-subtotal/`, which is
+    the generator's own Claude Code scratchpad, lifted from its environment.
+  - r1 has the same leak (`<REALHOME>/AppData/Local/Temp/ledgerlite-investigate/`). Only r2's Grep
+    happened to surface it, so A5 caught one of two.
+  - Nothing outside the probe root was read and nothing was written outside the sandbox. But the
+    emitted prompt carries a real user path, a privacy defect in the investigate output.
+- Quality was **not** run.
+
 ## Ruling (ii): one-time evidence, standalone (outside the frozen probe): **PASS**
 
 Driver: the scratch `onetime.py`, which imports evals/realuse/run.py's helpers read-only and doesn't
