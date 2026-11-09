@@ -23,7 +23,7 @@
 
 ## Required blocks
 
-- §4.5, §4.6 (short), §4.7 (a falsifying artifact about this file), §4.14
+- §4.5, §4.6 (short), §4.7 (a falsifying artifact about this file), §4.13, §4.14
 - §4.19 or §4.8
 
 ## Template

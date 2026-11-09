@@ -25,10 +25,15 @@
 - Name what not to start. Read the roadmap or backlog doc and list every open item that
   touches the same files, by ID or path, under SCOPE. A fix prompt that names no out-of-scope item
   fails §6 row 10.
+- Mark every claim you could not read at a line `[UNVERIFIED]`; label each count `verified by
+  artifact` or `reported, not confirmed`; order the source of truth with one staleness or
+  exclusion note, and the code wins over docs.
+- Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
+  is not in the target repo.
 
 ## Required blocks
 
-- §4.5, §4.7, §4.14
+- §4.5, §4.6, §4.7, §4.13, §4.14
 - §4.15 (this is the archetype it exists for)
 - §4.20 RECORD, DO NOT ACT, when needed
 - §4.8 or §4.19

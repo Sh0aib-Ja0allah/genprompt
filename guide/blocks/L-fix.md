@@ -64,6 +64,17 @@ A path that pushes `Repo:` past 100 characters goes alone on the next line. Name
 only when the scan found some: `CLAUDE.md files above this repo (<paths>) describe other projects
 and do not govern it.` Never name an unscanned file.
 
+### 4.6 Source of truth, with authority annotations
+
+```text
+1. `<doc>`   <- binding; outranks <what>
+2. `<doc>`   <- <scope of its authority>
+3. `<doc>`   <- USEFUL BUT STALE: <the concrete staleness you found>. Believe the code.
+Where a doc and the code disagree, the code wins and the doc gets fixed.
+```
+
+At least one annotation must be an exclusion or a staleness warning (§2.6).
+
 ### 4.7 Current-state skepticism, with a falsifying example
 
 ```text
@@ -89,6 +100,23 @@ MODE FOR THIS SESSION
 
 Use this or the §4.19 approval gate in a code-writing prompt: one of them, not both.
 Read-only and commit-only archetypes state `Autonomy: N/A` in the lock instead.
+
+### 4.13 WHAT YOU CANNOT DO: the stop-list
+
+```text
+WHAT YOU CANNOT DO: do not attempt, do not fake, do not stub as if live.
+These need something only I can supply. Build to the boundary, label it, and list exactly what you need:
+- <item>: <what is missing>, because <why only I can supply it>. Blocks <what>.
+  Would be unblocked by <what>.
+Keep this list current, and do not let it silently shrink.
+```
+
+Out-of-scope lines take the same reason clause, wherever a template writes them:
+
+```text
+OUT OF SCOPE: do not start these, do not drift into them:
+- <item, by path>, because <reason: a later slice / another owner / a live session / the contract>.
+```
 
 ### 4.14 Verification, DO/DON'T, DEFINITION OF DONE, REPORT
 
