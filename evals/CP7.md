@@ -36,6 +36,27 @@
   - but the card template has the same `user-level: <path>` slot, and a card written in real use could
     store that path. In CP7, both written cards said `unreadable` with no path.
 
+## CP7 on the new candidate `57b0b67` (2fad0fa + A's 671f541): investigate load **PASS**
+
+- **P-a (PE):** fix, plan, redesign and slice include sets are md5-identical to 2fad0fa, so their
+  load results stand.
+- **Investigate floor:** 35,395 (+379 B from the `{scratch dir}` rule).
+
+| Step | dir | cost | per-run rule bytes | median | gates |
+|---|---|---|---|---|---|
+| card-less 3× | `genprompt-probe-20261109-221358` | $0.0765 | 40,616 ×3 (derive.md 3/3) | 40,616 | A1 PASS, A5 PASS. **R1: over the 40,000 soft line by 616** (reported, not gated; it was 40,237 on 2fad0fa) |
+| card-fresh 3× (`--cardless investigate=40616`) | `genprompt-probe-20261109-222019` | $0.1035 | 35,395 ×3 | 35,395 | VALID 3/3; C1 0/3; C2 PASS; **X3 PASS** (35,395 < 40,616); **V-d PASS** (35,395 ≤ 35,652); A1 PASS; **A5 PASS** |
+
+- **Direct real-home grep** (P-c/P-f patterns): **0 hits** across every stored file and final message:
+  - card-less: 1 parts file, 3 final messages;
+  - card-fresh: 3 parts files, 3 seeded cards, 3 final messages.
+- The AUTONOMY line now reads "You may write only under {scratch dir}, a new directory you create
+  outside the source tree".
+- Card-less runs 2 and 3 left no parts file (the prompt is in the final message only). The grep
+  covered those final messages.
+- **Spend:** $6.3602 + $0.1800 = **$6.5402 of $13**. Quality is next on 57b0b67, in the order slice,
+  redesign, plan, fix, investigate, with the J6 walk.
+
 ## P-f: raw-text grep over everything stored in every sandbox home (free)
 
 - **Scope:** all files under `homes/` in 180449, 184529, 212154 and onetime, searched as raw text, not
