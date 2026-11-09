@@ -1,9 +1,9 @@
-# CP7 (1.3.1 under J-method option D): STOPPED, card-less load FAILS X4 (and plan fails the v1.1.0 load gate)
+# CP7 (1.3.1 under J-method option D): COMPLETE, PASS on 57b0b67 (quality 5/5, no regression; load stated)
 
 | | |
 |---|---|
 | Eval code | frozen at `a977724` (X1); unchanged through 01104e0 |
-| Spend | **$5.7298 of $13** (re-baselines $4.6481 + CP7 card-less interrupted $0.5377 + card-less re-run $0.5440; $7.2702 left) |
+| Spend | **$10.5624 of $13** (final; re-baselines $4.6481, CP7 load and checks $1.8921, CP7 quality $4.0222) |
 | Status | Re-baselines complete under Shoaib's X6 ruling. Every case PASSES all four gated graders 3/3 on its first run, so none escalated: 0 flips either way on both sides (X2). CP7 (candidate 2fad0fa) waits for the PE's GO |
 
 ## P-c: real-home / username grep over every CP7 output (free)
@@ -35,6 +35,50 @@
   - it's shown to the person whose home it is;
   - but the card template has the same `user-level: <path>` slot, and a card written in real use could
     store that path. In CP7, both written cards said `unreadable` with no path.
+
+## CP7 quality on `57b0b67`: **PASS on all 5 cases, with no regression. CP7 COMPLETE**
+
+Opus generator and opus judge (J1); first-run caps with `--escalate` (J2); J6 checked before each
+case; eval code unchanged (X1). The plugin came from a temp worktree at 57b0b67.
+
+| Case | cost (judge) | scope | grounding | skepticism | cites-real | gates-exist | escalated | flips F→P / P→F | v1.3.0 | v1.2.0 | results |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| slice | $0.7896 ($0.3019) | PPP | PPP | PPP | PASS (37) | PASS (lint, test) | no | 0 / 0 | PASS → PASS | — | `2026-11-09T20-30-01Z` |
+| redesign | $0.9973 ($0.2307) | PPP | PPP | PPP | PASS (20) | PASS (lint, test) | no | 0 / 0 | PASS → PASS | PASS → PASS | `…20-32-32Z` |
+| plan | $0.7065 ($0.2427) | PPP | PPP | PPP | PASS (23) | PASS (lint, test) | no | 0 / 0 | PASS → PASS | — | `…20-35-58Z` |
+| fix | $0.8840 ($0.2431) | PPP | PPP | PPP | PASS (31) | PASS (lint, start, test) | no | 0 / 0 | PASS → PASS | — | `…20-38-13Z` |
+| investigate | $0.6448 ($0.2213) | PPP | PPP | PPP | PASS (21) | PASS (lint, start, test) | no | 0 / 0 | PASS → PASS | (no case) | `…20-41-44Z` |
+
+- **J4 / R4: no regression.** Every gated grader is PASS on the candidate, as it is on the re-baselined
+  v1.3.0 (all 5) and on v1.2.0 (redesign).
+- **R3:** investigate passes all four gated graders.
+- **X2:** 0 flips either way on all three sides. No case escalated, and `--explain` wasn't needed.
+- **The §4.19 remedy wasn't triggered** (plan PASS).
+- **J6 walk** (left vs first + escalation cap): slice 6.46 ≥ 3.70, redesign 5.67 ≥ 2.85, plan 4.67 ≥ 2.60,
+  fix 3.97 ≥ 2.50, investigate 3.08 ≥ 2.50.
+- **Real-home check on the quality outputs:**
+  - each final.txt names the eval's own scaffold repo, which `claude plugin eval` creates under the
+    user's temp folder: the Repo line, the prompt's `Repo:` line and the header's target row. That's
+    the target path, not a leak.
+  - investigate's write area is `{scratch dir}` (3 mentions); no generator path.
+- **Two driver slips, $0 each.**
+  - A `--tag` used as a label: it's a case filter, so no case ran.
+  - investigate run under the default tag `baseline` (its case is tagged `extra`).
+  - Each stopped with "No eval cases found", cost $0.0000, and was re-run correctly.
+- **Spend:** quality $4.0222. **CP7 final total: $10.5624 of $13** ($2.4376 unspent).
+
+### CP7 verdict
+
+**1.3.1 at `57b0b67` passes CP7**, with these stated:
+- **Load, card-fresh:** at the floor on every case and within V-d. X3 passes on 4 cases; redesign ties,
+  the pre-stated artefact.
+- **Load, card-less:** X4 FAIL, stated as a one-time first-use cost of +5,221 B (derive.md) per repo.
+  The card is saved, as the (ii) direct test shows. Plan's first run exceeds v1.1.0, and investigate
+  card-less is 40,616 against R1's 40,000 soft line.
+- **Known issue (i):** 4 of 15 card-less runs skip derive.md with no card, and 3 of them claim "card new".
+- **1.4.0 LOCK-UL:** the user-level path appears in the lock, the card slot and the grounding notes
+  (P-c/P-f rulings).
+- **Fixed in this candidate:** the investigate generator-path leak (A, 671f541).
 
 ## CP7 on the new candidate `57b0b67` (2fad0fa + A's 671f541): investigate load **PASS**
 
