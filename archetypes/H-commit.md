@@ -44,7 +44,9 @@ this task only.>>
 Scope: <what to include>. Exclude: <what not to include>.
 
 BEFORE COMMITTING
-1. `git fetch`, then `git pull --ff-only origin <branch>`. Always sync first.
+1. Sync only if `git rev-parse --abbrev-ref @{u}` names an upstream AND the tree is free (lock:
+   <free | OCCUPIED: no sync>): `git fetch`, then `git pull --ff-only`. Otherwise skip the
+   sync and say why (no upstream, or the tree is occupied).
 2. Inspect `git status --porcelain -uall` and the full diff of staged and unstaged changes.
 3. <Monorepo:> `git status --porcelain -uall -- . ":(exclude)<in-scope path>"` MUST print nothing.
    If it does, stop and tell me what else is dirty.
@@ -69,6 +71,7 @@ CONSTRAINTS
 - If a pre-commit hook fails and it is clearly related to these changes, fix it and make a NEW commit.
 
 [INSERT §4.14 report header line: GENPROMPT-REPORT · Repo · Branch · HEAD · Prompt · Gates · Status]
-After pushing: show the final commit message(s), the branch, the SHA(s) and the push/remote status.
+After committing (and pushing, if authorised): show the final commit message(s), the branch, the
+SHA(s) and the push/remote status.
 Begin with step 1.
 ```

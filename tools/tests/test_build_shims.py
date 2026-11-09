@@ -457,6 +457,19 @@ class BuildShims(unittest.TestCase):
         ):
             self.assertIn(phrase, flat)
 
+    # R10 (1.4.1): :commit synced unconditionally (`git pull --ff-only origin <branch>`), which fails
+    # with no upstream and pulls into an occupied tree; and it said "After pushing" when no push
+    # was authorised.
+    def test_commit_syncs_only_with_an_upstream_and_a_free_tree(self):
+        flat = " ".join((ROOT / "archetypes" / "H-commit.md").read_text(encoding="utf-8").split())
+        self.assertIn("Sync only if `git rev-parse --abbrev-ref @{u}` names an upstream AND the tree "
+                      "is free", flat)
+        self.assertIn("`git fetch`, then `git pull --ff-only`. Otherwise skip the sync and say why",
+                      flat)
+        self.assertIn("After committing (and pushing, if authorised):", flat)
+        self.assertNotIn("Always sync first", flat)
+        self.assertNotIn("After pushing:", flat)
+
     def test_check_fails_when_a_template_has_no_414_insert(self):
         arch = self.copy / "archetypes" / "H-commit.md"
         text = arch.read_text(encoding="utf-8")
