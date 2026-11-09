@@ -6,6 +6,25 @@
 | Spend | **$5.7298 of $13** (re-baselines $4.6481 + CP7 card-less interrupted $0.5377 + card-less re-run $0.5440; $7.2702 left) |
 | Status | Re-baselines complete under Shoaib's X6 ruling. Every case PASSES all four gated graders 3/3 on its first run, so none escalated: 0 flips either way on both sides (X2). CP7 (candidate 2fad0fa) waits for the PE's GO |
 
+## Card-write check (Shoaib: "verify, then continue"; free, traces of 184529): **STOPPED, not shown one-time**
+
+| | count |
+|---|---|
+| runs that Read derive.md | 11 of 15 |
+| of those, runs that Wrote or Edited `…/generated-prompts/by-repo/<key>.profile.md` | **0 of 11** (no Write, Edit or shell write naming profile.md in any of the 15 traces) |
+| of those, attempts blocked by the probe's tool permissions | **0** (no permission denial names profile.md) |
+| `*.profile.md` files present in any sandbox home afterwards | **0** |
+| runs whose request ends in `--go --dry-run` | **15 of 15** (every REQUESTS entry in evals/realuse/run.py) |
+
+- Writes into the sandbox home were permitted: `--allowedTools Write(<homes>/**) Edit(<homes>/**)`.
+  The same runs did write their archive JSON to `<home>/tmp/` (14 files).
+- So the card wasn't written because every probe request is `--dry-run`, and PROTOCOL.md
+  ("`--dry-run` never writes it") forbids it. That's correct behaviour. It wasn't a permission block.
+- Under the ruling's own branch ("If they didn't write it: stop and report"), I stopped. The probe can't
+  show the cost is one-time: by construction it never runs a card-writing request. That rests on
+  PROTOCOL.md's text alone.
+- Card-fresh and quality were not run. Spend is unchanged at $5.7298.
+
 ## CP7 card-less re-run (`--max-total 1.00`): complete; **FAIL X4**
 
 `C:/genprompt-probe/genprompt-probe-20261109-184529/`, $0.5440, A1 PASS, A5 PASS.
