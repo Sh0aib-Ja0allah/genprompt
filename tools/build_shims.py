@@ -87,9 +87,18 @@ FLAGS = ("[--repo <name|path>] [--go] [--attended|--unattended] [--dry-run] [--b
          "[--follows <file>] [--verbose]")
 # Read-only archetypes (Autonomy "N/A") omit --attended/--unattended: the flag does nothing there.
 FLAGS_RO = FLAGS.replace("[--attended|--unattended] ", "")
-# E-13: --split <N> (guide/08-grammar.md §8.1) applies to plan and roadmap only.
+# Per-command flags (guide/08-grammar.md "Per-command modifiers"): each sits only on its own
+# commands' argument-hints. E-13: --split <N> (§8.1); E-15: the options the archetype prose
+# used to hide (review chat-only, commit verify+/pr, security phase 1, perf measure-only).
 SPLIT_FLAG = "[--split <N>]"
 SPLIT_CMDS = ("plan", "roadmap")
+CMD_FLAGS: dict[str, str] = {
+    **{cmd: SPLIT_FLAG for cmd in SPLIT_CMDS},
+    "review": "[--chat-only]",
+    "commit": "[--verify] [--pr]",
+    "security": "[--readonly-phase]",
+    "perf": "[--readonly-phase]",
+}
 
 # Grammar groups (guide/08-grammar.md §8), in the order they are printed.
 ENTRY_GROUP = "Entry"
@@ -148,9 +157,9 @@ ARCHETYPES = [
          "Build a new layer from scratch, studying a reference repo first (worker prompt)",
          "<layer> studying <reference repo>",
          BUILD, "new layer, reference studied first"),
-    Arch("H", "commit", "H-commit", "Commit & push (incl. verify+commit)",
+    Arch("H", "commit", "H-commit", "Commit & push (incl. --verify, --pr)",
          "Commit and push a scoped body of finished work, or verify then commit (worker prompt)",
-         "<work to commit> [verify+]",
+         "<work to commit>",
          SHIP, "commit & push, staged by path", read_only=True),
     Arch("I", "roadmap", "I-roadmap", "Roadmap / backlog execution",
          "Execute a whole backlog or roadmap doc to done, part by part (worker prompt)",
@@ -348,7 +357,7 @@ def table_errors() -> list[str]:
 
 def arch_flags(r: Arch) -> str:
     flags = FLAGS_RO if r.read_only else FLAGS
-    return f"{flags} {SPLIT_FLAG}" if r.cmd in SPLIT_CMDS else flags
+    return f"{flags} {CMD_FLAGS[r.cmd]}" if r.cmd in CMD_FLAGS else flags
 
 
 def expected() -> dict[Path, str]:

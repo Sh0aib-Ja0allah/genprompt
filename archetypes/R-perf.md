@@ -4,7 +4,7 @@
 |---|---|
 | **Use when** | Something is slow or heavy (page load, bundle size, query count/N+1, memory, API p95, app start, build time), or a target metric is set |
 | **Not when** | There is no symptom and no target: do not optimise speculatively |
-| **Autonomy** | Measure first (read-only + measurement), then optimise behind §4.19, or §4.8 if `--unattended` |
+| **Autonomy** | Measure first (read-only + measurement), then optimise behind §4.19, or §4.8 if `--unattended`. `--readonly-phase` emits the measure-only part |
 | **Baseline delta** | The metric must improve by a stated amount. Tests unchanged or up; behaviour unchanged |
 | **Length tier** | Program (350) |
 | **Deliverable** | A before/after measurement table per change (§4.24), the changes, and the rejected ideas with their numbers |
@@ -20,6 +20,10 @@
 - State the environment. Measure in production build mode where it matters, and not against
   production data or servers, because a measurement must not load them.
 - Name candidate hotspots from the code (`file:line`) as hypotheses, not conclusions.
+
+- `--readonly-phase` (measure only): keep STEP 1 and STEP 2, drop STEPS 3–4 and the gate, and
+  end with "Stop after the plan and report; change no code." The ranked causes feed a later
+  `:perf` prompt.
 
 ## Required blocks
 

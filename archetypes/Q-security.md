@@ -4,7 +4,7 @@
 |---|---|
 | **Use when** | Threat-model and harden an app or area: authn/authz/policies/RLS, input and upload handling, secrets, headers/CSP, rate limits, dependency CVEs, data exposure |
 | **Not when** | A generic code review → `:review`. An active incident → `:hotfix` |
-| **Autonomy** | Two phases. Phase 1 is read-only (the threat model and findings). Phase 2 fixes only the FIX-NOW items, behind §4.19 (or §4.8 if `--unattended`) |
+| **Autonomy** | Two phases. Phase 1 is read-only (the threat model and findings). Phase 2 fixes only the FIX-NOW items, behind §4.19 (or §4.8 if `--unattended`). `--readonly-phase` emits Phase 1 only |
 | **Baseline delta** | Up: every fix lands with a test that proves the attack is refused and the legitimate case still works |
 | **Length tier** | Program (350) |
 | **Deliverable** | A threat-model and findings doc (§4.25), the fixes for the FIX-NOW items, and RECORD items for decisions |
@@ -22,6 +22,10 @@
   - Never exfiltrate or print real secrets. Report a secret's location, not its value.
   - Never weaken a control to make a test pass.
 - Decision items (which roles may do what, retention, disclosure) are RECORD, DO NOT ACT.
+
+- `--readonly-phase`: the prompt ends after Phase 1. Drop Phase 2 and its gate, keep the
+  findings doc, and end with "Stop after Phase 1 and report; fixes come in a separate prompt."
+  The FIX-NOW list then feeds a later `:security` or `:fix` prompt.
 
 ## Required blocks
 

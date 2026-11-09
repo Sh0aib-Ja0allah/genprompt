@@ -1,13 +1,13 @@
-# 5.H: Commit & push (and verify+commit) · `/genprompt:commit`
+# 5.H: Commit & push (and `--verify`, `--pr`) · `/genprompt:commit`
 
 | | |
 |---|---|
-| **Use when** | Commit a completed, scoped body of work. With `verify+`, run a read-only verification pass first |
+| **Use when** | Commit a completed, scoped body of work. With `--verify` (or `verify+`), run a read-only verification pass first. With `--pr` (or `pr`), also open a PR |
 | **Not when** | The work is not finished → `:slice`. A release with tags and deploys → `:release` |
 | **Autonomy** | N/A: commit-only. Writes are enumerated (the commits in the manifest) |
 | **Baseline delta** | Unchanged: the worker re-runs the gates, and the numbers must match the last reported green |
 | **Length tier** | Focused (200) |
-| **Deliverable** | The commits (and the push, if authorised), with SHAs reported |
+| **Deliverable** | The commits (and the push, if authorised), with SHAs reported; with `--pr`, the PR URL |
 
 ## Generator: before emitting
 
@@ -18,7 +18,8 @@
 - Take the branch and push policy from the contract. If the instruction overrides it (for
   example, "commit directly to main" or "push is authorised for this task only"), say so explicitly
   in the prompt.
-- Offer `verify+commit` when the work has not been independently checked.
+- Offer `--verify` when the work has not been independently checked.
+- `--pr`: read §8.2 and add its PULL REQUEST section.
 - Name the probe/scratch files that must NOT be swept in. `.env` is excluded; **`.env.example`
   is in scope**.
 
@@ -31,7 +32,7 @@
 ## Template
 
 ```text
-<verify+commit only: "FIRST a READ-ONLY verification pass, THEN commit. Commit nothing until the
+<--verify only: "FIRST a READ-ONLY verification pass, THEN commit. Commit nothing until the
 pass is clean and you have reported it.">
 
 Repo: <PROFILE.path> · branch <PROFILE.branch> · <push to origin | do not push>

@@ -47,7 +47,7 @@ Letters are permanent: archived prompts reference them. New archetypes take the 
 | E | Approval / rulings / amendment | `:approve` | `E-approve.md` |
 | F | Planning-only | `:plan` | `F-plan.md` |
 | G | Greenfield from a reference repo | `:greenfield` | `G-greenfield.md` |
-| H | Commit & push (incl. verify+commit) | `:commit` | `H-commit.md` |
+| H | Commit & push (incl. --verify, --pr) | `:commit` | `H-commit.md` |
 | I | Roadmap / backlog execution | `:roadmap` | `I-roadmap.md` |
 | J | Continuation | `:next` | `J-next.md` |
 | K | Resume after compaction | `:resume` | `K-resume.md` |

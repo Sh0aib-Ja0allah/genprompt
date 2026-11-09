@@ -44,7 +44,7 @@ it in the TARGET LOCK.
 
 ```text
 /genprompt:approve    decisions: <list>; order: <...>  |  amend <prior prompt>  E  rulings / amendment
-/genprompt:commit     <work to commit> [verify+]                      H  commit & push, staged by path
+/genprompt:commit     <work to commit>                                H  commit & push, staged by path
 /genprompt:next       <paste the worker's report, or nothing if it is already in the chat>  J  the next prompt
 /genprompt:resume     <unit/slice the worker was mid-way through>     K  re-anchor after compaction
 /genprompt:release    <version | environment | handover>              T  release/deploy, approval per action
@@ -72,8 +72,19 @@ it in the TARGET LOCK.
 | `--dry-run` | Compose and print, but write nothing: no archive file, no shard row, no profile card (for testing) |
 | `--brief` | Aim for about 60% of the archetype's length budget |
 | `--follows <file>` | Set the chain link explicitly, when it cannot be inferred |
-| `--split <N>` | `:plan` and `:roadmap` only: N parallel lane prompts with disjoint file ownership, plus one merge prompt (§8.1) |
 | `--verbose` | Print the full self-check table in chat, not just the verdict line and the FAIL/N/A rows (the archive file always has the full table) |
+
+### Per-command modifiers
+
+Each is offered only by the commands named (their argument-hint lists it).
+
+| Flag | Commands | Effect |
+|---|---|---|
+| `--split <N>` | `:plan`, `:roadmap` | N parallel lane prompts with disjoint file ownership, plus one merge prompt (§8.1) |
+| `--chat-only` | `:review` | The findings register is reported in chat; no review doc is written |
+| `--verify` | `:commit` | A read-only verification pass first; commit only once it is clean (the older bare `verify+` means the same) |
+| `--pr` | `:commit` | After the commits: create the branch, push it and open a PR with a body template, each step a separate approval (§4.23, §8.2). The worker runs them; the generator never pushes (a bare `pr` means the same) |
+| `--readonly-phase` | `:security`, `:perf` | Emit only the read-only first phase: security's Phase 1 (threat model and findings), perf's measurement and plan. The prompt stops there and changes no code |
 
 Auto-go (no flag): with `auto-go: on` in `~/.genprompt/local-rules.md` (set it with
 `/genprompt:learn auto-go on`), the lock skips its wait like `--go`, but only when the target came
@@ -132,5 +143,37 @@ prompt instead of one prompt; everything else (Steps 1–4, one TARGET LOCK) is 
 - `flags` includes `--split` (without its N).
 - In chat, print each prompt in lane order, then the merge prompt, each followed by its verdict
   line and its FAIL/N/A rows; then one header table, the grounding notes, and every saved path.
+
+
+### 8.2 `--pr`: the pull-request step for `:commit`
+
+Read this only when a `:commit` request carries `--pr` (or a bare `pr`), and read §4.23 in
+`guide/03-blocks.md` with it; name both in the grounding notes.
+
+- Take the branch name and PR rules from the contract (else `<type>/<short-topic>` from the
+  recent branch names), the base from the default branch, and the body from the repo's own
+  `.github/pull_request_template.md` when it exists, else the PR BODY below.
+- Create branch, push and open PR are three §4.23 actions: the worker asks before each one,
+  because a push and a PR are outward-facing. You never push or open the PR yourself.
+- The PR body holds only placeholders the worker fills from this repo (its diff, commits, gate
+  output, the ticket id from the branch or contract): no client names, customer data, secrets
+  or environment values, because a PR page is read more widely than the repo.
+- Add this section after the template's CONSTRAINTS, and add the PR URL to its final report
+  line:
+
+```text
+PULL REQUEST, after the commits. [INSERT §4.23 APPROVAL PER ACTION: (1) create branch
+ <branch> from <base sha> (skip if already on it), (2) `git push -u origin <branch>`, (3) open the
+ PR into <default branch> with `gh pr create --base <default> --head <branch> --title "<…>"
+ --body-file {body file}`; no gh → show me the compare URL and stop]
+PR BODY (<the repo's PR template, or this>), filled only from this repo:
+  ## Summary: {what changed and why, 2–4 lines}
+  ## Changes: {one line per commit: subject, short SHA}
+  ## Verification: {each gate command with its actual numbers}
+  ## Risk and rollback: {what could break; how to revert}
+  ## Links: {ticket id from the branch or contract, or "none"}
+  No client names, customer data, secrets, hostnames or environment values.
+Do not merge the PR, request reviewers or change its settings unless I say so.
+```
 
 ---

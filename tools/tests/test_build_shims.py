@@ -25,6 +25,14 @@ def load_build_shims():
     return mod
 
 
+def load_tool(name):
+    spec = importlib.util.spec_from_file_location(f"{name}_under_test",
+                                                  ROOT / "tools" / f"{name}.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 class BuildShims(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
@@ -212,6 +220,44 @@ class BuildShims(unittest.TestCase):
             self.assertIn("§8.1", text, stem)
         self.assertIn("`W<k>/<N>:`", (ROOT / "archetypes" / "J-next.md").read_text(encoding="utf-8"))
         self.assertNotIn("--split", (ROOT / "PROTOCOL.md").read_text(encoding="utf-8"))
+
+    # E-15: the options the prose used to hide are named flags, each only on its own commands,
+    # each documented in the grammar's per-command table, and each known to doctor/archive.py.
+    def test_per_command_flags_sit_only_on_their_commands(self):
+        bs = load_build_shims()
+        expected = {"plan": {"--split"}, "roadmap": {"--split"}, "review": {"--chat-only"},
+                    "commit": {"--verify", "--pr"}, "security": {"--readonly-phase"},
+                    "perf": {"--readonly-phase"}}
+        own = {f for v in bs.CMD_FLAGS.values() for f in re.findall(r"--[a-z-]+", v)}
+        grammar = (ROOT / "guide" / "08-grammar.md").read_text(encoding="utf-8")
+        table = grammar.split("### Per-command modifiers", 1)[1].split("Auto-go", 1)[0]
+        for flag in own:
+            self.assertIn(f"| `{flag}", table, flag)
+        for r in bs.ARCHETYPES:
+            shim = (ROOT / "commands" / f"{r.cmd}.md").read_text(encoding="utf-8")
+            hint = re.search(r"^argument-hint: (.*)$", shim, re.M).group(1)
+            self.assertEqual(set(re.findall(r"--[a-z-]+", hint)) & own, expected.get(r.cmd, set()),
+                             r.cmd)
+        doctor = load_tool("doctor")
+        self.assertTrue(own <= doctor.known_flags())
+
+    # E-15: the PR step lives on demand in §8.2, so only --pr runs pay for it; H only points there.
+    def test_commit_pr_step_is_on_demand_and_body_is_placeholders(self):
+        h = (ROOT / "archetypes" / "H-commit.md").read_text(encoding="utf-8")
+        self.assertIn("`--pr`: read §8.2", h)
+        self.assertNotIn("PR BODY", h)
+        self.assertNotIn("§4.23", h)
+        self.assertNotIn("### 4.23", (ROOT / "guide" / "blocks" / "H-commit.md").read_text(encoding="utf-8"))
+        grammar = (ROOT / "guide" / "08-grammar.md").read_text(encoding="utf-8")
+        sec = grammar.split("### 8.2 `--pr`", 1)[1]
+        self.assertIn("read §4.23", sec)
+        self.assertIn("[INSERT §4.23 APPROVAL PER ACTION", sec)
+        body = sec.split("PR BODY (", 1)[1].split("Do not merge the PR", 1)[0]
+        for line in body.splitlines():
+            if line.strip().startswith("## "):
+                self.assertRegex(line, r"\{[^}]+\}", line)
+        self.assertIn("No client names, customer data, secrets", body)
+        self.assertIn("Do not merge the PR, request reviewers", sec)
 
     def test_step0_home_comes_from_archive_where_under_the_archive_grant(self):
         bs = load_build_shims()
