@@ -27,7 +27,7 @@ about $0.05 per case. Judge cost is noise next to generation.
 |---|---|---|---|---|---|
 | **A. opus judge** | `--judge-model claude-opus-5-5` (`evals/run.py` passes it through), 1 generation per case, 3 votes | judge noise | ≈ $2.9 | ≈ $2.9 + $2.6 = $5.5 | **≈ $8.4** |
 | B. n-sample, haiku | 3 generations per case, majority of the 3 per-run verdicts | generator variance; judge noise only partly | ≈ $7.9 | ≈ $15.0 | ≈ $22.9 |
-| C. opus + n-sample | both | both | ≈ $8.0 | ≈ $15.3 | ≈ $23.3 |
+| C. opus + n-sample | both | both | ≈ $8.6 | ≈ $16.3 | ≈ $24.9 |
 | **D. opus + escalate on fail** (recommended) | A, and a case that fails a gated grader gets 2 more generations; its verdict per grader is the majority of 3 runs. The baseline follows the same rule | judge noise; generator variance where it matters | ≈ $2.9 + about $1.0 per failing case | ≈ $5.5 + about $1.0 per failing baseline case | **≈ $8.4–10.4** (1 escalation each side expected) |
 
 - **Re-baselining is required for A, C and D.** Today's baselines were judged by haiku, and R4
