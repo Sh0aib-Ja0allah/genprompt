@@ -8,7 +8,7 @@ allowed-tools: Read, Glob, Grep, Bash(cd:*), Bash(git status:*), Bash(git log:*)
 @${CLAUDE_PLUGIN_ROOT}/archetypes/README.md
 @${CLAUDE_PLUGIN_ROOT}/guide/08-grammar.md
 
-Paths for this run: the genprompt root (these rules, read-only) is `${CLAUDE_PLUGIN_ROOT}`. The genprompt home (the archive and your personal rules) is `~/.genprompt/`.
+Paths: the genprompt root (read-only rules) is `${CLAUDE_PLUGIN_ROOT}`.
 
 Step 0: if any file listed here is missing from context, Read it now: `${CLAUDE_PLUGIN_ROOT}/utilities/help.md`, `${CLAUDE_PLUGIN_ROOT}/archetypes/README.md`, `${CLAUDE_PLUGIN_ROOT}/guide/08-grammar.md`. This utility does not need `PROTOCOL.md`; do not Read it. If `~/.genprompt/local-rules.md` exists, Read it (personal rules). Everything below assumes they are loaded.
 

@@ -7,7 +7,7 @@ disable-model-invocation: true
 
 @${CLAUDE_PLUGIN_ROOT}/utilities/doctor.md
 
-Paths for this run: the genprompt root (these rules, read-only) is `${CLAUDE_PLUGIN_ROOT}`. The genprompt home (the archive and your personal rules) is `~/.genprompt/`.
+Paths: the genprompt root (read-only rules) is `${CLAUDE_PLUGIN_ROOT}`.
 
 Step 0: if any file listed here is missing from context, Read it now: `${CLAUDE_PLUGIN_ROOT}/utilities/doctor.md`. This utility does not need `PROTOCOL.md`; do not Read it. If `~/.genprompt/local-rules.md` exists, Read it (personal rules). Everything below assumes they are loaded.
 

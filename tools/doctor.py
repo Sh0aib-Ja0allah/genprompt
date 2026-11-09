@@ -223,8 +223,6 @@ def check_suite() -> None:
         scan_banned(text, where, "suite", (PERSONAL_PATH,))
 
 
-# E-09c: every archetype command @-includes PROTOCOL.md, so its size is paid on every emission.
-# Final 1.2.0 budget (E-11b): 16,212 bytes achieved + ~600 B headroom. Raise it only with a reason.
 # E-22: PROTOCOL's write boundary, kept here independently of tools/build_shims.py so that widening
 # a shim's Write/Edit scope in the generator alone fails the suite. Paths are under ~/.genprompt/.
 # Prompt-emitting commands (every archetype and :auto) write the archive and the archive.py parts
@@ -260,7 +258,10 @@ def check_write_grants(emitters: list[str], commands: Path = COMMANDS) -> None:
             add("ERROR", "suite", f"commands/{p.name}: write grant {g} is missing for :{p.stem}")
 
 
-PROTOCOL_MAX_BYTES = 16_800
+# E-09c: every archetype command @-includes PROTOCOL.md, so its size is paid on every emission.
+# Budget: 1.2.0 (E-11b) was 16,800; E-09f cut PROTOCOL to 14,010 bytes, so 14,600 keeps the same
+# ~600 B headroom. Raise it only with a reason.
+PROTOCOL_MAX_BYTES = 14_600
 
 
 def check_protocol_size(path: Path = HOME / "PROTOCOL.md", limit: int = PROTOCOL_MAX_BYTES) -> None:

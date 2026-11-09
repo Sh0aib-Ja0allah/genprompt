@@ -4,6 +4,11 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-09 · PROTOCOL.md, guide/03-blocks.md, tools/build_shims.py, tools/doctor.py · E-09f floor
+  cut: every archetype's always-loaded rules shrink ~5.2 KB (plan 35,081 → 29,853 B) by cutting
+  wording and duplication in PROTOCOL, the common §4 blocks, the compact checklist and the shims;
+  no rule, row ID or verdict form dropped. PROTOCOL budget 16,800 → 14,600.
+
 - 2026-11-09 · tools/build_shims.py, commands/, tools/doctor.py · Security: Write/Edit grants narrowed
   from all of ~/.genprompt to PROTOCOL's boundary per command (prompts: generated-prompts/, tmp/;
   :learn: local-rules.md; :profile: by-repo/; others none); doctor --suite fails any widening.
