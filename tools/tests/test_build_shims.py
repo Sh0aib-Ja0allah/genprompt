@@ -497,6 +497,11 @@ class BuildShims(unittest.TestCase):
         self.assertIn("(`:slice`, `:fix`, `:commit`, `:approve`, `:redesign`, `:next`)", helpt)
         self.assertIn("end with the exact `:auto` line to run", helpt)
 
+        # :auto with an empty request shows the same six, in the same order.
+        auto = (ROOT / "commands" / "auto.md").read_text(encoding="utf-8")
+        listed = auto[auto.index("these six commands"):auto.index("End with:")]
+        self.assertEqual(re.findall(r"`:([a-z]+)` \(", listed), core)
+
     def test_check_fails_when_a_template_has_no_414_insert(self):
         arch = self.copy / "archetypes" / "H-commit.md"
         text = arch.read_text(encoding="utf-8")

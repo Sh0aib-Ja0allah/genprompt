@@ -352,12 +352,12 @@ def root_shim() -> str:
             "A pasted worker stop-report with no instruction means archetype J (`:next`). An empty "
             "request: resolve the target anyway, then, in one message and without asking twice, "
             "show the target and these six commands, each with its purpose: "
-            "`:onboard` (understand a repo you haven't worked in), "
             "`:slice` (build one feature or change set), "
-            "`:next` (continue from a worker's stop-report), "
-            "`:review` (review what the worker committed), "
             "`:fix` (fix confirmed bugs), "
-            "`:commit` (commit and push finished work). "
+            "`:commit` (commit and push finished work), "
+            "`:approve` (rule on findings or amend a prompt), "
+            "`:redesign` (rebuild one screen or one component), "
+            "`:next` (continue from a worker's stop-report). "
             "End with: for anything else, `/genprompt:help <your goal>`."
             "\n\nRequest: $ARGUMENTS\n")
 

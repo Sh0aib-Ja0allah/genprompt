@@ -4,6 +4,9 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-10 · tools/build_shims.py (`:auto` shim) · R12 (1.4.1): `:auto` with an empty request
+  now shows the core six (slice, fix, commit, approve, redesign, next) instead of onboard, slice,
+  next, review, fix and commit, matching the README, `:help` and the picker. +0 B on `:auto`.
 - 2026-11-10 · README.md, utilities/help.md, archetypes/README.md · R12 (1.4.1): the front door
   leads with `:auto` plus six core commands (slice, fix, commit, approve, redesign, next); the
   picker is grouped into Core and Occasional (nothing cut, letters kept); `:help <goal>` ends with
