@@ -1,0 +1,114 @@
+# CP7 plan: 1.3.1 under J-method option D (rules fixed before results; nothing run)
+
+| | |
+|---|---|
+| Status | **For PE and Planner review before any spend** |
+| Budget | **$11 cap** (Shoaib) for the re-baselines of v1.3.0 and v1.2.0 plus CP7. Running total starts at $0 |
+| Code | evals/run.py at 5dc4c71 (`--judge-model`, debug log, `--escalate`, `--explain`; 17 tests, no spend) |
+| Baselines | v1.3.0 = `502a723`; v1.2.0 = `d584108` |
+| Candidate | A's 1.3.1 candidate, frozen when GO is given (R5) |
+
+## 1. Rules
+
+### Carried over from CP6 (evals/CP6-plan.md)
+
+- **R1** investigate's card-less load is reported against its 40,000 B soft line, not gated.
+  A1 and A5 still gate it.
+- **R2** card-fresh gates C1 and C2, plus the validity rule (V1–V3: ≥ 12 of 15 runs and ≥ 2 of 3
+  per case saw the card, else INVALID).
+- **R3** investigate quality is absolute: all four gated graders PASS.
+- **R4** quality must show no regression on the four gated graders: rubric-scope,
+  rubric-grounding, cites-real, gates-exist.
+- **R5** the candidate SHA is frozen; a change to PROTOCOL, guide/ or archetypes/ re-runs what it
+  touches.
+- **A5** stays frozen at the general rule (5a2504b).
+- Stop at the first failure, INVALID or incomplete case; no remedy without Shoaib.
+
+### New (J-method option D)
+
+- **J1. Judge.** Every quality run passes `--judge-model claude-opus-5-5`, recorded per row in
+  structural.json. 3 votes per LLM rubric, majority.
+- **J2. Escalation.** One generation per case. If that run FAILS any gated grader, the case gets
+  2 more generations (`--escalate`, one eval call under its own cap). Each gated grader's final
+  verdict is the majority of the 3 runs' verdicts. A case that passes everything isn't re-run.
+- **J3. Same procedure on every side (O1).**
+  - The v1.3.0 and v1.2.0 re-baselines use exactly J1 and J2: the same judge, flags, caps policy
+    and escalation trigger.
+  - The flips (gated graders whose first run FAILED but whose 3-run majority PASSED) are counted
+    and reported **per side**: v1.3.0, v1.2.0 and the candidate.
+  - Re-sampling only FAILs leans toward PASS, so it must lean the same way on every side.
+- **J4. Regression (O2).**
+  - A regression is a gated grader whose final verdict is PASS in the re-baselined v1.3.0 and
+    FAIL in the candidate. Likewise against the re-baselined v1.2.0, for its four cases.
+  - **No CP5 or CP6 haiku verdict is ever used.**
+  - investigate has no v1.2.0 case. R3 gates it absolutely; the comparison with v1.3.0 is
+    reported.
+- **J5. Reasoning.**
+  - Every real run writes the eval's debug log (`eval-debug.log`). The first run checks whether
+    it holds the judge text, and says so in the report.
+  - If it doesn't, `--explain` (opus, $0.30 per call, $1.00 per side) runs only for gated LLM
+    graders that FAILED or split. It explains; it never changes a verdict.
+- **J6. Spend guard.** A running total against $11. Before each step: if what's left can't cover
+  that step's caps, stop and report before starting it.
+
+## 2. Order
+
+1. Re-baseline **v1.3.0**: quality on 5 cases (J1–J2).
+2. Re-baseline **v1.2.0**: quality on 4 cases (no investigate).
+3. Report both baselines (verdicts, votes, flips, cost) and wait for GO.
+4. **CP7** on A's frozen 1.3.1 candidate:
+   1. card-less load, 5 × 3 haiku runs, ≤ v1.1.0 and ≤ v1.2.0 stored load medians (R1);
+   2. card-fresh 5 × 3, validity then C1/C2 (R2);
+   3. quality on 5 cases (J1–J2), R4 vs both re-baselines (J4), R3 for investigate.
+
+## 3. Cost estimate (O4)
+
+Basis: CP6's opus generator actuals: fix $0.43, plan $0.47, redesign $0.48–0.56, slice $0.76,
+investigate $0.45. v1.2.0 per CP5: $0.53, $0.51, $0.57, $0.77. The opus judge is assumed to cost
+about $0.05 per case (5× haiku's $0.006–0.010); step 1's first case checks that.
+
+**Per-case caps.** The first run is capped at about 1.4× expected. The escalation (2 runs) is
+capped at about 2.3× expected, which caps the re-sample path per case.
+
+| Case | expected (1 run) | first-run cap | escalation cap (2 runs) |
+|---|---|---|---|
+| fix | 0.50 | 0.70 | 1.15 |
+| plan | 0.52 | 0.75 | 1.20 |
+| redesign | 0.58 | 0.80 | 1.35 |
+| slice | 0.80 | 1.10 | 1.85 |
+| investigate | 0.50 | 0.70 | 1.15 |
+
+**Estimates, kept separate:**
+
+| Step | Expected, no escalation | each escalation adds |
+|---|---|---|
+| Re-baseline v1.3.0 (5 cases) | $2.90 | +$1.0–1.6 |
+| Re-baseline v1.2.0 (4 cases) | $2.55 | +$1.0–1.6 |
+| **Re-baselines subtotal** | **$5.45** | |
+| CP7 load (card-less + card-fresh, haiku) | $0.85 (CP6 actuals: card-less $0.33–0.50, card-fresh $0.49) | — |
+| CP7 quality (5 cases) | $2.90 | +$1.0–1.6 |
+| **CP7 subtotal** | **$3.75** | |
+| `--explain` (only if the debug log lacks the reasoning) | $0–1.00 per side | — |
+| **Total** | **$9.20 with no escalation** | |
+
+- **$11 leaves $1.80 for escalations:** about one escalation at the expected $1.0–1.6, or none
+  if `--explain` is used too. CP6's history suggests about one gated FAIL per 5-case pass, so on
+  expected numbers the plan fits with **one** escalation across all three sides, and two only if
+  they're cheap cases.
+- **Worst case is guarded, not funded.**
+  - If every first run hits its cap: re-baselines $4.05 + $3.15, CP7 load about $1.20, CP7
+    quality $4.05. That's $12.45 with no escalation, which J6 would stop before CP7's quality step.
+  - J6 always checks before starting: the next step's caps must fit what's left.
+- Options, Shoaib's call:
+  - **(a)** keep $11 and accept that a second escalation or a costly side may stop CP7 for a cap
+    decision;
+  - **(b)** raise the cap to **$13**, which funds two escalations plus `--explain` on one side;
+  - **(c)** skip the v1.2.0 re-baseline (saves $2.55). R4 is then against v1.3.0 only, a rule
+    change for the Planner.
+
+## 4. What the report gives per side
+
+- Per case: the first-run gated verdicts with their opus votes, whether it escalated, the 3-run
+  verdicts and the final majority.
+- Flips counted (J3) and the cost.
+- Whether the debug log held the judge's reasoning (J5), and `--explain` answers if it was run.
