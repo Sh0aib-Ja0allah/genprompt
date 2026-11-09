@@ -681,7 +681,7 @@ scope:       single root
 stack:       Node.js >=18 (CommonJS), no framework, no runtime dependencies
 role:        senior node engineer
 contract:    CLAUDE.md · hard rules: never commit to main (feat/<slug> or fix/<slug>) · Conventional Commits · stage by explicit path, never git add -A/. · never push or open a PR without the maintainer's OK · npm test and npm run lint green before every commit · no build step, no type checker · money is integer cents · no runtime dependencies in src/
-ancestors:   none found · user-level: ~/.claude/CLAUDE.md
+ancestors:   none found · user-level: unreadable
 truth:       CLAUDE.md (binding) > docs/ROADMAP.md (slices S-01..; newest commit wins) > README.md (may lag the roadmap)
 docnaming:   docs/<TOPIC>.md in upper-case kebab (CLAUDE.md), next e.g. docs/CSV-EXPORT.md
 code_roots:  src/ test/ scripts/

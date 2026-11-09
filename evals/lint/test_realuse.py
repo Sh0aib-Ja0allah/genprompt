@@ -779,3 +779,18 @@ class DispatchSetupTest(unittest.TestCase):
                 self.assertIn(f"/rename {name}", s)
             self.assertEqual(s.count("GENPROMPT_HOME"), 4)
             self.assertNotIn(str(Path.home().as_posix()) + "/.genprompt", s)
+
+
+class SeedCardLockULTest(unittest.TestCase):
+    """CP8 (1.4.0 LOCK-UL): the seeded card reports user-level as present|unreadable|none, never a
+    path, so card-fresh runs aren't fed a card the 1.4.0 doctor would WARN on."""
+
+    def test_seeded_card_user_level_is_not_a_path(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            fx = run.fixture(Path(tmp) / "w")
+            text = run.seed_card(Path(tmp) / "home", fx).read_text(encoding="utf-8")
+        m = re.search(r"user-level:\s*(\S+)", text)
+        self.assertIsNotNone(m)
+        self.assertIn(m.group(1), ("present", "unreadable", "none"))
+        self.assertNotIn("~/", text)
