@@ -37,6 +37,7 @@ it in the TARGET LOCK.
 /genprompt:review     <base..head | branch | PR number | last N commits>  P  code review, findings only
 /genprompt:security   <area | whole app>                              Q  threat model + hardening
 /genprompt:docs       <doc> for <audience>                            W  docs checked against the code
+/genprompt:investigate <symptom: what happens vs expected, and how to trigger it>  X  unknown-cause bug → root cause, hand-off to :fix
 ```
 
 ### Ship and continue

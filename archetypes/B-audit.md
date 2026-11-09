@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Use when** | Assess state against the docs, and write ONE doc with a ranked backlog. No code |
-| **Not when** | A diff or branch to review → `:review`. Security-specific → `:security`. An unfamiliar repo with no contract → `:onboard` |
+| **Not when** | A diff or branch to review → `:review`. Security-specific → `:security`. An unfamiliar repo with no contract → `:onboard`. One symptom with an unknown cause → `:investigate`, because an audit ranks many findings and won't trace one bug to its line |
 | **Autonomy** | N/A: read-only. Writes are enumerated (exactly one doc) |
 | **Baseline delta** | N/A (no gates run) |
 | **Length tier** | Focused (200) |

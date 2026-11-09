@@ -204,6 +204,13 @@ class BuildShims(unittest.TestCase):
             self.assertIn("`ls -d ~ ~/.genprompt/local-rules.md` once", shim, cmd)
             self.assertNotIn("archive.py --where", shim, cmd)
 
+    def test_investigate_excerpt_has_its_blocks(self):
+        # E-14: archetype X needs the defect chain, falsifiability and the findings register.
+        excerpt = (ROOT / "guide" / "blocks" / "X-investigate.md").read_text(encoding="utf-8")
+        heads = set(re.findall(r"^### (4\.\d+) ", excerpt, re.M))
+        for sec in ("4.9", "4.13", "4.14", "4.15", "4.20", "4.25"):
+            self.assertIn(sec, heads, f"§{sec} missing from the X excerpt")
+
     def test_every_archetype_shim_includes_its_excerpt(self):
         bs = load_build_shims()
         for r in bs.ARCHETYPES:

@@ -209,6 +209,10 @@ ARCHETYPES = [
          "Write or repair docs (README, API, runbook, handover) checked vs code (worker prompt)",
          "<doc> for <audience>",
          UNDERSTAND, "docs checked against the code", read_only=True),
+    Arch("X", "investigate", "X-investigate", "Investigate / root cause",
+         "Find the root cause of a bug with unknown cause: repro, trace, path:line (worker prompt)",
+         "<symptom: what happens vs expected, and how to trigger it>",
+         UNDERSTAND, "unknown-cause bug → root cause, hand-off to :fix", read_only=True),
 ]
 
 UTILITIES = [

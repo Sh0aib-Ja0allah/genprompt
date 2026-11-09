@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Use when** | Something is broken for real users now (a lockout, a crash, data exposure, a failing critical flow) and time matters |
-| **Not when** | Known defects with no urgency → `:fix` |
+| **Not when** | Known defects with no urgency → `:fix`. No one is affected right now and the cause is unknown → `:investigate`, then `:fix`, because a hotfix trades rigour for speed |
 | **Autonomy** | §4.8 MODE for triage and the local fix. §4.23 approval per action for anything that touches a live system (deploy, data repair, config change) |
 | **Baseline delta** | Up by at least one regression test that reproduces the incident |
 | **Length tier** | Focused (200) |

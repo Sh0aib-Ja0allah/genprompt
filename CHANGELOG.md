@@ -4,6 +4,12 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-09 · archetypes/X-investigate.md, tools/build_shims.py, .claude-plugin/ · New archetype X,
+  /genprompt:investigate: an unknown-cause bug traced to a root cause at path:line and handed to
+  :fix, read-only plus a scratch repro; 24 archetypes.
+- 2026-11-09 · archetypes/, guide/00-index.md, README.md · Bug-report lifecycle becomes investigate
+  → fix → commit; fix, audit and hotfix point to :investigate with reasons; letters A–X; README
+  lists :investigate.
 - 2026-11-09 · PROTOCOL.md, guide/03-blocks.md, tools/build_shims.py, tools/doctor.py · E-09f floor
   cut: every archetype's always-loaded rules shrink ~5.2 KB (plan 35,081 → 29,853 B) by cutting
   wording and duplication in PROTOCOL, the common §4 blocks, the compact checklist and the shims;

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Use when** | Drive a list of confirmed defects to closure, each with a repro and acceptance |
-| **Not when** | A production incident under time pressure → `:hotfix`. Unconfirmed suspicions → `:review` or `:audit` first |
+| **Not when** | A production incident under time pressure → `:hotfix`. A symptom with an unknown cause → `:investigate` first, because a fix built on a guessed cause fixes the wrong line. Unconfirmed suspicions about a diff → `:review` |
 | **Autonomy** | Code-writing: §4.8 MODE or §4.19 gate |
 | **Baseline delta** | Up: at least one new failing-then-passing test per defect |
 | **Length tier** | Focused (200). If the defect list is long, split it |
