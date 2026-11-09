@@ -61,6 +61,13 @@
   ends up in the user's own archive, and it's the 1.4.0 backlog item (P-c ruling) in a third place.
 - All hits are the `C:/` form plus the username; no `C:\` or `/c/`.
 
+**Ruling on P-f (PE): covered by the P-c ruling, so A's fix isn't widened.**
+- The slice grounding-field hit is the same user-level-path class, and it sits only in the user's own
+  archive in their own home.
+- Grounding notes are never sent to the worker, and they're not in a `--send` payload either.
+- It goes to the 1.4.0 **LOCK-UL** item, which now covers the lock, the card slot and the grounding notes.
+- Quality waits only for A's SHA.
+
 **Ruling on P-c (PE): A's fix is not widened for the lock's Ancestors line.**
 - The lock is shown only to the home's own user, and the card is stored in that user's own home.
 - Changing it means editing shared text (the lock or card template). Under R5 that would void the other
