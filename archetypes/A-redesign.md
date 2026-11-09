@@ -20,6 +20,10 @@
   typing, RTL, accessibility, naming.
 - Decide UI versus non-UI. A UI artifact gets the UI/UX step. A module or controller gets the
   API-surface / error-handling / boundaries step instead.
+- Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
+  is not in the target repo.
+- A deliberately missing input is "a path that does not exist (e.g. a missing file)", never an
+  invented filename, because an invented name reads as a citation of a file that isn't there.
 
 ## Required blocks
 

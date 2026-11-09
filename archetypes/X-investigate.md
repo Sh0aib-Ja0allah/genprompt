@@ -25,6 +25,8 @@
   Step 5.2 says when to read the occupied-tree block).
 - Set the stop conditions up front: the bug does not reproduce; reproducing it needs production
   data, credentials or a live system; the cause sits in a dependency or a service outside the repo.
+- Name genprompt's own tools bare (`archive.py`), never as a repo path like `tools/…`: that file
+  is not in the target repo.
 
 ## Required blocks
 
