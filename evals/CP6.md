@@ -1,5 +1,91 @@
-# CP6: 1.3.0 candidate (INCOMPLETE: run 7 quality FAIL at redesign, R4 grounding and scope)
+# CP6: 1.3.0 release check: COMPLETE, ships at frozen da5997e with two stated known issues
 
+## Summary
+
+| | |
+|---|---|
+| Frozen candidate | **`da5997e`** (R5). It is fb17b8c plus: A's F-plan naming fix; B's Step 0 fix (`--where` alone); A's restore of §4.6/§4.13 to L and A, with L's `[UNVERIFIED]` bullet and bare tool names; A's OUT OF SCOPE line in F; A's bare tool names in A, D and X, with A's missing-input wording |
+| Total spend | **$7.7087 of the $9.50 cap** (Shoaib raised it $6.25 → $7.50 → $8.50 → $9.50). Itemised in the run sections below. $1.7913 unspent |
+| Rules | `evals/CP6-plan.md`: R1–R5, the validity rule with V1–V3, and the A5 general rule with N1 (frozen at 5a2504b) |
+| Not run | D1–D6, the manual dispatch checks, are deferred until after 1.3.0 (Shoaib). `--send` and `--from` ship marked experimental |
+
+**Load (haiku, real-use probe).** A result carries over from an earlier candidate only when that
+case's whole @-include set is byte-identical to `da5997e` (PE's md5 checks) or the ruling says
+its Step 0–2 text is unchanged.
+
+| Gate | Result | Where |
+|---|---|---|
+| Isolation (13 checks incl. real-home ls/head/cd under the shim grant) | **PASS** | run 2; probe permissions unchanged since |
+| Card-less medians ≤ v1.1.0 and ≤ v1.2.0 | **PASS**: fix 33,218 · plan 30,059 (556 B under v1.1.0) · redesign 31,876 · slice 32,435 | fix run 5, plan run 6, the other two run 7 |
+| investigate card-less (R1, reported) | 34,953, under the 40,000 soft line, so no CHANGELOG note | run 7 |
+| Card-fresh validity (V1–V3) | **VALID**: all 15 of 15 runs saw the card | run 4 re-run (c8edb15) |
+| C2 (card-fresh ≤ card-less + card) | **PASS** | run 4 |
+| **C1 (no derive.md read in a card-fresh run)** | **FAIL, stated:** 3 of 15 runs read derive.md *before* the card. The medians are unaffected | run 4 |
+| A1 (no Read of an @-included file) | PASS in every run | all |
+| A5 (isolation, frozen general rule) | PASS in every graded run | all |
+
+**Quality (opus-5-5, plugin eval, judge = CLI default haiku, rubrics identical to CP5's):**
+
+| Case | Gate | Result | Votes (grounding / scope) | Where |
+|---|---|---|---|---|
+| fix | R4 vs CP5 | **PASS** | PPP / FFF (CP5 PPP / FPF) | run 5 (94f259e; L set identical at da5997e) |
+| plan | R4 vs CP5 | **PASS** | PPP / PPP | run 6 (6c3e60a; F set identical at da5997e) |
+| **redesign** | R4 vs CP5 | **FAIL, stated** | FFP / FPF (CP5 PPP / PPP) | run 7 (da5997e) |
+| slice | R4 vs CP5 | **PASS** | PPF / PPP (CP5 PPP / PPF) | run 7 |
+| investigate | R3 (absolute) | **PASS**: all four gated graders PASS | PPF / PPF | run 7 |
+
+cites-real and gates-exist PASS in every case.
+
+**Shoaib's rulings, as recorded:**
+1. **C1: ship with it stated.** 3 of 15 card-fresh runs read derive.md before reading the card,
+   an ordering lapse in Step 2. The medians are unaffected and the card was used once read. The
+   card-first ordering fix goes to **1.3.1**.
+2. **Redesign's R4 FAIL: ship with it stated.** It is recorded as a FAIL, with no re-grade and
+   no re-run.
+   - Hand check of the failing output (`evals/results/2026-11-09T15-08-23Z`): every cited path
+     and `path:line` is in the rubric's file list and in range. Every code claim holds against the
+     fixture (exit-code order, `--currency` with no value, the uncaught RangeError, lint's scope,
+     the 6-test baseline, the CLAUDE.md branch prefixes).
+   - The earlier trigger is gone: no `tools/archive.py`, and no `missing.json`.
+   - The haiku judge's redesign vote history:
+     - grounding: CP5 PPP, CP6a-2 PPP, run 6 FPF, run 7 FFP;
+     - scope: CP5 PPP, CP6a-2 PPP, run 6 PPP, run 7 FPF.
+   - The best explanation is judge variance at the 2-of-3 margin. That is inference: the judge's
+     reasoning isn't stored.
+3. Gate and probe rulings along the way (CP6-plan.md):
+   - the probe mirrors the shims' Bash grant;
+   - A5 became a general rule plus N1, then was frozen;
+   - the validity rule and V1–V5 were added;
+   - investigate is R1-reported;
+   - J1: the same judge and rubrics as CP5.
+
+**Fixes CP6 drove into the candidate:**
+- Step 0 runs `--where` alone (B).
+- §4.6/§4.13 restored to L and A, which E-09 had cut.
+- An OUT OF SCOPE line in F.
+- Bare genprompt tool names in L, A, D and X.
+- F, B, N and P name their doc by `PROFILE.docnaming`.
+
+**Not gated, reported:**
+- investigate: no-placeholders FAIL. `<does X>`, `<file:line>`, `<step>` and `<what the user
+  sees>` are format slots in the worker's report template; doctor rates them WARN.
+- investigate: one 103-character line.
+- fix (run 5): line-length FAIL at 101 characters.
+
+Quality results: `evals/results/2026-11-09T14-08-53Z` (fix), `…14-34-55Z` (plan), `…15-08-23Z`
+(redesign), `…15-23-02Z` (slice), `…15-27-13Z` (investigate).
+
+### Run 7, continued (after the "finish and ship" ruling)
+
+| Case | cap | cost | rubric-scope | rubric-grounding | cites-real | gates-exist | others |
+|---|---|---|---|---|---|---|---|
+| slice | $1.29 | $0.7634 | PASS (PPP); CP5 PASS (PPF) | PASS (PPF); CP5 PPP | PASS (37; CP5 53) | PASS (lint, test) | eval score 1; skepticism PPP; line-length PASS; archive-valid 8/0/0 |
+| investigate | $1.19 | $0.4490 | PASS (PPF) | PASS (PPF) | PASS (15) | PASS (lint, start, test) | R3: all four PASS; eval score 1; skepticism PPP; no-placeholders FAIL (report-template slots); line-length FAIL (L62 = 103); archive-valid 6/2/0 |
+
+Run 7 total: $0.8024 + slice $0.7634 + investigate $0.4490 = $2.0148. CP6 total: $6.4963 +
+$0.7634 + $0.4490 = **$7.7087**.
+
+Run 7's earlier total line, kept for the itemisation:
 Total CP6 spend: $5.6939 through run 6 (itemised below) + run 7 card-less $0.3267 + redesign
 $0.4757 = **$6.4963** of the $9.50 cap ($3.0037 left).
 
