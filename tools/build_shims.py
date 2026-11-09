@@ -2,12 +2,13 @@
 
 The command files are thin: frontmatter (description, argument-hint, allowed-tools) plus @-includes
 of PROTOCOL.md and the one archetype/utility file the command needs, with an explicit Read fallback.
-Every command shares ALLOWED_TOOLS, so the permission baseline cannot drift between commands.
+Every command shares one allowed-tools baseline (allowed_tools()); only its Write/Edit scopes differ.
 
 Paths inside the command files are written with ${CLAUDE_PLUGIN_ROOT}, which Claude Code expands
 when a plugin command loads, so the plugin works wherever it is installed. The generator's own
 writable folder is ~/.genprompt/ (the archive and the personal rules), outside every repo and
-outside the plugin cache, which is replaced on every plugin update.
+outside the plugin cache, which is replaced on every plugin update. Each command may write only
+its part of it (EMIT_SCOPES / WRITE_SCOPES below).
 
 It also generates the command blocks of guide/08-grammar.md (between the GENERATED markers) from
 the same tables, so the grammar cannot drift from the argument hints that ship.
@@ -39,14 +40,30 @@ READ_ONLY_GIT = [
     "git branch -vv", "git remote -v", "git remote get-url",
     "git symbolic-ref refs/remotes/origin/HEAD", "git symbolic-ref --short refs/remotes/origin/HEAD",
 ]
-ALLOWED_TOOLS = ", ".join(
-    ["Read", "Glob", "Grep",
-     f"Write({USER_HOME}/**)",
-     f"Edit({USER_HOME}/**)",
-     "Bash(cd:*)"]
-    + [f"Bash({c}:*)" for c in READ_ONLY_GIT]
-    + ["Bash(ls:*)", "Bash(wc:*)", "Bash(tail:*)", "Bash(head:*)", "Bash(date:*)"]
-)
+# Write/Edit scopes under the home, per command, matching PROTOCOL's write boundary (E-22):
+# prompt-emitting commands write the archive and the archive.py parts file; :learn writes only its
+# personal-rules file; :profile writes only the card; the other utilities write nothing.
+# doctor --suite checks every command against its own copy of the boundary (WRITE_BOUNDARY), so
+# widening a scope here alone fails the suite. A GENPROMPT_HOME sandbox is outside these grants by
+# design: a probe grants its own scope.
+EMIT_SCOPES = ("generated-prompts/**", "tmp/**")
+WRITE_SCOPES: dict[str, tuple[str, ...]] = {
+    "learn": ("local-rules.md",),
+    "profile": ("generated-prompts/by-repo/**",),
+}                                                     # any other utility: none
+
+
+def write_grants(scopes: tuple[str, ...]) -> list[str]:
+    return [f"{tool}({USER_HOME}/{s})" for s in scopes for tool in ("Write", "Edit")]
+
+
+def allowed_tools(scopes: tuple[str, ...]) -> str:
+    return ", ".join(
+        ["Read", "Glob", "Grep", *write_grants(scopes), "Bash(cd:*)"]
+        + [f"Bash({c}:*)" for c in READ_ONLY_GIT]
+        + ["Bash(ls:*)", "Bash(wc:*)", "Bash(tail:*)", "Bash(head:*)", "Bash(date:*)"]
+    )
+
 DOCTOR = ", ".join(f"Bash({py} {q}{PLUGIN_ROOT}/tools/doctor.py{q}:*)"
                    for py in ("python3", "python") for q in ("", '"'))
 # Every command that emits a prompt archives it through tools/archive.py (PROTOCOL Step 6), so the
@@ -227,10 +244,11 @@ def yaml_str(value: str) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
-def frontmatter(desc: str, hint: str, extra: str = "", cmd: str = "") -> str:
+def frontmatter(desc: str, hint: str, extra: str = "", cmd: str = "",
+                scopes: tuple[str, ...] = ()) -> str:
     fm = "".join(f"{line}\n" for line in EXTRA_FM.get(cmd, []))
     return (f"---\ndescription: {yaml_str(desc)}\nargument-hint: {yaml_str(hint)}\n"
-            f"allowed-tools: {ALLOWED_TOOLS}{extra}\n{fm}---\n")
+            f"allowed-tools: {allowed_tools(scopes)}{extra}\n{fm}---\n")
 
 
 def includes(files: list[str], protocol: bool = True, where: bool = False) -> str:
@@ -269,7 +287,8 @@ def includes(files: list[str], protocol: bool = True, where: bool = False) -> st
 
 
 def archetype_shim(letter, cmd, stem, name, desc, hint, flags: str = FLAGS) -> str:
-    return (frontmatter(desc, f"{hint}   {flags}", f", {ARCHIVE}", cmd=cmd) + "\n" +
+    return (frontmatter(desc, f"{hint}   {flags}", f", {ARCHIVE}", cmd=cmd,
+                        scopes=EMIT_SCOPES) + "\n" +
             includes([f"archetypes/{stem}.md", f"{BLOCKS_DIR}/{stem}.md"], where=True) +
             f"\nCommand `/genprompt:{cmd}` → archetype **{letter}: {name}** (§5.{letter}). "
             f"Follow PROTOCOL Steps 1–7 with this archetype. If the request is really a different "
@@ -279,7 +298,7 @@ def archetype_shim(letter, cmd, stem, name, desc, hint, flags: str = FLAGS) -> s
 
 def utility_shim(cmd, files, desc, hint) -> str:
     extra = EXTRA_TOOLS.get(cmd, "")
-    return (frontmatter(desc, hint, extra, cmd=cmd) + "\n" +
+    return (frontmatter(desc, hint, extra, cmd=cmd, scopes=WRITE_SCOPES.get(cmd, ())) + "\n" +
             includes(files, protocol=cmd not in PROTOCOL_FREE) +
             f"\nUtility `/genprompt:{cmd}`: follow `utilities/{cmd}.md`. It emits no worker prompt.\n\n"
             f"Request: $ARGUMENTS\n")
@@ -291,7 +310,7 @@ ENTRY_TAGLINE = "pick the archetype from the request and emit its prompt, or off
 
 
 def root_shim() -> str:
-    return (frontmatter(ENTRY_DESC, f"{ENTRY_HINT}   {FLAGS}", f", {ARCHIVE}")
+    return (frontmatter(ENTRY_DESC, f"{ENTRY_HINT}   {FLAGS}", f", {ARCHIVE}", scopes=EMIT_SCOPES)
             + "\n" + includes(["archetypes/README.md"], where=True) +
             f"\nEntry point `/genprompt:{ENTRY}`. Pick the archetype from the request using the picker "
             "in `archetypes/README.md`, then Read that archetype's file and its block excerpt "
