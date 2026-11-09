@@ -36,6 +36,31 @@
   - but the card template has the same `user-level: <path>` slot, and a card written in real use could
     store that path. In CP7, both written cards said `unreadable` with no path.
 
+## P-f: raw-text grep over everything stored in every sandbox home (free)
+
+- **Scope:** all files under `homes/` in 180449, 184529, 212154 and onetime, searched as raw text, not
+  only the `prompt` field.
+- **Patterns:** the same as P-c.
+- **Kinds found:** shard, card, archived prompt and parts. No file sits outside these kinds.
+- **History:** genprompt has no separate history store in these homes. The shard *is* the history.
+
+| Case | parts (tmp/*.json) | cards | archived prompt | shard (*.tsv) |
+|---|---|---|---|---|
+| slice | **1/10** | 0/3 | — | — |
+| fix | 0/8 | 0/3 | — | — |
+| redesign | 0/8 | 0/3 | — | — |
+| plan (incl. onetime) | 0/10 | 0/4 | 0/1 | 0/1 |
+| investigate | **4/8** (the AUTONOMY leak, as in P-c) | 0/3 | — | — |
+
+- **New hit outside the investigate prompt: slice, 184529 r3, parts file, field `grounding`**
+  (not `prompt`, which P-c checked):
+  `… the user-level <REALHOME>/.claude/CLAUDE.md is in a denied directory (unreadable) …`.
+- This is the same user-level Ancestors content as the P-c lock-line hits. Here it sits in the
+  "Grounded by" paragraph that the parts file carries.
+- A non-dry-run archive would store that paragraph with the prompt. So in real use, this kind of line
+  ends up in the user's own archive, and it's the 1.4.0 backlog item (P-c ruling) in a third place.
+- All hits are the `C:/` form plus the username; no `C:\` or `/c/`.
+
 **Ruling on P-c (PE): A's fix is not widened for the lock's Ancestors line.**
 - The lock is shown only to the home's own user, and the card is stored in that user's own home.
 - Changing it means editing shared text (the lock or card template). Under R5 that would void the other
