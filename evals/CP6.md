@@ -1,5 +1,76 @@
-# CP6: 1.3.0 candidate (INCOMPLETE: run 6 quality FAIL at redesign, R4 rubric-grounding)
+# CP6: 1.3.0 candidate (INCOMPLETE: run 7 quality FAIL at redesign, R4 grounding and scope)
 
+Total CP6 spend: $5.6939 through run 6 (itemised below) + run 7 card-less $0.3267 + redesign
+$0.4757 = **$6.4963** of the $9.50 cap ($3.0037 left).
+
+## Run 7: candidate da5997e (INCOMPLETE: quality FAIL at redesign)
+
+| | |
+|---|---|
+| Candidate | `da5997e`, **frozen** (R5): 6c3e60a plus A's d587b33 (bare tool names in A, D and X; A describes missing inputs as "a path that does not exist"). fix's and plan's full @-include sets are md5-identical to 6c3e60a (PE), so their PASSes stand |
+| Floors | redesign 31,876 · slice 32,435 · investigate 34,953 (fix 33,218 and plan 30,059 unchanged) |
+| Cost | card-less $0.3267 + redesign $0.4757 = **$0.8024** |
+| Status | **INCOMPLETE, R4 FAIL at redesign: rubric-grounding FFP and rubric-scope FPF, both PPP at CP5.** slice and investigate were not run |
+
+**Card-less (redesign, slice, investigate, 3 runs each): PASS.**
+- Medians: redesign 31,876 (≤ v1.2.0's 39,314); slice 32,435 (≤ 61,230; 1 of 3 runs read
+  derive.md); investigate 34,953 (under the R1 soft line).
+- A1 PASS, A5 PASS.
+- Trace: `C:/genprompt-probe/genprompt-probe-20261109-164329/`.
+
+**Quality, redesign** (cap $1.19, cost $0.4757; `evals/results/2026-11-09T15-08-23Z`; rubric hashes
+equal CP5):
+
+| Grader | Run 7 | CP5 |
+|---|---|---|
+| rubric-grounding | **FAIL (F F P)** | PASS (P P P) |
+| rubric-scope | **FAIL (F P F)** | PASS (P P P) |
+| cites-real | PASS (15) | PASS (17) |
+| gates-exist | PASS (lint, test) | PASS |
+| skepticism | PPP | PPP |
+| eval score | 0.8 | 1 |
+| line-length | PASS | FAIL |
+| archive-valid | 8/0/0 | 7/1/0 |
+
+**What I checked offline (no spend):** A's fix took effect: the output names no
+`tools/archive.py` and no `missing.json` (it says "a path that does not exist"). Every cited
+path and `path:line` is in the rubric's file list and in range:
+- src/cli.js:9–31, :10, :11, :15, :25–29;
+- invoice.js:7, :14, :22;
+- package.json:6–9;
+- scripts/lint.js:9 and :16;
+- test/invoice.test.js:18.
+
+Its code claims hold against the fixture:
+- the exit-code order (no file → 2, unknown flag → 2, read error, bad JSON and missing lines → 1);
+- `--currency` with no value prints `undefined`;
+- the uncaught RangeError from invoice.js:7 and :22;
+- lint scans only the top level of src/ (lint.js:9) and bans console.log there (:16);
+- the 6-test baseline;
+- CLAUDE.md:6's `feat/`/`fix/` prefixes.
+
+Its out-of-scope block names src/invoice.js (with the :14 defect), src/format.js, src/index.js and
+S-02 `--csv`. The one wording the scope rubric could catch ("FAIL if it lets the worker …
+change output and exit codes") is the stop-list entry "Any output or exit-code change: needs my
+yes on the plan". But CP5's redesign had the same kind of entry ("approve a behaviour change")
+and scored PPP.
+
+**Best explanation:** judge variance. I can find no citation or claim error, and both failures
+are at the 2-of-3 margin. Across the stored redesign runs the haiku judge has given:
+- grounding: CP5 PPP, CP6a-2 PPP, run 6 FPF, run 7 FFP;
+- scope: CP5 PPP, CP6a-2 PPP, run 6 PPP, run 7 FPF.
+
+That is inference: the judge's reasoning isn't stored.
+
+**Options for Shoaib (none taken):**
+1. A Planner ruling on the judge for R4, e.g. `--judge-model` set to a stronger model, or more
+   votes per rubric. That's a rule change, so earlier verdicts would need re-grading under it.
+2. One redesign re-run (about $0.48) to test variance. A re-run needs his OK.
+3. Accept the FAIL as recorded.
+
+Left after run 7: $3.0037. slice ($0.95) and investigate ($0.85) are expected at about $1.80.
+
+Run 6's total line, kept for the itemisation:
 Total CP6 spend: runs 1–5 and the extras $4.5788 (itemised in run 5 below) + run 6 card-less
 $0.0853 + plan $0.4672 + redesign $0.5626 = **$5.6939** of the $9.50 cap ($3.8061 left).
 
