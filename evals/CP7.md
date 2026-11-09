@@ -36,6 +36,12 @@
   - but the card template has the same `user-level: <path>` slot, and a card written in real use could
     store that path. In CP7, both written cards said `unreadable` with no path.
 
+**Ruling on P-c (PE): A's fix is not widened for the lock's Ancestors line.**
+- The lock is shown only to the home's own user, and the card is stored in that user's own home.
+- Changing it means editing shared text (the lock or card template). Under R5 that would void the other
+  cases' load results.
+- **1.4.0 backlog:** "user-level reported as present / unreadable / none, never a path, in lock and card".
+
 ## Shoaib's rulings on card-fresh, and what's next
 
 - **Redesign X3: stated, not a FAIL.** It's the pre-stated artefact: the card-less median is the floor
