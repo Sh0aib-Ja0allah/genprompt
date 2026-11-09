@@ -7,7 +7,7 @@
 | **Autonomy** | N/A: read-only. Writes are enumerated (exactly one doc) |
 | **Baseline delta** | N/A (no gates run) |
 | **Length tier** | Focused (200) |
-| **Deliverable** | One markdown doc, named per §2.7, ending in a ranked backlog and one recommended next slice |
+| **Deliverable** | One doc, named `<PROFILE.docnaming>`, ending in a ranked backlog and one recommended next slice |
 
 ## Generator: before emitting
 
@@ -15,8 +15,7 @@
 - Invert §2.5: the worker must NOT run builds, tests or installs. List the gates only as facts
   the doc records.
 - Build a reading manifest with depth (READ FULLY / SKIM / CONTEXT ONLY) from the real `docs/`.
-- If execution is also wanted, that is a separate `:roadmap` prompt, and it hard-STOPs if this doc
-  is missing. Do not fold audit and execution into one prompt.
+- Execution, if wanted, is a separate `:roadmap` prompt that hard-STOPs if this doc is missing. Do not fold audit and execution into one prompt.
 
 ## Required blocks
 

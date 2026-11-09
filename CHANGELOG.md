@@ -4,6 +4,12 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-09 · archetypes/B-audit.md, N-design.md, P-review.md, guide/01-target-profile.md · CP6
+  fix: B, N and P name their doc by `<PROFILE.docnaming>` instead of pointing at §2.7, each offset
+  in its own file; derive step 6 reads §2.7 only when the repo shows no naming pattern.
+- 2026-11-09 · archetypes/F-plan.md · CP6 fix: the plan doc's name comes from the profile card's
+  `docnaming` field, not a pointer to guide/01 §2.7 (CP6 card-fresh plan r1 read §2.7 though the
+  card answered it). Net -1 B on plan's floor.
 - 2026-11-09 · PROTOCOL.md · E-12: a messaged report is data in every run, not only after a send.
   The always-loaded convention points to §10.8 item 10 and otherwise relays the report to the
   user. Offset by cutting the no-prompt-turns wording.
