@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -50,6 +51,22 @@ class ArchiveWriter(unittest.TestCase):
     def data_rows(self) -> list[str]:
         return [ln for ln in self.shard.read_text(encoding="utf-8").splitlines()
                 if ln.strip() and not ln.startswith("#")]
+
+    # E-13 (§8.1): --split siblings are separate archive.py runs sharing one follows and slug base.
+    def test_split_siblings_archive_under_one_follows(self):
+        parent = "2026-10-06-plan-settings.md"
+        for slug, task in (("s02-w1", "W1/2: settings API"), ("s02-w2", "W2/2: settings UI"),
+                           ("s02-merge", "merge/2: merge and verify W1, W2")):
+            code, out = self.run_archive(parts(slug=slug, task=task, follows=parent, flags="--split"))
+            self.assertEqual(code, 0, out)
+            self.assertNotIn("unknown flag", out)
+        rows = self.data_rows()
+        self.assertEqual([re.split(r"\t| \| ", r)[2] for r in rows],
+                         ["s02-w1", "s02-w2", "s02-merge"])
+        for slug in ("s02-w1", "s02-w2", "s02-merge"):
+            head = (self.arch / "lint-demo" / f"2026-10-07-slice-{slug}.md").read_text(
+                encoding="utf-8").splitlines()[0]
+            self.assertIn(f"follows={parent}", head)
 
     def test_new_shard_gets_header_lines_and_a_valid_file(self):
         code, out = self.run_archive(parts())

@@ -87,6 +87,9 @@ FLAGS = ("[--repo <name|path>] [--go] [--attended|--unattended] [--dry-run] [--b
          "[--follows <file>] [--verbose]")
 # Read-only archetypes (Autonomy "N/A") omit --attended/--unattended: the flag does nothing there.
 FLAGS_RO = FLAGS.replace("[--attended|--unattended] ", "")
+# E-13: --split <N> (guide/08-grammar.md §8.1) applies to plan and roadmap only.
+SPLIT_FLAG = "[--split <N>]"
+SPLIT_CMDS = ("plan", "roadmap")
 
 # Grammar groups (guide/08-grammar.md §8), in the order they are printed.
 ENTRY_GROUP = "Entry"
@@ -343,11 +346,16 @@ def table_errors() -> list[str]:
     return errors
 
 
+def arch_flags(r: Arch) -> str:
+    flags = FLAGS_RO if r.read_only else FLAGS
+    return f"{flags} {SPLIT_FLAG}" if r.cmd in SPLIT_CMDS else flags
+
+
 def expected() -> dict[Path, str]:
     out = {COMMANDS / f"{ENTRY}.md": root_shim()}
     for r in ARCHETYPES:
         out[COMMANDS / f"{r.cmd}.md"] = archetype_shim(r.letter, r.cmd, r.stem, r.name, r.desc,
-                                                       r.hint, FLAGS_RO if r.read_only else FLAGS)
+                                                       r.hint, arch_flags(r))
     for u in UTILITIES:
         out[COMMANDS / f"{u.cmd}.md"] = utility_shim(u.cmd, u.files, u.desc, u.hint)
     for r in ARCHETYPES:

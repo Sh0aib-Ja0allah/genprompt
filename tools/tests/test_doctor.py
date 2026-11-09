@@ -126,6 +126,15 @@ class Separator(unittest.TestCase):
         self.assertEqual(len(doc.split_row(tab[2], "\t")), 5)
 
 
+class SplitFlag(unittest.TestCase):
+    # E-13: an archived --split sibling's flags field is known vocabulary, not a WARN.
+    def test_split_is_a_known_flag(self):
+        doc = load_doctor()
+        self.assertIn("--split", doc.known_flags())
+        meta = {"flags": "--split --go", "via": "argument", "lock": "go"}
+        self.assertEqual(doc.vocab_problems(meta), [])
+
+
 class ReleaseSync(unittest.TestCase):
     """check_release against a temporary copy of the manifests and CHANGELOG."""
 

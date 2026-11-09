@@ -194,7 +194,7 @@ def check_suite() -> None:
     for cmd, *_ in bs.UTILITIES:
         if f"/genprompt:{cmd}" not in grammar:
             add("ERROR", "suite", f"grammar does not list utility /genprompt:{cmd}")
-    for flag in re.findall(r"--[a-z-]+", bs.FLAGS):
+    for flag in re.findall(r"--[a-z-]+", bs.FLAGS + " " + getattr(bs, "SPLIT_FLAG", "")):
         if flag not in grammar:
             add("ERROR", "suite", f"flag {flag} is in the shims but not in guide/08-grammar.md")
 
@@ -495,9 +495,10 @@ STAT_FLAGS = ("--go", "--brief", "--dry-run", "--verbose", "--unattended")
 
 def known_flags() -> set[str]:
     try:
-        return set(re.findall(r"--[a-z-]+", load_build_shims().FLAGS))
+        bs = load_build_shims()
+        return set(re.findall(r"--[a-z-]+", bs.FLAGS + " " + getattr(bs, "SPLIT_FLAG", "")))
     except Exception:  # noqa: BLE001 - fall back to the flags the stats know
-        return set(STAT_FLAGS) | {"--repo", "--attended", "--follows"}
+        return set(STAT_FLAGS) | {"--repo", "--attended", "--follows", "--split"}
 
 
 def vocab_problems(meta: dict[str, str], flags_known: set[str] | None = None) -> list[str]:

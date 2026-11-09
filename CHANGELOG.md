@@ -4,6 +4,9 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-09 · archetypes/F-plan.md, archetypes/I-roadmap.md, tools/build_shims.py, tools/doctor.py,
+  README.md · E-13: :plan and :roadmap offer `--split <N>` (argument-hint; archive and doctor know
+  the flag) and point to §8.1; F tightened to offset, so the plan floor stays 29,854 B.
 - 2026-11-09 · guide/08-grammar.md, archetypes/J-next.md · E-13: new §8.1 `--split <N>` for :plan
   and :roadmap (N disjoint-ownership lanes in worktrees, a shared findings folder, one merge prompt,
   siblings archived under one follows); :next recognises a lane report and re-issues the merge prompt.
