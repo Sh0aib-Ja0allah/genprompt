@@ -1,13 +1,41 @@
 # CP6: 1.3.0 candidate (INCOMPLETE: run 3 card-fresh INVALID)
 
-Total CP6 spend: run 1 $0.5596 + V4 trace $0.0047 + run 2 $0.3228 + run 3 $0.6173 =
-**$1.5044** of the $6.25 cap ($4.7456 left).
+Total CP6 spend: run 1 $0.5596 + V4 trace $0.0047 + run 2 $0.3228 + run 3 $0.6173 + replay
+$0.0169 = **$1.5213** of the $7.50 cap (raised from $6.25 by Shoaib; $5.9787 left).
 
 **V4 outcome, stated plainly (P3).** Run 1's refusal of the chained `archive.py --where; git …`
 calls was a probe artefact. Real Claude Code checks a chained command one subcommand at a
 time: the V4 trace under slice.md's real grant ran `--where; git status` and the `||` / `cd`
 chains. So a real user whose generator chains `--where` with granted commands finds their card.
 The probe's own deny list (cd, ls, head, …) caused run 1's refusals, and 4bb6bc7 removed it.
+
+## Replay after run 3 (Shoaib's GO; cap raised to $7.50)
+
+Run 3's unexplained refusals were replayed: plan r2's exact first command, under the probe's
+exact flags on 9ed9d44, with the shim grant from slice.md. Two sessions cost $0.0081, three
+more cost $0.0088, so the replay totals **$0.0169**. Traces:
+`C:/genprompt-probe/genprompt-replay-20261109-121606/` and `…-121738/`.
+
+| Deny rules in effect | plan r2 exact command (`python3 …--where; cd … && git … && ls -la && ls docs`) |
+|---|---|
+| all probe rules | **refused** (dontAsk: no matching allow rule) |
+| none | ran |
+| Read/Glob/Grep denials only (home, ~/.genprompt, shared roots, other top-level folders) | **refused** |
+| Bash denials only (cat, echo, …) | ran |
+| Write/Edit denials only | ran |
+
+- Shorter variants ran under all rules: `--where; git status`, `--where; cd …`,
+  `--where; cd … && git status`, and the same chain without the `--where` part. So the refusal
+  needs the probe's Read/Glob/Grep deny rules together with this longer chain (the `ls` parts
+  after the `--where` part).
+- **Verdict: a probe-only cause, not a product finding.** A real user has none of those deny
+  rules, and without them the exact command runs under the shim grant.
+- **No probe change.** Those deny rules are what seal the real home (isolation shows
+  `ls <home>` "blocked by a deny rule"), so dropping them would break isolation. Isolation
+  doesn't need re-running.
+- B's Step 0 fix sidesteps the problem: `--where` alone always ran under the full rules (run 1
+  slice r1, run 3 fix r2 and redesign r1), so card discovery doesn't depend on the chain. Chains
+  still refused in the probe after that cost only the reads, not the card.
 
 ## Run 3: candidate 9ed9d44, probe code ddff904 (INCOMPLETE: card-fresh INVALID)
 
