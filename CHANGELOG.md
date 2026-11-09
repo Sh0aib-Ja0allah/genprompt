@@ -4,6 +4,11 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-10 · tools/doctor.py · R5 (1.4.1): `doctor --suite` measures each command's static
+  load (the command file plus every `@${CLAUDE_PLUGIN_ROOT}/` include) and ERRORs over its budget
+  (aa96986 floor + 2,000 B, rounded up to 500; plan 32,000, investigate 37,500, profile 53,000),
+  and WARNs when a load grows more than 5% over the previous release (pinned at aa96986 until
+  v1.4.0 is tagged). The PROTOCOL.md core-budget WARN stays.
 - 2026-11-10 · tools/archive.py · R11 (1.4.1, privacy): the archive writer FAILs, not WARNs, when
   the file names the user's home directory outside the repo path (the header's `path` value, a
   `Repo:` anchor line and paths under the repo are exempt; reported by line number, never echoed),
