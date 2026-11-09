@@ -115,6 +115,7 @@ Reply "go" to accept, or correct any line.
   Unknown section, no Step 1 conflict), act as `--go`, add the line
   `auto-go: argument + fresh card + no unknowns` to the lock, and archive it as `lock=auto`.
   Otherwise wait as usual.
+- `--send`: Read §10.8 before the lock; its send question is asked even under `--go` or auto-go.
 - Fill everything derivable: the lock is for confirmation, not for facts you didn't look up.
 
 ## Step 4: Ground before you write
@@ -170,11 +171,11 @@ Reply "go" to accept, or correct any line.
      - `lock`: `go` (`--go` skipped the wait), `auto` (opt-in auto-go), `accepted` (the user
        said go, changed nothing) or `corrected` (the user changed a lock line).
    - Run `python3 "${CLAUDE_PLUGIN_ROOT}/tools/archive.py" --dry-run <parts.json>` first (`python`
-     if `python3` fails, e.g. a Windows Store alias). Cite its PASS/WARN/FAIL lines as the
+     if `python3` fails). Cite its PASS/WARN/FAIL lines as the
      evidence for rows 8, 15, 16, 21 and 22 instead of grading them by eye. Then run it without
      `--dry-run` to archive. Under a `--dry-run` request the dry run is the only run.
    - archive.py builds the file name, line 1 and the shard row.
-   - No python at all: say so, mark row 22 FAIL with that reason, and don't hand-write the archive.
+   - No python: say so, mark row 22 FAIL, and don't hand-write the archive.
 3. Print in chat, prompt first, in this order:
    1. the lock block, if `--go` skipped the wait
    2. `Interpretations locked in (overridable)`, if any, because the user must see an
@@ -196,8 +197,7 @@ Reply "go" to accept, or correct any line.
    The counts are integers summing to the §6 rows; a zero is printed as `0`. Separators are `·`
    with one space each side; no bold, backticks, emoji, trailing period or other wording.
 
-   archive.py exit 0 → done: mention any WARN lines, and do not read §10. Read §10.6 only when it
-   exits non-zero.
+   archive.py exit 0 → done: mention any WARN lines. Read §10.6 only on a non-zero exit.
 
 No-prompt turns (the work is verified done, or you are parking it): write a §4.26 closeout in chat
 and archive a status row through `tools/archive.py`. Read §10.7 only for a no-prompt turn.

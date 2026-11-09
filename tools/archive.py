@@ -14,6 +14,8 @@ Input: one JSON object.
   vocab     flags, via, lock: required for every new prompt (values pinned in PROTOCOL Step 6
             item 2), written as trailing header fields; a missing or unknown value is a WARN from
             the lint (header-vocab), never a block
+  sent      only with --send (guide/06-library.md §10.8): the bare session name the prompt was sent
+            to, or "copy" when the user declined; omitted otherwise (E-12)
   status    archetype "none" writes only a status row (file "-"); task must start "status:"
 
 Order: WRITE FIRST, THEN VALIDATE. The prompt is already printed in chat and may already be pasted
@@ -94,7 +96,7 @@ def structural_problems(p: dict, cmd_by_letter: dict[str, str]) -> list[str]:
             out.append("missing the body: give 'body', or the parts with at least 'prompt'")
     elif not p["task"].startswith("status:"):
         out.append("a status row's task must start with 'status:'")
-    for k in ("repo", "path", "follows", "flags", "via", "lock"):
+    for k in ("repo", "path", "follows", "flags", "via", "lock", "sent"):
         if isinstance(p.get(k), str) and (" | " in p[k] or "-->" in p[k] or "\n" in p[k]):
             out.append(f"{k} contains ' | ', '-->' or a newline, which would break the line-1 header")
     return out

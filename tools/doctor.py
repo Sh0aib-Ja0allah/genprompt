@@ -229,6 +229,8 @@ def check_suite() -> None:
 # file; :learn only its personal rules; :profile only the card; every other command writes nothing.
 WRITE_BOUNDARY_EMIT = ("generated-prompts/**", "tmp/**")
 WRITE_BOUNDARY = {"learn": ("local-rules.md",), "profile": ("generated-prompts/by-repo/**",)}
+# E-12: the dispatch tools (§10.8, `--send`) belong to the prompt-emitting commands only.
+DISPATCH_TOOLS = {"ListAgents", "SendMessage"}
 WRITE_TOOL_RE = re.compile(r"\b(Write|Edit|MultiEdit|NotebookEdit)\b(?:\(([^)]*)\))?")
 
 
@@ -256,6 +258,14 @@ def check_write_grants(emitters: list[str], commands: Path = COMMANDS) -> None:
                                   f"boundary for :{p.stem} (allowed: {', '.join(sorted(want)) or 'none'})")
         for g in sorted(want - got):
             add("ERROR", "suite", f"commands/{p.name}: write grant {g} is missing for :{p.stem}")
+        m = re.search(r"^allowed-tools:(.*)$", text, re.M)
+        has = DISPATCH_TOOLS & {t.strip() for t in (m.group(1).split(",") if m else [])}
+        if p.stem in emitters and has != DISPATCH_TOOLS:
+            add("ERROR", "suite", f"commands/{p.name}: dispatch grant {', '.join(sorted(DISPATCH_TOOLS - has))} "
+                                  f"is missing for :{p.stem} (§10.8)")
+        elif p.stem not in emitters and has:
+            add("ERROR", "suite", f"commands/{p.name}: :{p.stem} emits no prompt, so it must not carry "
+                                  f"{', '.join(sorted(has))} (§10.8)")
 
 
 # E-09c: every archetype command @-includes PROTOCOL.md, so its size is paid on every emission.
@@ -485,12 +495,16 @@ def fences(text: str) -> list[tuple[int, int, int, list[str]]]:
 # ---------------------------------------------------------------------------------------------
 PASS, WARN, FAIL = "PASS", "WARN", "FAIL"
 HEADER_KEYS = ("key", "repo", "path", "date", "archetype", "follows")
-HEADER_OPTIONAL = ("flags", "via", "lock")           # E-05 fields: optional, trailing, in this order
+HEADER_OPTIONAL = ("flags", "via", "lock", "sent")   # E-05 fields: optional, trailing, in this order
 # The E-05 vocabulary (PROTOCOL Step 6 item 2). Required for new prompts (a WARN from the lint when
 # missing or unknown); files archived before it lack the fields and stay valid in --archive.
 VIA_VALUES = ("argument", "continuation", "cwd", "ask")
 LOCK_VALUES = ("go", "auto", "accepted", "corrected")   # go/auto skipped the wait: not confirmed locks
 STAT_FLAGS = ("--go", "--brief", "--dry-run", "--verbose", "--unattended")
+# E-12 (§10.8): `sent` is written only when --send was requested: the bare session name the prompt
+# went to, or `copy` when the user declined (or gave no explicit yes) and it stayed copy/paste.
+SENT_COPY = "copy"
+SENT_NAME_RE = re.compile(r"^[^\[\]|=\n]{1,100}$")   # a bare session name: no [ref], no header syntax
 
 
 def known_flags() -> set[str]:
@@ -523,6 +537,14 @@ def vocab_problems(meta: dict[str, str], flags_known: set[str] | None = None) ->
         out.append(f"lock missing ({'|'.join(LOCK_VALUES)})")
     elif lock not in LOCK_VALUES:
         out.append(f"lock={lock} is not {'|'.join(LOCK_VALUES)}")
+    sent, asked = meta.get("sent"), "--send" in (flags or "").split()
+    if sent is None:
+        if asked:
+            out.append(f"sent missing (--send was requested: the session name, or {SENT_COPY})")
+    elif not asked:
+        out.append("sent is set but flags has no --send")
+    elif sent != SENT_COPY and not SENT_NAME_RE.match(sent):
+        out.append(f"sent={sent} is not a bare session name (no [ref]) or {SENT_COPY}")
     return out
 LINE_WIDTH = 100
 MIN_BLOCK_LINES = 5      # counted lines (doctor counts ceil(len/100) per line) below which the block is a stub
@@ -758,7 +780,8 @@ def lint_prompt(text: str, filename: str | None = None,
     if meta is not None:
         vp = vocab_problems(meta)
         res.append(("header-vocab", WARN if vp else PASS,
-                    "; ".join(vp) if vp else f"flags={meta['flags']} via={meta['via']} lock={meta['lock']}"))
+                    "; ".join(vp) if vp else f"flags={meta['flags']} via={meta['via']} lock={meta['lock']}"
+                    + (f" sent={meta['sent']}" if meta.get("sent") else "")))
 
     # report line (WARN, new convention: a prompt that asks for a report names GENPROMPT-REPORT)
     joined = "\n".join(body)
@@ -902,6 +925,8 @@ def measure_header(stats: dict, fields: str) -> None:
     flags = meta.get("flags") or "-"
     for f in (flags.split() if flags != "-" else []):
         stats["flags"][f] += 1
+    if meta.get("sent"):
+        stats["sent"]["declined" if meta["sent"] == SENT_COPY else "sent"] += 1
 
 
 def measure_lines(stats: dict) -> list[str]:
@@ -922,12 +947,17 @@ def measure_lines(stats: dict) -> list[str]:
                f"; correction rate {rate}")
     out.append("    flags: " + ", ".join(f"{f} {stats['flags'][f]}/{n}" for f in STAT_FLAGS) +
                "".join(f", {f} {c}/{n}" for f, c in sorted(stats["flags"].items()) if f not in STAT_FLAGS))
+    sent = stats.get("sent") or Counter()
+    if sent:
+        out.append(f"    send:  sent {sent['sent']}, declined {sent['declined']} (of "
+                   f"{sent['sent'] + sent['declined']} --send request(s); declined = kept copy/paste)")
     return out
 
 
 def check_archive(letters_by_word: dict[str, str]) -> dict:
     stats: dict = {"rows": Counter(), "arche": Counter(), "latest": {}, "files": 0,
-                   "via": Counter(), "lock": Counter(), "flags": Counter(), "measured": 0, "unmeasured": 0}
+                   "via": Counter(), "lock": Counter(), "flags": Counter(), "sent": Counter(),
+                   "measured": 0, "unmeasured": 0}
     if not SHARDS.is_dir():
         stats["empty"] = True       # a fresh install: nothing archived yet is not an error
         return stats

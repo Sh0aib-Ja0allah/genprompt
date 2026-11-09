@@ -4,6 +4,12 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-09 · tools/build_shims.py, guide/06-library.md, PROTOCOL.md, tools/doctor.py,
+  tools/archive.py · E-12 `--send <session>`: opt-in dispatch of the archived prompt to another
+  Claude session. The rules are in the on-demand §10.8: a strict project-key check, a yes per send
+  even under --go/auto-go, the worker's own toplevel check, prompt-only payload. Emitters get
+  ListAgents/SendMessage. A new `sent: <name>|copy` header field is linted and counted. PROTOCOL
+  gains one pointer line, net +17 B.
 - 2026-11-09 · archetypes/H-commit.md, P-review.md, Q-security.md, R-perf.md, guide/08-grammar.md,
   tools/build_shims.py, tools/doctor.py, README.md · E-15: `:commit --pr` adds the PR step (branch,
   push, open PR, each a §4.23 approval the worker asks for; a placeholder-only body or the repo's

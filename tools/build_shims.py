@@ -71,6 +71,10 @@ DOCTOR = ", ".join(f"Bash({py} {q}{PLUGIN_ROOT}/tools/doctor.py{q}:*)"
 # ~/.genprompt and runs doctor's per-file lint itself, so no separate doctor --prompt grant.
 ARCHIVE = ", ".join(f"Bash({py} {q}{PLUGIN_ROOT}/tools/archive.py{q}:*)"
                     for py in ("python3", "python") for q in ("", '"'))
+# Dispatch (E-12, §10.8): `--send <session>` delivers the archived prompt to another Claude session,
+# so only the commands that emit a prompt (the archetype shims and the entry point) get these two
+# tools, appended like ARCHIVE. They write nothing; the yes per send is a protocol rule (§10.8).
+DISPATCH = "ListAgents, SendMessage"
 EXTRA_TOOLS = {
     "doctor": f", {DOCTOR}",
     "learn": "",
@@ -84,7 +88,7 @@ EXTRA_FM: dict[str, list[str]] = {
     cmd: ["disable-model-invocation: true"] for cmd in ("doctor", "learn", "history", "profile")
 }
 FLAGS = ("[--repo <name|path>] [--go] [--attended|--unattended] [--dry-run] [--brief] "
-         "[--follows <file>] [--verbose]")
+         "[--follows <file>] [--send <session>] [--verbose]")
 # Read-only archetypes (Autonomy "N/A") omit --attended/--unattended: the flag does nothing there.
 FLAGS_RO = FLAGS.replace("[--attended|--unattended] ", "")
 # Per-command flags (guide/08-grammar.md "Per-command modifiers"): each sits only on its own
@@ -299,7 +303,7 @@ def includes(files: list[str], protocol: bool = True, where: bool = False) -> st
 
 
 def archetype_shim(letter, cmd, stem, name, desc, hint, flags: str = FLAGS) -> str:
-    return (frontmatter(desc, f"{hint}   {flags}", f", {ARCHIVE}", cmd=cmd,
+    return (frontmatter(desc, f"{hint}   {flags}", f", {ARCHIVE}, {DISPATCH}", cmd=cmd,
                         scopes=EMIT_SCOPES) + "\n" +
             includes([f"archetypes/{stem}.md", f"{BLOCKS_DIR}/{stem}.md"], where=True) +
             f"\nCommand `/genprompt:{cmd}` → archetype **{letter}: {name}** (§5.{letter}): follow "
@@ -322,7 +326,8 @@ ENTRY_TAGLINE = "pick the archetype from the request and emit its prompt, or off
 
 
 def root_shim() -> str:
-    return (frontmatter(ENTRY_DESC, f"{ENTRY_HINT}   {FLAGS}", f", {ARCHIVE}", scopes=EMIT_SCOPES)
+    return (frontmatter(ENTRY_DESC, f"{ENTRY_HINT}   {FLAGS}", f", {ARCHIVE}, {DISPATCH}",
+                        scopes=EMIT_SCOPES)
             + "\n" + includes(["archetypes/README.md"], where=True) +
             f"\nEntry point `/genprompt:{ENTRY}`. Pick the archetype from the request using the picker "
             "in `archetypes/README.md`, then Read that archetype's file and its block excerpt "

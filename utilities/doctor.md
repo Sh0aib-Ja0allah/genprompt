@@ -36,6 +36,8 @@ What doctor checks (the source of truth is the script itself):
   - each command's Write/Edit grants match PROTOCOL's write boundary exactly: prompt commands
     `~/.genprompt/generated-prompts/**` and `~/.genprompt/tmp/**`, `:learn` only
     `local-rules.md`, `:profile` only `generated-prompts/by-repo/**`, the rest none
+  - the dispatch tools (ListAgents, SendMessage, for `--send`, §10.8) sit on the prompt commands
+    only, never on a utility
   - § references resolve
   - the help table lists every command
   - letters are unique
