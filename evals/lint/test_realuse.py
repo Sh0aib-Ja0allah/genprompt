@@ -148,5 +148,69 @@ class DriveRootTest(unittest.TestCase):
         self.assertEqual(out[1][1], "C:/Windows")         # call 5: not a drive root, by path
 
 
+class CardGateTest(unittest.TestCase):
+    """CP6 R2: card-fresh gates C1 (no derivation Reads) and C2 (≤ card-less + card bytes)."""
+
+    def test_forbidden_files_exist(self):
+        root = Path(__file__).resolve().parents[2]
+        for rel in run.CARD_FORBIDDEN:
+            self.assertTrue((root / rel).is_file(), rel)
+
+    def test_parse_cardless(self):
+        self.assertEqual(run.parse_cardless(["slice=32,178", "fix=31530"]),
+                         {"slice": 32178.0, "fix": 31530.0})
+        for bad in (["slice"], ["nosuch=1"], ["fix=abc"]):
+            with self.assertRaises(ValueError):
+                run.parse_cardless(bad)
+
+    def test_card_gate(self):
+        cl = {"plan": 29853}
+        ok, det = run.card_gate("plan", [31000, 30500, 36000], [1500, 1500, 1500], cl)
+        self.assertTrue(ok, det)                      # 31,000 ≤ 29,853 + 1,500
+        ok, det = run.card_gate("plan", [31400, 31400, 29000], [1500] * 3, cl)
+        self.assertFalse(ok, det)                     # 31,400 > 31,353
+        self.assertFalse(run.card_gate("fix", [1], [1], cl)[0])
+
+    def test_card_mode_needs_cardless_before_spend(self):
+        argv = sys.argv
+        try:
+            for extra in ([], ["--cardless", "slice=1"]):
+                sys.argv = ["run.py", "compare", "--cand", "HEAD", "--cases", "slice", "fix",
+                            "--home", "card", *extra]
+                with self.assertRaises(SystemExit) as cm:
+                    run.main()
+                self.assertEqual(cm.exception.code, 2)
+        finally:
+            sys.argv = argv
+
+
+class InvestigateCaseTest(unittest.TestCase):
+    """E-14: the probe request and the eval case for archetype X agree."""
+
+    def test_request_matches_case(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        import build_cases
+        spec = build_cases.EXTRA["investigate"]
+        self.assertEqual(spec["request"], f"/genprompt:investigate {run.REQUESTS['investigate']}")
+        self.assertEqual(build_cases.ARCHIVE_META["investigate"], ("X", "investigate"))
+        files = build_cases.case_files("investigate", spec)
+        self.assertIn("tags: [extra, investigate]", files["prompt.md"])
+        self.assertIn(r"?\bX\b'", files["graders/archetype-label.md"])
+        self.assertNotIn("\b", "".join(files.values()))   # no backspace from a bad escape
+
+    def test_symptom_is_true_of_the_fixture(self):
+        # The request claims per-line amounts 25.00/40.00/5.00 and TOTAL 40.50 vs 63.00 EUR.
+        import json
+        root = Path(__file__).resolve().parents[1] / "fixtures" / "ledgerlite"
+        inv = json.loads((root / "examples" / "sample.json").read_text(encoding="utf-8"))
+        lines = [ln["qty"] * ln["unitCents"] for ln in inv["lines"]]
+        self.assertEqual(lines, [2500, 4000, 500])
+        disc = lambda c: c - round(c * inv["discountPct"] / 100)  # noqa: E731
+        self.assertEqual(disc(sum(lines[1:])), 4050)   # the bug: the loop starts at i = 1
+        self.assertEqual(disc(sum(lines)), 6300)
+        self.assertIn("for (let i = 1;",
+                      (root / "src" / "invoice.js").read_text(encoding="utf-8").splitlines()[13])
+
+
 if __name__ == "__main__":
     unittest.main()

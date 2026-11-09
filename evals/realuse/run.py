@@ -33,6 +33,11 @@ flags instead:
 with a fresh profile card for `card`). Write/Edit are allowed only there, Bash is narrowed to a
 read-only git subset plus the candidate's archive.py, and bases never run archive.py. Several
 --base refs can be compared in one run; --a4 report keeps A4 out of the verdict.
+
+--home card adds two gates (CP6 R2) and records the seeded card's bytes per run:
+  C1 no run Reads guide/blocks/derive.md, guide/01-target-profile.md or stacks/stack-matrix.md
+  C2 each case's median rule bytes ≤ its card-less median (--cardless case=bytes ..., required)
+     + the seeded card's bytes
 """
 from __future__ import annotations
 
@@ -62,6 +67,11 @@ REQUESTS = {
                 "functions; keep the CLI's output and exit codes identical --go --dry-run",
     "plan": "S-03 tax lines from docs/ROADMAP.md: a per-line VAT rate and a tax subtotal, totals "
             "still in integer cents --go --dry-run",
+    # E-14 (archetype X): the same request as evals/cases/investigate. Only refs that have
+    # `:investigate` (9484139 and later) can run it.
+    "investigate": "`npm start -- examples/sample.json --lines` prints each line's amount as "
+                   "expected (25.00, 40.00 and 5.00 EUR) but TOTAL 40.50 EUR, where 63.00 EUR "
+                   "(70.00 less the 10% discount) is expected; the cause is unknown --go --dry-run",
 }
 TOOLS_OFF = ["Bash", "PowerShell", "Write", "Edit", "NotebookEdit", "WebFetch", "WebSearch",
              "SendMessage", "ListAgents", "Artifact", "ArtifactComments", "ArtifactData",
@@ -69,6 +79,29 @@ TOOLS_OFF = ["Bash", "PowerShell", "Write", "Edit", "NotebookEdit", "WebFetch", 
              "ScheduleWakeup", "DesignSync", "EnterWorktree", "ExitWorktree", "ReportFindings",
              "Task", "Agent"]
 RULE_HINTS = ("PROTOCOL.md", "/archetypes/", "/guide/", "/stacks/", "/examples/", "/utilities/")
+# CP6 R2(a): with a fresh card, the derivation files are not needed, so no run may Read them.
+CARD_FORBIDDEN = ("guide/blocks/derive.md", "guide/01-target-profile.md", "stacks/stack-matrix.md")
+
+
+def parse_cardless(pairs: list[str]) -> dict[str, float]:
+    """`--cardless slice=32178 fix=31530`: the card-less median rule bytes per case (CP6 R2(b))."""
+    out = {}
+    for s in pairs:
+        case, sep, val = s.partition("=")
+        if not sep or case not in REQUESTS:
+            raise ValueError(f"--cardless expects <case>=<bytes> with a known case, got {s!r}")
+        out[case] = float(val.replace(",", "").replace("_", ""))
+    return out
+
+
+def card_gate(case: str, rules: list[int], cards: list[int], cardless: dict[str, float]):
+    """CP6 R2(b): the card-fresh median rule bytes ≤ the card-less median + the seeded card's
+    bytes (the median card size over the case's runs). Returns (ok, detail)."""
+    if case not in cardless:
+        return False, f"{case}: no card-less median given"
+    m, card = statistics.median(rules), statistics.median(cards)
+    limit = cardless[case] + card
+    return m <= limit, f"{case} {m:,.0f} ≤ {cardless[case]:,.0f} + card {card:,.0f} = {limit:,.0f}"
 INCLUDE_RE = re.compile(r"^@\$\{CLAUDE_PLUGIN_ROOT\}/(\S+)", re.M)
 DENIED_RE = re.compile(r"denied|not allowed|No such tool available", re.I)
 # The protocol's ancestor scan checks CLAUDE.md / AGENTS.md in every parent directory. A
@@ -399,7 +432,7 @@ def compare(args) -> int:
           + f"cand {args.cand} -> /gp-cand: · {args.runs} run(s) per cell · home {args.home}")
     # runs[case][plugin] = list of analyses, one per run (each run is a fresh claude -p session)
     runs: dict[str, dict[str, list[dict]]] = {}
-    verdict_reads, outside_bad, bash_log, write_log = [], [], [], []
+    verdict_reads, outside_bad, bash_log, write_log, card_bad = [], [], [], [], []
     for case in args.cases:
         runs[case] = {}
         for plugin in (*bases, cand):
@@ -413,13 +446,13 @@ def compare(args) -> int:
                              f"--max-total ${args.max_total}. Partial traces are in {work}")
                 suffix = "" if args.runs == 1 else f"-r{i}"
                 out = work / f"{plugin.name}-{case}-{args.model}{suffix}.jsonl"
-                env = None
+                env, card_bytes = None, 0
                 if homes:
                     # A fresh sandbox home per run, so one run's writes never reach the next.
                     home = homes / f"{plugin.name}-{case}-r{i}"
                     home.mkdir(parents=True)
                     if args.home == "card":
-                        seed_card(home, fx)
+                        card_bytes = seed_card(home, fx).stat().st_size
                     env = {"GENPROMPT_HOME": home.resolve().as_posix()}
                 run_claude(claude_cmd(work, plugin, args.model, args.budget,
                                       f"/{plugin.name}:{case} {REQUESTS[case]}", homes,
@@ -427,8 +460,11 @@ def compare(args) -> int:
                 a = analyze(out, plugin, work)
                 inc = include_bytes(plugin, case)
                 a["inc"], a["rule"] = inc, inc + sum(n for _, n in a["reads"])
+                a["card"] = card_bytes
                 runs[case][plugin.name].append(a)
                 tag = f"{plugin.name}/{case}/r{i}"
+                if args.home == "card":
+                    card_bad += [f"{tag}: {p}" for p, _ in a["reads"] if p in CARD_FORBIDDEN]
                 outside_bad += [f"{tag}: {t} {p} {r}" for t, p, r in a["outside"]
                                 if not r.startswith("denied")]
                 bash_log += [f"{tag}: {'ok' if ok else 'FLAG'} `{c[:90]}` → {t[:60]}"
@@ -507,6 +543,20 @@ def compare(args) -> int:
                            " · ".join(a4_det)))
         else:
             sections.append("A4 (reported, not gated): " + " · ".join(a4_det))
+    if args.home == "card":
+        cardless = parse_cardless(args.cardless)
+        gates = [card_gate(case, [a["rule"] for a in runs[case]["gp-cand"]],
+                           [a["card"] for a in runs[case]["gp-cand"]], cardless)
+                 for case in args.cases]
+        sections.append("Seeded card bytes per run (candidate): " + " · ".join(
+            f"{case} " + " ".join(f"{a['card']:,}" for a in runs[case]["gp-cand"])
+            for case in args.cases))
+        checks += [
+            ("C1 no card-fresh run Reads derive.md, guide/01 or stack-matrix", not card_bad,
+             "; ".join(card_bad) or "none"),
+            ("C2 card-fresh median ≤ card-less median + seeded card bytes, every case",
+             all(ok for ok, _ in gates), " · ".join(d for _, d in gates)),
+        ]
     checks.append(("A5 isolation: nothing outside the probe root returned content, no unsafe "
                    "Bash ran, no write outside the sandbox homes", not outside_bad,
                    "; ".join(outside_bad[:6]) or "every outside call was denied or harmless"))
@@ -612,10 +662,20 @@ def main() -> int:
                    help="GENPROMPT_HOME per run: none (unset, Bash off), empty sandbox home, or a sandbox home seeded with a fresh profile card")
     c.add_argument("--a4", choices=["gate", "report"], default="gate")
     c.add_argument("--max-total", type=float, help="stop before a run could push total $ past this")
+    c.add_argument("--cardless", nargs="*", default=[], metavar="CASE=BYTES",
+                   help="with --home card: each case's card-less median rule bytes (CP6 R2(b))")
     c.add_argument("--workroot")
     i = sub.add_parser("isolation")
     i.add_argument("--workroot")
     args = ap.parse_args()
+    if args.cmd == "compare" and args.home == "card":
+        # Checked before any spend: the C2 gate needs a card-less median for every case.
+        try:
+            missing = [c for c in args.cases if c not in parse_cardless(args.cardless)]
+        except ValueError as e:
+            ap.error(str(e))
+        if missing:
+            ap.error("--home card needs --cardless <case>=<bytes> for: " + ", ".join(missing))
     return compare(args) if args.cmd == "compare" else isolation(args)
 
 
