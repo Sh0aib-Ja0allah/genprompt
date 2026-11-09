@@ -751,3 +751,31 @@ class WriteModeTest(unittest.TestCase):
         s = run.write_section(["plan"], rs)
         self.assertIn("Card written: 1 of 2 runs; 1 of 1 runs that read derive.md", s)
         self.assertIn("| plan r1 | Y | Y | Y | clean |", s)
+
+
+class DispatchSetupTest(unittest.TestCase):
+    """D1-D6 hand run: dispatch-setup stages everything offline (no claude call)."""
+
+    def test_setup_layout(self):
+        import tempfile
+        argv = sys.argv
+        with tempfile.TemporaryDirectory() as tmp:
+            try:
+                sys.argv = ["run.py", "dispatch-setup", "--cand", "HEAD", "--workroot", tmp]
+                self.assertEqual(run.main(), 0)
+            finally:
+                sys.argv = argv
+            work = next(Path(tmp).glob("genprompt-dispatch-*"))
+            self.assertIn('"name": "gp-cand"',
+                          (work / "gp-cand" / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+            for side in ("a", "b"):
+                self.assertTrue((work / side / "ledgerlite" / ".git").exists(), side)
+                self.assertTrue((work / side / "ledgerlite" / "package.json").exists(), side)
+            for role in run.DISPATCH_ROLES:
+                h = work / "homes" / role
+                self.assertTrue(h.is_dir() and not any(h.iterdir()), role)
+            s = (work / "sessions.txt").read_text(encoding="utf-8")
+            for _, name in run.DISPATCH_ROLES.values():
+                self.assertIn(f"/rename {name}", s)
+            self.assertEqual(s.count("GENPROMPT_HOME"), 4)
+            self.assertNotIn(str(Path.home().as_posix()) + "/.genprompt", s)

@@ -1104,6 +1104,40 @@ def compare(args) -> int:
     return code
 
 
+DISPATCH_ROLES = {  # role: (checkout, session name) for the D1-D6 hand run (evals/D-handrun.md)
+    "G": ("a", "ledgerlite : gen"),
+    "W": ("a", "ledgerlite : worker"),
+    "X": ("b", "ledgerlite : impostor"),
+    "S": ("b", "ledgerlite : stranger"),
+}
+
+
+def dispatch_setup(args) -> int:
+    """Offline, no spend: stage the candidate as gp-cand, scaffold two ledgerlite checkouts
+    (a/ for G and W, b/ for X and S) and one empty sandbox GENPROMPT_HOME per session, then print
+    (and save to sessions.txt) the exact command that starts each interactive session."""
+    work = (Path(args.workroot) if args.workroot else default_workroot()) / \
+        f"genprompt-dispatch-{dt.datetime.now().strftime('%Y%m%d-%H%M%S')}"
+    work.mkdir(parents=True)
+    cand = stage(args.cand, "gp-cand", work)
+    repos = {}
+    for side in ("a", "b"):
+        fx = fixture(work / side)
+        repos[side] = fx.rename(work / side / "ledgerlite")
+    lines = [f"work dir {work.as_posix()} · cand {args.cand} -> /gp-cand:", ""]
+    for role, (side, name) in DISPATCH_ROLES.items():
+        home = work / "homes" / role
+        home.mkdir(parents=True)
+        lines += [f"{role} = {name}  (then type: /rename {name})",
+                  f"  cd '{repos[side].as_posix()}'; $env:GENPROMPT_HOME = '{home.as_posix()}'; "
+                  f"claude --plugin-dir '{cand.as_posix()}' --model {args.model} "
+                  f"--setting-sources local", ""]
+    text = "\n".join(lines)
+    (work / "sessions.txt").write_text(text + "\n", encoding="utf-8")
+    print(text)
+    return 0
+
+
 def shim_bash_grant(root: Path = ROOT) -> list[str]:
     """The Bash rules a prompt shim grants (commands/slice.md's allowed-tools), so the isolation
     probe runs under the same grant as a real generator. ${CLAUDE_PLUGIN_ROOT} is left as is:
@@ -1288,7 +1322,14 @@ def main() -> int:
     i.add_argument("--workroot")
     r = sub.add_parser("regrade", help="re-grade a finished compare's traces with the current A5")
     r.add_argument("workdir")
+    d = sub.add_parser("dispatch-setup", help="offline: stage gp-cand, two ledgerlite checkouts and "
+                                              "four sandbox homes for the D1-D6 hand run")
+    d.add_argument("--cand", required=True)
+    d.add_argument("--model", default="haiku")
+    d.add_argument("--workroot")
     args = ap.parse_args()
+    if args.cmd == "dispatch-setup":
+        return dispatch_setup(args)
     if args.cmd == "regrade":
         return regrade(args)
     if args.cmd == "compare" and args.write and args.home == "none":
