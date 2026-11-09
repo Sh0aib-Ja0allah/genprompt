@@ -9,8 +9,14 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 EXPERIMENTAL: `--send <session>` and `:next --from <session>`. The hand-run checks follow
 after 1.3.0.
 
+Known issue: a saved profile card is found reliably now (Step 0 fix), but in CP6 3 of 15 card
+runs still read the derivation guide before the card, and card-fresh load equalled card-less. So
+in 1.3.0 a saved card brings no load saving yet. Fix planned for 1.3.1 (read the card before
+surveying the repo).
+
 - 2026-11-09 · .claude-plugin/, README.md, utilities/help.md · Release prep: version 1.3.0 (24
   archetypes); `--send` and `:next --from` marked EXPERIMENTAL in the README and the :help picker.
+  CHANGELOG and release notes carry the card-load known issue (K1).
 - 2026-11-09 · archetypes/A-redesign.md, D-slice.md, X-investigate.md · Fix: redesign, slice and
   investigate name genprompt's tools bare (`archive.py`), never as `tools/…`, which graders read
   as a missing repo file (CP6 run 6 redesign grounding); redesign also describes a deliberately
