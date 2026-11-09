@@ -1,9 +1,10 @@
-# CP8 (1.4.0, candidate `02a5619`, eval freeze `7af76de`): **STOPPED at the L1 privacy grep (Q-e)**
+# CP8 (1.4.0, eval freeze `7af76de`): restart pending on a new candidate (02a5619 stopped at the L1 privacy grep)
 
 | | |
 |---|---|
 | Spend | **$0.5083 of $11.50** |
-| Status | L1 load PASSES every gate. The Z-1 privacy grep after L1 found **1 real-home hit** (redesign r1, final message). Q-e: any hit stops. L2, L3 and quality were not run |
+| Status | **Shoaib ruled (a): fix now and restart CP8.** A extends LOCK-UL to "never name the user-level directory anywhere in the output, including explanations". That's shared text, so there'll be a new candidate, and the full CP8 re-runs from L1 under the same eval freeze (7af76de), rules, guards and cap. Running total carried: $0.5083. Waiting for the merged SHA. |
+| 02a5619 (superseded) | L1 load PASSES every gate. The Z-1 privacy grep after L1 found **1 real-home hit** (redesign r1, final message). Q-e: any hit stops. L2, L3 and quality were not run |
 
 ## L1, card-less 5×3 (`--home empty`, dry-run): load PASS
 
