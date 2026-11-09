@@ -19,6 +19,7 @@
 | Archetype | D — slice execution (§5.D), with E-style rulings folded in |
 | Target repo | c:\...\<repo>  ·  branch main  ·  scope apps/mobile |
 | Follows | 2026-07-26-approve-...-r1-column-boundary-amendment.md |
+| Worker | Opus 5.5, effort high (advisory; /model) |
 ```
 `Follows` / `Amends` / `Depends on` / `Re-issues` is what makes the library a chain rather than a
 pile. Never omit it when one applies.

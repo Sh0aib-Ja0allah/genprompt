@@ -14,17 +14,17 @@ From `guide/03-blocks.md` (§4.20: named rows only; §4.21: tier O only).
 | `{…}` | A worker-side variable in a command the worker runs (`git show {sha}:{path}`); it stays in the prompt. |
 | `═══` banner | The only banner character, 79 wide. |
 
-### 4.1 Header (chat and archive, never inside the worker's block)
+### 4.1 Header (chat and archive, never in the worker's block)
 
 ```text
 | Date | <YYYY-MM-DD> |
 | Archetype | <letter(s)>: <name> (§5.<X>)<, with <Y>-style blocks folded in> |
 | Target repo | <abs path> · branch <branch> · scope <scope> |
 | Follows | <prior prompt filename>   (or Amends / Depends on / Re-issues / Reviews) |
+| Worker | <§4.21 Worker cell> (advisory; /model) |
 ```
 
-`Follows`, `Amends`, `Depends on`, `Re-issues` and `Reviews` make the library a chain, so
-include every one that applies (archive.py orders the file).
+Include every chain field that applies (archive.py orders the file).
 
 ### 4.2 Grounding notes (above the block; never sent to the worker)
 
@@ -165,20 +165,20 @@ Do not start coding until I approve the plan, unless I explicitly say "continue 
   commit) → WHAT YOU CANNOT DO → standing rules → DO/DON'T → definition of done → report spec →
   terminal imperative.
 - Wrap every block line at 100 characters: prose at a word, a list at its separator, the
-  GENPROMPT-REPORT spec at ` · ` (continuations indented two spaces; the worker prints its line
-  unwrapped). Only a lone unbreakable token (absolute path, URL, command) may run past 100.
+  GENPROMPT-REPORT spec at ` · ` (continuations indented two spaces; the worker prints it
+  unwrapped). Only a lone unbreakable token (path, URL, command) may run past 100.
 - Length budget: a hard cap in lines inside the block; the archetype names its tier; `--brief` is
   about 60%. A measured-large scope (a review of over 3 commits or 50 files, a plan or roadmap
   of over 20 items) may use +20%, row 21 naming the measure; any other overrun needs a one-line
   reason in the self-check.
 
-| Tier | Cap | Archetypes |
-|---|---|---|
-| Focused | 200 | A, B, C, H, K, L, M, O, P, U, V, W, X |
+| Tier | Cap | Archetypes | Worker |
+|---|---|---|---|
+| Focused | 200 | A, B, C, H, K, L, M, O, P, U, V, W, X | Opus 5.5, effort high, fast mode if attended |
 
-- Compression pass before archiving: cut what the worker already holds, restated contract
-  rules (point instead), praise, narrative closings and repeated DO/DON'T lines; keep every gate,
-  file:line and stop-list item.
+- Compression pass before archiving: cut what the worker already holds, restated rules (point
+  instead), praise, closings and repeated DO/DON'T lines; keep every gate, file:line and
+  stop-list item.
 
 ### 4.22 Verify-at-start (volatile facts)
 
