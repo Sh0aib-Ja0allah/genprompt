@@ -6,6 +6,30 @@
 | Spend | **$5.7298 of $13** (re-baselines $4.6481 + CP7 card-less interrupted $0.5377 + card-less re-run $0.5440; $7.2702 left) |
 | Status | Re-baselines complete under Shoaib's X6 ruling. Every case PASSES all four gated graders 3/3 on its first run, so none escalated: 0 flips either way on both sides (X2). CP7 (candidate 2fad0fa) waits for the PE's GO |
 
+## Ruling (ii): one-time evidence, standalone (outside the frozen probe): **PASS**
+
+Driver: the scratch `onetime.py`, which imports evals/realuse/run.py's helpers read-only and doesn't
+edit them (X1 holds). Setup: 2fad0fa staged as gp-cand, the ledgerlite fixture, and one fresh sandbox
+GENPROMPT_HOME with no card. The request was plan without `--dry-run` (with `--go`), run twice in the
+same home on haiku. Spend: **$0.0529** (run 1 $0.0363, run 2 $0.0165). Traces:
+`C:/genprompt-probe/genprompt-probe-onetime-20261109-211753/`.
+
+| | run 1 (no card) | run 2 (same home) |
+|---|---|---|
+| `--where` card | absent | present |
+| derive.md read | yes | **no** |
+| rule bytes | 35,015 | **29,794** (the floor; ≤ X4 plan 30,615) |
+| card | **written** at `homes/onetime/generated-prompts/by-repo/fixture.profile.md`, plus shard `fixture.tsv` and the archived prompt | reused |
+| card lint (doctor.py `check_profiles`, GENPROMPT_HOME = the sandbox) | **0 ERROR, 0 WARN**: all §2.9 keys, key = filename, stamps `package.json@9c672ba ; CLAUDE.md@9c672ba` | — |
+| Stack line (honesty) | `card 0d, fresh (new)`, and a card was really written: **honest** | `card 0d, stamps fresh (package.json@9c672ba, CLAUDE.md@9c672ba both match …)`, with no "new": **honest** |
+
+- So the +5,221 B is paid once per repo. The next run in the same home reads no derive rules.
+- Run 1's real `archive.py` write is flagged under the probe's A5 rule (it allows only `--where` or
+  `--dry-run`). That's expected for a non-dry-run request. This run sits outside CP7's gates.
+- (i) Per the ruling, the 4/15 skip-derive runs are a stated 1.3.1 known issue, not a blocker. 3 of the
+  4 reasoned about `--dry-run`. B adds it to the notes.
+- Spend: $5.7298 + $0.0529 = **$5.7827 of $13**.
+
 ## Planner V-a / V-b (free, traces of 184529): V-a CLEAN, **V-b NOT CLEAN → STOPPED**
 
 **V-a: derive-readers vs non-readers.** The only extra rule Read in any run is derive.md.
