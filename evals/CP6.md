@@ -1,5 +1,65 @@
-# CP6: 1.3.0 candidate (INCOMPLETE: run 5 quality FAIL at plan, R4 rubric-scope)
+# CP6: 1.3.0 candidate (INCOMPLETE: run 6 quality FAIL at redesign, R4 rubric-grounding)
 
+Total CP6 spend: runs 1–5 and the extras $4.5788 (itemised in run 5 below) + run 6 card-less
+$0.0853 + plan $0.4672 + redesign $0.5626 = **$5.6939** of the $9.50 cap ($3.8061 left).
+
+## Run 6: candidate 6c3e60a (INCOMPLETE: quality FAIL at redesign, R4 rubric-grounding)
+
+| | |
+|---|---|
+| Candidate | `6c3e60a`, **frozen** (R5): 94f259e plus A's 9ae303b (the F template line "OUT OF SCOPE (do not plan or start): …"). Only archetypes/F-plan.md and the CHANGELOG changed |
+| Floors (S2) | **plan 30,059** (556 B under v1.1.0's 30,615) · fix 33,218 · redesign 31,559 · slice 32,307 · investigate 34,825. All but plan are unchanged from 94f259e |
+| Stands from earlier runs | fix's R4 PASS (run 5): everything fix loads is byte-identical to 94f259e (S1, PE's md5 check). Card-fresh, and the slice and investigate loads, stand from run 4 |
+| Cost | card-less plan $0.0853 + plan $0.4672 + redesign $0.5626 = **$1.1151** |
+| Status | **INCOMPLETE, R4 FAIL at redesign (rubric-grounding PASS → FAIL).** slice and investigate were not run |
+
+### Step 1: card-less plan: PASS ($0.0853)
+
+Per-run rule bytes 30,059 · 35,280 · 30,059, so the median is **30,059**: 556 B under v1.1.0
+and under v1.2.0's 41,367. derive.md was read in 1 of 3 runs. A1 PASS, A5 PASS.
+Trace: `C:/genprompt-probe/genprompt-probe-20261109-162748/`.
+
+### Step 2: quality (vs CP5 `2026-11-08T19-07-58Z`; rubric hashes equal per case)
+
+| Case | cap | cost | rubric-scope | rubric-grounding | cites-real | gates-exist | others |
+|---|---|---|---|---|---|---|---|
+| plan | $1.05 | $0.4672 | **PASS (PPP)**; CP5 PPP | PASS (PPP); CP5 PPP | PASS (21; CP5 20) | PASS (lint, test) | eval score 1 (CP5 1); skepticism PPP; line-length PASS; no-placeholders PASS; archive-valid 8/0/0 |
+| redesign | $1.19 | $0.5626 | PASS (PPP); CP5 PPP | **FAIL (FPF); CP5 PASS (PPP): REGRESSION** | PASS (23; CP5 17) | PASS (lint, test) | eval score 0.9 (CP5 1); skepticism PPP; line-length PASS; archive-valid 8/0/0 |
+
+- **plan passes R4.** A's OUT OF SCOPE line cured the scope regression (FFF → PPP).
+- **redesign fails R4 on rubric-grounding** (2 of 3 FAIL votes), so CP6 stops. slice and
+  investigate were not run. Results: `evals/results/2026-11-09T14-34-55Z` (plan),
+  `…14-37-07Z` (redesign).
+
+**Why redesign's grounding failed: offline, no spend, inference.** The redesign grounding
+rubric is the same shared text as fix's: FAIL if the response "cites a file that is not in the
+list" of 13 workspace files. Compared with CP5 (PPP) and CP6a-2 (PPP), the new redesign output
+has two names outside that list that the older ones don't:
+- **`tools/archive.py`**, in the closing advice: "run `python3 tools/archive.py --where`
+  yourself". That is the same flaw that took fix to FFF in run 4. A's 2b146ba told **L** to name
+  genprompt tools bare. It restored §4.6 and §4.13 to A but didn't add the bare-name rule to A
+  (archetypes/A-redesign.md changed by 2 lines, all for §4.6/§4.13). CP5 and CP6a-2 wrote bare
+  `archive.py`.
+- **`missing.json`**, in the behaviour matrix: "g) missing.json", a deliberately absent input
+  for the CLI's cannot-read path. That's legitimate test design, but it reads as a citation of a
+  file that doesn't exist. CP5 and CP6a-2 didn't use a named missing file.
+- Every other path and `path:line` is in the list and within range: cli.js:9–37, invoice.js:6–14,
+  format.js:3, package.json:6, scripts/lint.js:9 and :16, test/invoice.test.js:18.
+  `test/cli.test.js` is a file the prompt asks the worker to create, as at CP5.
+- With 2 of 3 votes FAIL, this is likely the same haiku reading as fix's. `tools/archive.py`
+  is the stronger trigger, since it alone took fix from PPP to FFF.
+
+**Options for Shoaib (none taken):**
+1. A extends the bare-tool-name rule from L to A (and, to avoid a third round, to D-slice and
+   X-investigate, the cases not run yet). The line is tiny; check the floors. That's a new
+   candidate: R5 for the touched cases means card-less redesign (plus slice and investigate if
+   touched), then quality on redesign, slice and investigate. The PASSes for fix and plan stand
+   if L and F are byte-identical.
+2. Optionally the matrix example too: a missing input described as "a path that does not
+   exist", not a filename. That's a wording choice for A.
+3. A Planner ruling on the haiku judge, which is a rule change.
+
+Run 5's total line, kept for the itemisation:
 Total CP6 spend: run 1 $0.5596 + V4 trace $0.0047 + run 2 $0.3228 + run 3 $0.6173 + replay
 $0.0169 + run 4 card-less $0.4977 + run 4 card-fresh (interrupted) $0.4877 + run 4 card-fresh
 re-run $0.4948 + run 4 quality fix $0.4492 + run 5 card-less $0.2262 + run 5 quality fix
