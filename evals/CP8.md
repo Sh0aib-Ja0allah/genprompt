@@ -76,3 +76,8 @@
 - The Reviewer is asked whether this L1's load results (above) can stand, so CP8 would continue from
   L2 on the new candidate, or whether L1 must re-run.
 - **On hold.** L1 is recorded as is, and $1.0264 is counted.
+
+**Re-graded under the new A5 rule** (CP8-plan §8):
+- **L1 on aa96986: A5 FAIL 1/15** (redesign r2, a REAL WRITE under --dry-run), with 0 counted
+  attempts. It is recorded as "**FAIL 1/15 on aa96986, remedied in <B's guard SHA>**".
+- L1's load is carried under P-a.

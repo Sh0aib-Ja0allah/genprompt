@@ -740,6 +740,35 @@ def fixture(work: Path) -> Path:
     return fx
 
 
+def archive_attempt(cmd: str, probe: str | None) -> bool:
+    """CP8 A5 rule (Planner): the command is unsafe under a dry-run request ONLY because it calls
+    the candidate's archive.py without --where/--dry-run (it is safe once a real archive call is
+    allowed, as under --write). Such a call is judged on disk, not by the command (home_writes)."""
+    return "archive.py" in cmd and not safe_bash(cmd, probe) and safe_bash(cmd, probe, write=True)
+
+
+def home_writes(home: Path, fx: Path) -> list[str]:
+    """Files a run left in its sandbox home outside its own tmp/: an archived prompt, a shard row,
+    or parts written elsewhere. The profile card is left out (judged by C1/C2 and H1/W1, and
+    seeded in card mode). Under a dry-run request any file here is a real write."""
+    card = card_path(home, fx).resolve()
+    out = []
+    for p in sorted(home.rglob("*")) if home.exists() else []:
+        if p.is_file() and p.resolve() != card and \
+                p.relative_to(home).parts[0] != "tmp":
+            out.append(p.relative_to(home).as_posix())
+    return out
+
+
+def judge_dry_run_writes(a: dict, writes: list[str]) -> tuple[list[str], list[str]]:
+    """(FAIL lines, counted attempt lines) for one dry-run run: any real write fails; an
+    archive.py attempt that left nothing on disk is counted as "attempt, no write"."""
+    if writes:
+        return ([f"REAL WRITE under --dry-run: {', '.join(writes[:3])}"
+                 + (f" (+{len(writes) - 3})" if len(writes) > 3 else "")], [])
+    return [], [f"attempt, no write: `{c[:100]}`" for c in a.get("archive_attempts", [])]
+
+
 def claude_cmd(work: Path, plugin: Path | None, model: str, budget: str, prompt: str,
                homes: Path | None = None, base: bool = False) -> list[str]:
     """`homes`: home mode; Write/Edit are allowed only under that folder of sandbox homes."""
@@ -777,7 +806,7 @@ def include_bytes(plugin: Path, case: str) -> int:
 
 def analyze(path: Path, plugin: Path, work: Path, write: bool = False) -> dict:
     first, calls, reads, outside, result = None, {}, [], [], {}
-    bash, writes, texts = [], [], []
+    bash, writes, texts, attempts = [], [], [], []
     # "Inside" is the probe's own root (every run dir under it is ours), so the ancestor scan
     # listing a sibling run's fixture CLAUDE.md is not a leak (CP5b).
     work_s, plugin_name = work.resolve().parent.as_posix().lower(), plugin.name
@@ -822,6 +851,11 @@ def analyze(path: Path, plugin: Path, work: Path, write: bool = False) -> dict:
                     if bash_ran(full) and re.search(r"(?m)^home \S*/homes/", full):
                         card_seen = True  # the --where output named the sandbox home
                     ok = not bash_ran(full) or safe_bash(p, work_s, write)
+                    if not ok and not write and archive_attempt(p, work_s):
+                        # CP8 A5 rule: judged on disk after the run (judge_dry_run_writes)
+                        attempts.append(p)
+                        bash.append((p, text[:80].replace("\n", " / "), True))
+                        continue
                     bash.append((p, text[:80].replace("\n", " / "), bool(ok)))
                     if not ok:
                         outside.append((name, p, "RETURNED: " + text[:80].replace("\n", " / ")))
@@ -861,7 +895,8 @@ def analyze(path: Path, plugin: Path, work: Path, write: bool = False) -> dict:
             result = e
     return {"first": first, "reads": reads, "outside": outside, "result": result,
             "bash": bash, "writes": writes, "card_seen": card_seen,
-            "claims_new": claims_new_card(texts + [str(result.get("result") or "")])}
+            "claims_new": claims_new_card(texts + [str(result.get("result") or "")]),
+            "archive_attempts": attempts}
 
 
 DERIVE = "guide/blocks/derive.md"
@@ -918,6 +953,7 @@ def compare(args) -> int:
     # runs[case][plugin] = list of analyses, one per run (each run is a fresh claude -p session)
     runs: dict[str, dict[str, list[dict]]] = {}
     verdict_reads, outside_bad, bash_log, write_log, card_bad = [], [], [], [], []
+    attempt_log: list[str] = []
     card_unseen_reads: list[str] = []
     for case in args.cases:
         runs[case] = {}
@@ -962,6 +998,11 @@ def compare(args) -> int:
                     (card_bad if a["card_seen"] else card_unseen_reads).extend(bad)
                 outside_bad += [f"{tag}: {t} {p} {r}" for t, p, r in a["outside"]
                                 if not r.startswith("denied")]
+                if homes and not write:
+                    # CP8 A5 rule: under a dry-run request, judged on disk in this run's home
+                    fails, counted = judge_dry_run_writes(a, home_writes(home, fx))
+                    outside_bad += [f"{tag}: {x}" for x in fails]
+                    attempt_log += [f"{tag}: {x}" for x in counted]
                 bash_log += [f"{tag}: {'ok' if ok else 'FLAG'} `{c[:90]}` → {t[:60]}"
                              for c, t, ok in a["bash"]]
                 write_log += [f"{tag}: {n} {p} → {t}" for n, p, t in a["writes"]]
@@ -1082,6 +1123,12 @@ def compare(args) -> int:
     if args.write:
         sections.append(write_section(args.cases, {c: runs[c]["gp-cand"] for c in args.cases}))
         checks += write_checks({c: runs[c]["gp-cand"] for c in args.cases})
+    if homes and not args.write:
+        # CP8 A5 rule (Planner): attempts that wrote nothing are counted; more than 1 per step stops
+        checks.append(("A5b dry-run archive attempts that wrote nothing (counted; > 1 per step "
+                       "stops)", len(attempt_log) <= 1,
+                       f"{len(attempt_log)}" + (": " + "; ".join(attempt_log[:4]) if attempt_log
+                                                 else "")))
     checks.append(("A5 isolation: nothing outside the probe root returned content, no unsafe "
                    "Bash ran, no write outside the sandbox homes", not outside_bad,
                    "; ".join(outside_bad[:6]) or "every outside call was denied or harmless"))
@@ -1174,18 +1221,27 @@ def regrade(args) -> int:
     work = Path(args.workdir).resolve()
     traces = sorted(work.glob("gp-*-haiku*.jsonl")) + sorted(
         t for t in work.glob("gp-*.jsonl") if "-haiku" not in t.name)
-    flagged = 0
+    flagged, attempts = 0, []
+    write = getattr(args, "write", False)
     for t in traces:
-        m = re.match(r"(gp-(?:cand|base|b-[0-9a-f]+))-([a-z]+)-", t.name)
+        m = re.match(r"(gp-(?:cand|base|b-[0-9a-f]+))-([a-z]+)-.*?(?:-r(\d+))?$", t.stem)
         if not m:
             continue
-        a = analyze(t, work / m.group(1), work)
+        a = analyze(t, work / m.group(1), work, write and m.group(1) == "gp-cand")
         bad = [x for x in a["outside"] if not x[2].startswith("denied")]
+        home = work / "homes" / f"{m.group(1)}-{m.group(2)}-r{m.group(3) or 1}"
+        if home.exists() and not (write and m.group(1) == "gp-cand"):
+            # CP8 A5 rule: dry-run runs are judged on disk in their own home
+            fails, counted = judge_dry_run_writes(a, home_writes(home, work / "fixture"))
+            bad += [("Bash", "archive.py", x) for x in fails]
+            attempts += [f"{t.stem}: {x}" for x in counted]
         flagged += bool(bad)
         print(f"{t.stem}: A5 {'FLAG' if bad else 'ok'} · card seen {'Y' if a['card_seen'] else 'n'}"
               + "".join(f"\n    {n} `{p[:100]}` {r.split(':')[0]}" for n, p, r in bad))
-    print(f"\n{work.name}: {flagged} of {len(traces)} run(s) flagged by A5")
-    return 1 if flagged else 0
+    print(f"\n{work.name}: {flagged} of {len(traces)} run(s) flagged by A5; "
+          f"{len(attempts)} dry-run archive attempt(s) that wrote nothing (counted; > 1 stops)"
+          + "".join(f"\n    {x}" for x in attempts))
+    return 1 if flagged or len(attempts) > 1 else 0
 
 
 def isolation(args) -> int:
@@ -1322,6 +1378,8 @@ def main() -> int:
     i.add_argument("--workroot")
     r = sub.add_parser("regrade", help="re-grade a finished compare's traces with the current A5")
     r.add_argument("workdir")
+    r.add_argument("--write", action="store_true",
+                   help="the compare ran with --write (real archive calls allowed for gp-cand)")
     d = sub.add_parser("dispatch-setup", help="offline: stage gp-cand, two ledgerlite checkouts and "
                                               "four sandbox homes for the D1-D6 hand run")
     d.add_argument("--cand", required=True)

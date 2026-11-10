@@ -794,3 +794,76 @@ class SeedCardLockULTest(unittest.TestCase):
         self.assertIsNotNone(m)
         self.assertIn(m.group(1), ("present", "unreadable", "none"))
         self.assertNotIn("~/", text)
+
+
+class DryRunAttemptRuleTest(unittest.TestCase):
+    """CP8 A5 rule (Planner): an archive.py real call under a dry-run request is judged on disk:
+    nothing written = "attempt, no write" (counted, > 1 per step stops); a real write = FAIL."""
+    ROOT = "C:/genprompt-probe" if run.os.name == "nt" else "/var/tmp/genprompt-probe"
+
+    def test_archive_attempt_is_only_the_archive_real_call(self):
+        arch = f"{self.ROOT}/w/gp-cand/tools/archive.py"
+        parts = f"{self.ROOT}/w/homes/h/tmp/p.json"
+        self.assertTrue(run.archive_attempt(f'python "{arch}" "{parts}"', self.ROOT))
+        self.assertFalse(run.archive_attempt(f'python "{arch}" --dry-run "{parts}"', self.ROOT))
+        self.assertFalse(run.archive_attempt(f'python "{arch}" --where', self.ROOT))
+        # anything else unsafe in the chain keeps it a plain A5 flag
+        self.assertFalse(run.archive_attempt(f'python "{arch}" "{parts}" && rm -rf x', self.ROOT))
+        self.assertFalse(run.archive_attempt(f'python "{arch}" "C:/elsewhere/p.json"', self.ROOT))
+        self.assertFalse(run.archive_attempt("ls", self.ROOT))
+
+    def test_home_writes_ignores_tmp_and_the_card(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            home, fx = Path(tmp) / "home", Path(tmp) / "fixture"
+            (home / "tmp").mkdir(parents=True)
+            (home / "tmp" / "p.json").write_text("{}", encoding="utf-8")
+            card = run.card_path(home, fx)
+            card.parent.mkdir(parents=True)
+            card.write_text("card", encoding="utf-8")
+            self.assertEqual(run.home_writes(home, fx), [])
+            (home / "generated-prompts" / "fixture").mkdir(parents=True)
+            (home / "generated-prompts" / "fixture" / "x.md").write_text("p", encoding="utf-8")
+            (card.parent / "fixture.tsv").write_text("row", encoding="utf-8")
+            self.assertEqual(run.home_writes(home, fx), ["generated-prompts/by-repo/fixture.tsv",
+                                                         "generated-prompts/fixture/x.md"])
+            self.assertEqual(run.home_writes(Path(tmp) / "nope", fx), [])
+
+    def test_judge(self):
+        a = {"archive_attempts": ["python archive.py p.json"]}
+        fails, counted = run.judge_dry_run_writes(a, [])
+        self.assertEqual(fails, [])
+        self.assertIn("attempt, no write", counted[0])
+        fails, counted = run.judge_dry_run_writes(a, ["generated-prompts/fixture/x.md"])
+        self.assertIn("REAL WRITE under --dry-run", fails[0])
+        self.assertEqual(counted, [])
+        # a real write fails even without a detected archive.py call (e.g. via the Write tool)
+        self.assertTrue(run.judge_dry_run_writes({"archive_attempts": []}, ["a.md"])[0])
+        self.assertEqual(run.judge_dry_run_writes({"archive_attempts": []}, []), ([], []))
+
+    def test_analyze_records_attempt_not_outside(self):
+        import json
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp).resolve() / "genprompt-probe" / "run-1"
+            work.mkdir(parents=True)
+            arch = (work / "gp-cand" / "tools" / "archive.py").as_posix()
+            parts = (work / "homes" / "h" / "tmp" / "p.json").as_posix()
+            cmd = f'python "{arch}" "{parts}"'
+            t = work / "t.jsonl"
+            t.write_text("\n".join([
+                json.dumps({"type": "assistant", "message": {"content": [
+                    {"type": "tool_use", "id": "b1", "name": "Bash", "input": {"command": cmd}}]}}),
+                json.dumps({"type": "user", "message": {"content": [
+                    {"type": "tool_result", "tool_use_id": "b1",
+                     "content": "DRY RUN (guard): nothing written"}]}})]), encoding="utf-8")
+            real, run.HOME = run.HOME, Path("C:/Users/nobody-here")
+            try:
+                dry = run.analyze(t, work / "gp-cand", work)
+                wr = run.analyze(t, work / "gp-cand", work, write=True)
+            finally:
+                run.HOME = real
+        self.assertEqual(dry["archive_attempts"], [cmd])
+        self.assertEqual(dry["outside"], [])
+        self.assertEqual(wr["archive_attempts"], [])   # --write runs: real calls are allowed
+        self.assertEqual(wr["outside"], [])
