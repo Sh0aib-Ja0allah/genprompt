@@ -90,3 +90,21 @@
   - r2's parts flags were `--go --dry-run`, so the guard would have caught that run. It prints
     "dry-run signalled in parts: not written", and its exit code equals the dry run's.
 - **L1 medians used as `--cardless` for L2:** slice 37,679 · fix 38,462 · redesign 37,120 · plan 34,921 · investigate 40,517.
+
+### L2, card-fresh 5×3 on bcb1e05: **PASS**
+
+`C:/genprompt-probe/genprompt-probe-20261110-021833/`, **$0.5628**. Running total: **$1.5892 of $11.50**.
+
+| Case | per-run rule bytes | median | Q-c limit (v1.3.1 card-fresh + 2%) | X3 (< L1) |
+|---|---|---|---|---|
+| slice | 32,368 ×3 | 32,368 | 33,107 | 32,368 < 37,679 |
+| fix | 33,151 ×3 | 33,151 | 33,906 | 33,151 < 38,462 |
+| redesign | 31,809 ×3 | 31,809 | 32,537 | 31,809 < 37,120 |
+| plan | 29,610 ×3 | 29,610 | 30,390 (and ≤ 30,615) | 29,610 < 34,921 |
+| investigate | 35,206 ×3 | 35,206 | 36,103 | 35,206 < 40,517 |
+
+- Validity: VALID 15/15.
+- C1 0/15, C2 PASS, X3 PASS on all five, Q-c PASS on all five.
+- A1 PASS, **A5b 0 attempts**, A5 PASS.
+- Every run sits on its case's floor.
+- **Z-1 privacy grep: 0 hits** (0 exempt) across parts, final messages and the seeded cards.
