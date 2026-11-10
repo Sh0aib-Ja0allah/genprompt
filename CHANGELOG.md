@@ -4,6 +4,27 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-10 · tools/tests/test_archive.py · 1.4.1 merge (enh/1.4.1-a + enh/1.4.1-b on v1.4.0):
+  two merge-gate tests. R11: home paths for a sibling repo, a reference repo and a split lane pass;
+  the temp dir and scratchpad, `~/.claude`, `.ssh`, `.aws`, `.gnupg`, `.kube` and `.docker` fail
+  (it fails against e0b6d26's wider rule). R13: pruning removes only old *.json directly in
+  `<GENPROMPT_HOME>/tmp/`, and nothing under `--dry-run` or `--where`. The dry-run guard's
+  byte-identical check now drops R11's one new `PASS  home-path` row before comparing.
+- 2026-11-10 · tools/doctor.py · R5 (1.4.1): `doctor --suite` measures each command's static
+  load (the command file plus every `@${CLAUDE_PLUGIN_ROOT}/` include) and ERRORs over its budget
+  (aa96986 floor + 2,000 B, rounded up to 500; plan 32,000, investigate 37,500, profile 53,000),
+  and WARNs when a load grows more than 5% over the previous release (pinned at aa96986 until
+  v1.4.0 is tagged). The PROTOCOL.md core-budget WARN stays.
+- 2026-11-10 · tools/archive.py · R11 (1.4.1, privacy): the archive writer FAILs, not WARNs, when
+  the file names the generator's environment or credentials in any spelling (absolute, Git Bash,
+  `~/`, `$HOME`): the OS temp dir (so the Claude scratchpad), `~/.claude`, `~/.ssh`, `.aws`,
+  `.gnupg`, `.kube`, `.docker`. Exempt first: the header's `path` value, the `Repo:` line and
+  anything at or under the repo. Other home paths (sibling worktrees, split lanes, the genprompt
+  home, `~/bin`) pass. Reported by line number, never echoed. A `user-level:` slot that is not
+  present/unreadable/none is a FAIL there too.
+- 2026-11-10 · tools/archive.py, README.md · R13 (1.4.1): after a clean run the archive writer
+  deletes parts files (*.json) directly in `~/.genprompt/tmp/` older than 7 days, never this
+  run's own file and never anything outside tmp/. README's "Where your files go" lists tmp/.
 - 2026-11-10 · tools/build_shims.py (`:auto` shim) · R12 (1.4.1): `:auto` with an empty request
   now shows the core six (slice, fix, commit, approve, redesign, next) instead of onboard, slice,
   next, review, fix and commit, matching the README, `:help` and the picker. +0 B on `:auto`.

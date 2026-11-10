@@ -81,14 +81,17 @@ class Helper(unittest.TestCase):
 
 class OneResolver(unittest.TestCase):
     """No tool resolves the home on its own: Path.home(), expanduser() and the GENPROMPT_HOME
-    variable appear in tools/*.py only inside doctor.genprompt_home()."""
+    variable appear in tools/*.py only inside doctor.genprompt_home() and doctor.user_home() (R11:
+    the user's own home, which archive.py only checks prompts against)."""
 
     PATTERN = re.compile(r"Path\.home\(|expanduser\(|environ[^\n]*GENPROMPT_HOME")
 
     def test_only_the_helper_resolves_the_home(self):
         tree = ast.parse((TOOLS / "doctor.py").read_text(encoding="utf-8"))
-        fn = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "genprompt_home")
-        allowed = range(fn.lineno, fn.end_lineno + 1)
+        fns = [n for n in tree.body if isinstance(n, ast.FunctionDef)
+               and n.name in ("genprompt_home", "user_home")]
+        self.assertEqual(len(fns), 2)
+        allowed = {no for fn in fns for no in range(fn.lineno, fn.end_lineno + 1)}
         stray = []
         for py in sorted(TOOLS.glob("*.py")):
             for no, line in enumerate(py.read_text(encoding="utf-8").splitlines(), 1):

@@ -235,6 +235,62 @@ class ProtocolSize(unittest.TestCase):
         self.assertIn("core budget", msgs[0])
 
 
+class Budgets(unittest.TestCase):
+    """R5: each command's static load (file + @${CLAUDE_PLUGIN_ROOT}/ includes) has a budget (ERROR
+    over it) and WARNs past +5% over the previous release's floor."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        (self.root / "commands").mkdir()
+        (self.root / "inc.md").write_bytes(b"y" * 900)
+        self.cmd = self.root / "commands" / "demo.md"
+        self.cmd.write_bytes(b"x" * 80 + b"\n@${CLAUDE_PLUGIN_ROOT}/inc.md\n")   # 111 + 900 = 1011
+        self.doc = load_doctor()
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def run_check(self, budget: int | None, base: int | None) -> list[tuple[str, str]]:
+        self.doc.findings.clear()
+        self.doc.check_budgets(self.root, {} if budget is None else {"demo": budget},
+                               {} if base is None else {"demo": base})
+        return [(sev, msg) for sev, _area, msg in self.doc.findings]
+
+    def test_static_bytes_count_the_file_and_its_includes(self):
+        self.assertEqual(self.doc.static_bytes(self.cmd, self.root), (1011, []))
+
+    def test_at_the_budget_and_within_growth_is_quiet(self):
+        self.assertEqual(self.run_check(1011, 963), [])          # 1011 / 963 = +4.98%
+
+    def test_over_the_budget_is_an_error(self):
+        out = self.run_check(1010, 1011)
+        self.assertEqual([s for s, _m in out], ["ERROR"], out)
+        self.assertIn("over its 1010 B budget", out[0][1])
+
+    def test_growth_over_five_percent_warns(self):
+        out = self.run_check(2000, 950)                          # +6.4%
+        self.assertEqual([s for s, _m in out], ["WARN"], out)
+        self.assertIn("6.4%", out[0][1])
+
+    def test_a_command_without_a_budget_or_a_missing_include_is_an_error(self):
+        self.assertEqual([s for s, _m in self.run_check(None, None)], ["ERROR"])
+        (self.root / "inc.md").unlink()
+        out = self.run_check(5000, None)
+        self.assertEqual([s for s, _m in out], ["ERROR"], out)
+        self.assertIn("does not exist", out[0][1])
+
+    def test_the_tables_cover_exactly_the_shipped_commands(self):
+        names = {p.stem for p in (ROOT / "commands").glob("*.md")}
+        self.assertEqual(set(self.doc.COMMAND_BUDGETS), names)
+        self.assertEqual(set(self.doc.FLOOR_BASE), names)
+
+    def test_this_repo_is_within_every_budget(self):
+        self.doc.findings.clear()
+        self.doc.check_budgets()
+        self.assertEqual([f for f in self.doc.findings if f[1] == "budget"], [])
+
+
 class Suite(unittest.TestCase):
     def test_suite_passes_on_this_repo(self):
         code, out = run_tool(DOCTOR, "--suite")
