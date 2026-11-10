@@ -33,6 +33,8 @@ to a worker, so a gap in the archive (a broken follows chain) is worse than a fl
 An existing file is never overwritten by accident (exit 3, nothing written). --replace is the
 deliberate fix-and-re-archive path: it overwrites that same file and rewrites its shard row in
 place (never a second row). --dry-run writes nothing and prints what it would write plus the lint.
+A parts file whose `flags` records --dry-run is always a dry run: without the CLI flag the run
+prints "dry-run signalled in parts: not written", then the dry-run output, and exits as one.
 GENPROMPT_HOME overrides the genprompt home (default ~/.genprompt), through doctor.genprompt_home().
 --where prints `home <absolute path>`, `local-rules <path> (present|absent)` and `card <path>
 (present|absent)` for the cwd's git work tree (`card none` outside one, or inside the genprompt
@@ -209,6 +211,14 @@ def main(argv: list[str]) -> int:
     except (OSError, ValueError) as exc:
         say(f"FAIL  input  {exc}")
         return EXIT_INPUT
+    # Dry-run guard (1.4.0 fix, CP8 L1): a parts file whose pinned `flags` vocabulary records
+    # --dry-run is never archived, even when the CLI flag was left off; the run is downgraded to a
+    # dry run and exits as one, so the generator does not enter §10.6 recovery. Only `flags`
+    # triggers it (no free-text match that could skip a real archive). Remaining gap: a generator
+    # that records neither --dry-run in flags nor passes it on the command line still writes.
+    if not dry and "--dry-run" in str(p.get("flags") or "").split():
+        say("dry-run signalled in parts: not written")
+        dry, replace = True, False
 
     cmd_by_letter = doctor.cmd_map()
     if not cmd_by_letter:

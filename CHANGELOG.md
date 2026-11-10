@@ -4,6 +4,11 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-10 · tools/archive.py · Fix: a parts file whose `flags` records `--dry-run` is never
+  archived, even when the command line omits `--dry-run` (CP8 L1: one redesign run archived for
+  real under a --dry-run request). The run becomes a dry run, prints "dry-run signalled in parts:
+  not written" and exits as the dry run would. Only `flags` triggers it; `--where` and a clean
+  `--dry-run` print byte-identical output to aa96986.
 - 2026-11-10 · guide/03-blocks.md §4.2 · LOCK-UL in all output: user-level is
   `present`/`unreadable`/`none` in all output, summary too, never a path to or in it (CP8 L1: a
   redesign closing note named the real user-level directory; lock, card and prompt were clean).

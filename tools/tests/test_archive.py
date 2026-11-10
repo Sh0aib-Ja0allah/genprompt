@@ -282,5 +282,114 @@ class ArchiveWriter(unittest.TestCase):
         self.assertTrue(self.file.exists())
 
 
+BASE_REF = "aa96986"          # the archive.py before the dry-run guard
+
+
+class DryRunGuard(unittest.TestCase):
+    """1.4.0 fix (CP8 L1): a parts file whose flags record --dry-run is never written, even without
+    the CLI flag; the run becomes a dry run. Only `flags` triggers it."""
+
+    LINE = "dry-run signalled in parts: not written"
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.home = Path(self._tmp.name) / "gp-home"
+        self.src = Path(self._tmp.name) / "parts.json"
+        self.file = self.home / "generated-prompts" / "lint-demo" / "2026-10-07-slice-s02-lint-pass.md"
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def run_archive(self, data: dict, *flags: str) -> tuple[int, str]:
+        self.src.write_text(json.dumps(data), encoding="utf-8")
+        return run_tool(ARCHIVE_PY, *flags, str(self.src), home=self.home)
+
+    def test_flags_dry_run_without_the_cli_flag_writes_nothing(self):
+        for flags in ("--dry-run", "--go --dry-run --brief"):
+            with self.subTest(flags=flags):
+                code, out = self.run_archive(parts(flags=flags))
+                self.assertEqual(code, 0, out)
+                self.assertEqual(out.splitlines()[0], self.LINE)
+                self.assertEqual(out.count(self.LINE), 1)
+                self.assertIn("DRY RUN: nothing written.", out)
+                self.assertNotIn("ARCHIVED", out)
+                self.assertFalse(self.home.exists(), "nothing may be written")
+
+    def test_replace_is_downgraded_too(self):
+        code, out = self.run_archive(parts(flags="--dry-run"), "--replace")
+        self.assertEqual(code, 0, out)
+        self.assertIn(self.LINE, out)
+        self.assertFalse(self.home.exists())
+
+    def test_downgraded_run_exits_as_the_dry_run_would(self):
+        bad = BODY.split("| # | Item |")[0]                     # no self-check table: lint FAIL
+        guarded = self.run_archive(parts(flags="--dry-run", body=bad))
+        plain = self.run_archive(parts(flags="--dry-run", body=bad), "--dry-run")
+        self.assertEqual(guarded[0], plain[0])
+        self.assertEqual(guarded[1], self.LINE + "\n" + plain[1])
+        self.assertFalse(self.home.exists())
+
+    def test_cli_dry_run_is_the_normal_dry_run(self):
+        code, out = self.run_archive(parts(flags="--dry-run"), "--dry-run")
+        self.assertEqual(code, 0, out)
+        self.assertNotIn(self.LINE, out)
+        self.assertIn("DRY RUN: nothing written.", out)
+        self.assertFalse(self.home.exists())
+
+    def test_parts_without_dry_run_still_write(self):
+        # protects real users and CP8 L3's --write runs
+        for i, flags in enumerate(("-", "--go --brief", "--dry-runner")):
+            with self.subTest(flags=flags):
+                self.home = Path(self._tmp.name) / f"gp-home{i}"
+                self.file = self.home / "generated-prompts" / "lint-demo" / "2026-10-07-slice-s02-lint-pass.md"
+                code, out = self.run_archive(parts(flags=flags))
+                self.assertEqual(code, 0, out)
+                self.assertNotIn(self.LINE, out)
+                self.assertIn("ARCHIVED", out)
+                self.assertTrue(self.file.exists())
+
+    def test_no_text_match_triggers_it(self):
+        body = BODY.replace("| 21 | Length | PASS | 24 lines, Slice cap 260 |",
+                            "| 21 | Length | PASS | 24 lines, Slice cap 260 |\n"
+                            "| 22 | Archive | N/A | dry run (--dry-run) |")
+        code, out = self.run_archive(parts(body=body))
+        self.assertEqual(code, 0, out)
+        self.assertIn("ARCHIVED", out)
+        self.assertTrue(self.file.exists())
+
+    def run_base(self, *args: str) -> tuple[int, str]:
+        """Run archive.py as it was at BASE_REF, as if it sat at tools/archive.py."""
+        src = subprocess.run(["git", "-C", str(ROOT), "show", f"{BASE_REF}:tools/archive.py"],
+                             capture_output=True, check=False)
+        if src.returncode != 0:
+            self.skipTest(f"{BASE_REF} is not in this clone")
+        old = Path(self._tmp.name) / "archive_base.py"
+        old.write_bytes(src.stdout)
+        boot = ("import sys; p, f = sys.argv[1], sys.argv[2]; sys.argv = [f] + sys.argv[3:]; "
+                "exec(compile(open(p, encoding='utf-8').read(), f, 'exec'), "
+                "{'__name__': '__main__', '__file__': f})")
+        env = dict(os.environ, GENPROMPT_HOME=str(self.home), PYTHONIOENCODING="utf-8",
+                   PYTHONDONTWRITEBYTECODE="1")
+        proc = subprocess.run([sys.executable, "-c", boot, str(old), str(ARCHIVE_PY), *args],
+                              cwd=str(ROOT), env=env, capture_output=True, check=False)
+        return proc.returncode, proc.stdout.decode("utf-8") + proc.stderr.decode("utf-8")
+
+    def run_new(self, *args: str) -> tuple[int, str]:
+        env = dict(os.environ, GENPROMPT_HOME=str(self.home), PYTHONIOENCODING="utf-8",
+                   PYTHONDONTWRITEBYTECODE="1")
+        proc = subprocess.run([sys.executable, str(ARCHIVE_PY), *args], cwd=str(ROOT), env=env,
+                              capture_output=True, check=False)
+        return proc.returncode, proc.stdout.decode("utf-8") + proc.stderr.decode("utf-8")
+
+    def test_where_and_a_clean_dry_run_are_byte_identical_to_the_base(self):
+        self.src.write_text(json.dumps(parts()), encoding="utf-8")
+        for args in (["--where"], ["--dry-run", str(self.src)]):
+            with self.subTest(args=args[0]):
+                base, new = self.run_base(*args), self.run_new(*args)
+                self.assertEqual(new, base)
+                self.assertEqual(base[0], 0, base[1])
+        self.assertFalse(self.home.exists())
+
+
 if __name__ == "__main__":
     unittest.main()
