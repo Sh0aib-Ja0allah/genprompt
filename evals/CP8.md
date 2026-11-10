@@ -69,3 +69,10 @@
     dry-run request.
   - Not seen in any of CP7's or 02a5619's dry-run runs.
 - L2, L3 and quality were not run. No remedy taken.
+
+**Ruling (PE): option (a).**
+- B is building a mechanical guard in `archive.py`: it refuses to write when the parts file's flags
+  record `--dry-run` but the CLI call lacks it. It's tools only, so the static rule bytes are unchanged.
+- The Reviewer is asked whether this L1's load results (above) can stand, so CP8 would continue from
+  L2 on the new candidate, or whether L1 must re-run.
+- **On hold.** L1 is recorded as is, and $1.0264 is counted.
