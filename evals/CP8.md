@@ -1,4 +1,4 @@
-# CP8 (1.4.0, eval freeze `7af76de`): restart pending on a new candidate (02a5619 stopped at the L1 privacy grep)
+# CP8 (1.4.0): COMPLETE on bcb1e05 - quality 5/5 PASS, load PASS; L3 item-3 gates Z-4 and W1 FAIL as recorded
 
 | | |
 |---|---|
@@ -209,3 +209,48 @@ printed "card new" while also saying "not written". Under the ruling, **"any of 
   As expected.
 - **Standing:** any further gate failure, quality included, means **hold 1.4.0** (no new ruling).
 - **Eval freeze:** this commit.
+
+## Quality on frozen `bcb1e05`: **PASS 5/5, no regression**
+
+Opus generator and judge; `--escalate --explain-budget 0.30 --explain-max-total 0.60`; J6 checked
+before each case (first + escalation + explain against $11.50). The plugin came from a temp worktree
+at bcb1e05, whose rubrics (evals/cases, build_cases.py) are identical to 57b0b67's. Eval freeze `e99a52d`.
+
+| Case | cost (judge) | scope | grounding | skepticism | cites-real | gates-exist | escalated | flips F→P / P→F | CP7 57b0b67 → CP8 | results |
+|---|---|---|---|---|---|---|---|---|---|---|
+| slice | $0.8779 ($0.2911) | PPP | PPP | PPP | PASS (45) | PASS (lint, test) | no | 0 / 0 | PASS → PASS | `2026-11-10T01-55-32Z` |
+| redesign | $0.7297 ($0.2396) | PPP | PPP | PPP | PASS (15) | PASS (lint, test) | no | 0 / 0 | PASS → PASS | `…01-58-33Z` |
+| plan | $0.6337 ($0.2478) | PPP | PPP | PPP | PASS (23) | PASS (lint, test) | no | 0 / 0 | PASS → PASS | `…02-00-51Z` |
+| fix | $0.8394 ($0.2166) | PPP | PPP | PPP | PASS (23) | PASS (lint, start, test) | no | 0 / 0 | PASS → PASS | `…02-02-46Z` |
+| investigate | $0.6687 ($0.2333) | PPP | PPP | PPP | PASS (16) | PASS (lint, start, test) | no | 0 / 0 | PASS → PASS | `…02-05-19Z` |
+
+- **R4: no regression** on any gated grader against CP7's 57b0b67 finals. **R3:** investigate passes all four.
+- **Escalation and explain:** 0 escalations, 0 flips. Auto-explain had no target ($0).
+- **Q-e privacy on the quality outputs: 0 non-exempt hits.** The 15 exempt hits are 3 per case: the
+  eval scaffold's target-repo path on the lock's Repo line, the prompt's `Repo:` line and the header
+  row. Investigate's write area is `{scratch dir}`.
+- Quality spend: $3.7494.
+
+## CP8 verdict
+
+**Quality and load PASS on `bcb1e05`, with item 3 (honest card state) NOT fully delivered.** The L3
+gates Z-4 and W1 FAILED as recorded. That failure was recorded under the rulings; the later amendment
+didn't turn it into a pass.
+
+| Area | Result |
+|---|---|
+| L1 card-less load | PASS (carried from aa96986 under P-a): derive 15/15, all within limits; A5 FAIL 1/15 there, remedied by bbdf689; 2 format misses (C1 amendment) |
+| L2 card-fresh load | PASS: all on floor, X3, Q-c, C1, C2, A5/A5b clean |
+| L3 `--write` | derive 15/15 · "card new" ⇔ written 15/15 · **Z-4 FAIL (card written 12/15) · W1 FAIL** (5 unverified stamps, 3 `not scanned`, 3 no-shard). The causes are dontAsk denials of Bash outside the shim grant (`; echo`, `git -C`, cat chains) |
+| Privacy (Q-e) | 0 hits after every step, and on the quality outputs (exemption only for the scaffold target path) |
+| Quality | PASS 5/5, R4 no regression, R3 PASS |
+
+**Spend: $5.8779 of $11.50.**
+- 02a5619 L1: $0.5083
+- aa96986 L1: $0.5181
+- L2: $0.5628
+- L3: $0.5393
+- quality: $3.7494
+
+Whether 1.4.0 ships with item 3 stated as partial is the Planner's / PE's call, given the standing
+"any further gate failure means hold". The L3 FAIL came before that rule and is recorded, not re-ruled.
