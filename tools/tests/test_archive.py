@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -381,14 +382,384 @@ class DryRunGuard(unittest.TestCase):
                               capture_output=True, check=False)
         return proc.returncode, proc.stdout.decode("utf-8") + proc.stderr.decode("utf-8")
 
+    # R11 (1.4.1) adds one lint row, "PASS  home-path ...", to every clean run on purpose. The guard
+    # must add nothing else, so that row is the only line dropped before the byte comparison.
+    HOME_PATH_ROW = re.compile(r"^PASS  home-path .*\r?\n", re.M)
+
     def test_where_and_a_clean_dry_run_are_byte_identical_to_the_base(self):
         self.src.write_text(json.dumps(parts()), encoding="utf-8")
         for args in (["--where"], ["--dry-run", str(self.src)]):
             with self.subTest(args=args[0]):
                 base, new = self.run_base(*args), self.run_new(*args)
-                self.assertEqual(new, base)
+                rows = len(self.HOME_PATH_ROW.findall(new[1]))
+                self.assertEqual(rows, 1 if args[0] == "--dry-run" else 0, new[1])
+                self.assertEqual((new[0], self.HOME_PATH_ROW.sub("", new[1])), base)
                 self.assertEqual(base[0], 0, base[1])
         self.assertFalse(self.home.exists())
+
+
+FAKE_HOME = r"C:\Users\gp-test-user" if os.name == "nt" else "/home/gp-test-user"
+SEP = "\\" if os.name == "nt" else "/"
+
+
+def under_home(*parts_: str) -> str:
+    return SEP.join((FAKE_HOME, *parts_))
+
+
+class SensitivePath(unittest.TestCase):
+    """R11 (scope ruling): the temp dir (so the scratchpad), ~/.claude and the credential folders FAIL
+    in any spelling; the repo, a split lane, a sibling worktree, the genprompt home and other home
+    paths pass. Path.home() points at a fake home (HOME, USERPROFILE) and the temp dir at a sandbox
+    folder (TMPDIR, TEMP, TMP); nothing reads the real ones."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        base = Path(self._tmp.name)
+        self.home = base / "gp-home"
+        self.temp = base / "fake-temp"
+        self.temp.mkdir()
+        self.file = self.home / "generated-prompts" / "lint-demo" / "2026-10-07-slice-s02-lint-pass.md"
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def run_archive(self, data: dict, *flags: str) -> tuple[int, str]:
+        src = self.home.parent / "parts.json"
+        src.write_text(json.dumps(data), encoding="utf-8")
+        env = dict(os.environ, GENPROMPT_HOME=str(self.home), PYTHONIOENCODING="utf-8",
+                   PYTHONDONTWRITEBYTECODE="1", HOME=FAKE_HOME, USERPROFILE=FAKE_HOME,
+                   TMPDIR=str(self.temp), TEMP=str(self.temp), TMP=str(self.temp))
+        try:
+            proc = subprocess.run([sys.executable, str(ARCHIVE_PY), *flags, str(src)], env=env,
+                                  capture_output=True, encoding="utf-8", errors="replace", check=False)
+            return proc.returncode, proc.stdout + proc.stderr
+        finally:
+            src.unlink()
+
+    def archive(self, grounding: str, repo: str = "/srv/repos/lint-demo", block_line: str = "",
+                *flags: str) -> tuple[int, str]:
+        body = BODY.replace("/srv/repos/lint-demo", repo).replace(
+            "Grounding: the gates come from package.json:7-9 (fixture).", grounding)
+        if block_line:
+            body = body.replace("WHAT YOU CANNOT DO:", f"{block_line}\n\nWHAT YOU CANNOT DO:")
+        # --replace by default, so one test can archive several variants under the same name
+        return self.run_archive(parts(path=repo, body=body), *(flags or ("--replace",)))
+
+    def assert_pass(self, *args, **kw):
+        code, out = self.archive(*args, **kw)
+        self.assertEqual(code, 0, out)
+        self.assertIn("PASS  home-path", out)
+
+    def assert_fail(self, *args, **kw):
+        code, out = self.archive(*args, **kw)
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL  home-path", out)
+        self.assertNotIn(FAKE_HOME, out)                   # reported by line number, never echoed
+        self.assertNotIn(str(self.temp), out)
+        return out
+
+    # must pass
+    def test_split_lane_workspace_passes(self):
+        repo = under_home("Work", "lint-demo")
+        self.assert_pass("Grounding: package.json:7-9.", repo,
+                         f"WORKSPACE: {under_home('Work', 'lint-demo-split-s02', 'w1')} (lane W1).")
+
+    def test_sibling_worktree_passes(self):
+        repo = under_home("Work", "lint-demo")
+        self.assert_pass(f"Grounding: {under_home('Work', 'lint-demo-wt-c')} is occupied by another "
+                         f"session; do not touch it.", repo)
+
+    def test_brief_under_the_genprompt_home_passes(self):
+        self.assert_pass(f"Grounding: the brief is {under_home('.genprompt', 'briefs', 'r1.md')}.")
+
+    def test_tilde_environment_fact_passes(self):
+        self.assert_pass("Grounding: composer runs as `php ~/bin/composer.phar` on this machine.")
+
+    def test_repo_scaffolded_under_the_temp_dir_passes(self):
+        repo = str(self.temp / "newapp")
+        self.assert_pass(f"Grounding: {repo}{SEP}package.json:7-9 (just scaffolded).", repo)
+
+    def test_other_home_paths_pass(self):
+        self.assert_pass(f"Grounding: {under_home('.config', 'gh')} and {under_home('Downloads', 'a.csv')} "
+                         f"and ~/.claude-mem/notes and {under_home('AppData', 'Roaming', 'x')}.")
+
+    # must fail
+    def test_scratchpad_in_autonomy_fails(self):
+        pad = SEP.join((str(self.temp), "claude", "abc123", "scratchpad", "notes.md"))
+        out = self.assert_fail("Grounding: package.json:7-9.", block_line=f"AUTONOMY: keep notes in {pad}.")
+        self.assertIn("ARCHIVED WITH ERRORS", out)
+        self.assertTrue(self.file.exists())
+
+    def test_home_appdata_temp_fails(self):
+        pad = under_home("AppData", "Local", "Temp", "claude", "abc", "scratchpad")
+        self.assert_fail("Grounding: package.json:7-9.", block_line=f"AUTONOMY: notes go in {pad}.")
+
+    def test_dot_claude_in_grounding_fails(self):
+        self.assert_fail(f"Grounding: read {under_home('.claude', 'CLAUDE.md')} for the rules.")
+
+    def test_tilde_spellings_fail(self):
+        self.assert_fail("Grounding: package.json:7-9.",
+                         block_line="AUTONOMY: keep notes in ~/AppData/Local/Temp/claude/abc/scratchpad.")
+        self.assert_fail("Grounding: read ~/.claude/CLAUDE.md for the rules.")
+
+    def test_home_variable_and_credential_folders_fail(self):
+        for g in ("Grounding: deploy key is $HOME/.ssh/id_ed25519.",
+                  "Grounding: profile in ${HOME}/.aws/credentials.",
+                  f"Grounding: {under_home('.kube', 'config')} selects the cluster.",
+                  "Grounding: ~/.docker/config.json and ~/.gnupg hold the logins."):
+            with self.subTest(g=g):
+                self.assert_fail(g)
+
+    def test_other_spellings_fail(self):
+        odd = FAKE_HOME.upper().replace("\\", "/") + "/.CLAUDE/settings.json"
+        self.assert_fail(f"Grounding: {odd}.")
+        if os.name == "nt":
+            self.assert_fail("Grounding: /c/Users/gp-test-user/.claude/settings.json.")
+
+    def test_dry_run_reports_it(self):
+        code, out = self.archive("Grounding: read ~/.claude/CLAUDE.md.", "/srv/repos/lint-demo", "",
+                                 "--dry-run")
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL  home-path", out)
+
+    def test_merge_gate_r11_ships_the_narrowed_scope(self):
+        """1.4.1 merge gate: 77c0b33's scope ships, not e0b6d26's wider "user's home outside the repo"
+        rule. Home paths for a sibling repo, a reference repo and a split lane pass; the OS temp dir
+        (scratchpad too), <home>/.claude and the credential folders fail."""
+        repo = under_home("Work", "lint-demo")
+        for name, grounding in (
+                ("sibling repo", f"Grounding: {under_home('Work', 'billing-api')} owns the client; "
+                                 f"do not edit it."),
+                ("reference repo", f"Grounding: mirror {under_home('Work', 'ui-kit', 'src', 'Button.tsx')}:12 "
+                                   f"(reference only)."),
+                ("split lane", f"Grounding: lane W2 works in {under_home('Work', 'lint-demo-split-s02', 'w2')}.")):
+            with self.subTest(must="pass", case=name):
+                self.assert_pass(grounding, repo)
+        fails = {
+            "temp dir": SEP.join((str(self.temp), "build.log")),
+            "scratchpad": SEP.join((str(self.temp), "claude", "abc123", "scratchpad", "notes.md")),
+            ".claude": under_home(".claude", "settings.json"),
+        }
+        for folder in (".ssh", ".aws", ".gnupg", ".kube", ".docker"):
+            fails[folder] = under_home(folder, "config")
+        for name, path in fails.items():
+            with self.subTest(must="fail", case=name):
+                self.assert_fail(f"Grounding: see {path}.", repo)
+
+    def test_user_level_path_is_a_fail_here(self):
+        code, out = self.archive("Grounding: user-level: /etc/claude/CLAUDE.md read.")
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL  user-level", out)
+        code, out = self.archive("Grounding: user-level: present.", "/srv/repos/lint-demo", "", "--replace")
+        self.assertEqual(code, 0, out)
+        self.assertIn("PASS  user-level", out)
+
+
+class TmpPrune(unittest.TestCase):
+    """R13: after a clean run, parts files in <home>/tmp/ older than 7 days go; nothing else does."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.home = Path(self._tmp.name) / "gp-home"
+        self.tmp = self.home / "tmp"
+        self.tmp.mkdir(parents=True)
+        self.old = time.time() - 8 * 86400
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def make(self, path: Path, old: bool, text: str = "{}") -> Path:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+        if old:
+            os.utime(path, (self.old, self.old))
+        return path
+
+    def test_prunes_only_old_parts_files_in_tmp(self):
+        stale = self.make(self.tmp / "stale.json", True)
+        fresh = self.make(self.tmp / "fresh.json", False)
+        other = self.make(self.tmp / "keep.txt", True, "x")
+        nested = self.make(self.tmp / "sub" / "deep.json", True)
+        outside = self.make(self.home / "outside.json", True)
+        current = self.make(self.tmp / "current.json", True, json.dumps(parts()))
+        os.utime(current, (self.old, self.old))
+        code, out = run_tool(ARCHIVE_PY, str(current), home=self.home)
+        self.assertEqual(code, 0, out)
+        self.assertIn("PRUNED    1 parts file(s)", out)
+        self.assertFalse(stale.exists())
+        for kept in (fresh, other, nested, outside, current):
+            self.assertTrue(kept.exists(), kept.name)
+
+    def test_no_prune_after_a_failed_or_dry_run(self):
+        stale = self.make(self.tmp / "stale.json", True)
+        bad = BODY.split("| # | Item |")[0]
+        src = self.make(self.tmp / "bad.json", False, json.dumps(parts(body=bad)))
+        self.assertEqual(run_tool(ARCHIVE_PY, str(src), home=self.home)[0], 1)
+        self.assertTrue(stale.exists())
+        src.write_text(json.dumps(parts(slug="s03-dry")), encoding="utf-8")
+        self.assertEqual(run_tool(ARCHIVE_PY, "--dry-run", str(src), home=self.home)[0], 0)
+        self.assertTrue(stale.exists())
+
+    def files(self) -> set[str]:
+        base = Path(self._tmp.name)
+        return {p.relative_to(base).as_posix() for p in base.rglob("*") if p.is_file()}
+
+    def test_merge_gate_r13_prunes_only_tmp_and_never_on_dry_run_or_where(self):
+        """1.4.1 merge gate: pruning deletes only old *.json directly under <GENPROMPT_HOME>/tmp/, and
+        nothing at all under --dry-run or --where. GENPROMPT_HOME is a fake home in a temp dir."""
+        base = Path(self._tmp.name)
+        outside = [self.make(self.home / "old-root.json", True),
+                   self.make(self.home / "generated-prompts" / "lint-demo" / "old.json", True),
+                   self.make(self.home / "generated-prompts" / "by-repo" / "lint-demo.tsv", True, "x"),
+                   self.make(self.tmp / "sub" / "deep.json", True),
+                   self.make(base / "beside-home" / "tmp" / "old.json", True)]
+        src = base / "parts.json"
+        src.write_text(json.dumps(parts()), encoding="utf-8")
+
+        def seed() -> list[Path]:
+            return [self.make(self.tmp / f"stale{i}.json", True) for i in range(3)]
+
+        stale = seed()
+        before = self.files()
+        code, out = run_tool(ARCHIVE_PY, str(src), home=self.home)
+        self.assertEqual(code, 0, out)
+        self.assertIn("PRUNED    3 parts file(s)", out)
+        gone = before - self.files()
+        self.assertEqual(gone, {p.relative_to(base).as_posix() for p in stale})
+        for kept in outside:
+            self.assertTrue(kept.exists(), kept.name)
+
+        src.write_text(json.dumps(parts(slug="s03-gate")), encoding="utf-8")
+        for args in (["--dry-run", str(src)], ["--where"]):
+            with self.subTest(args=args[0]):
+                seed()
+                before = self.files()
+                code, out = run_tool(ARCHIVE_PY, *args, home=self.home)
+                self.assertEqual(code, 0, out)
+                self.assertNotIn("PRUNED", out)
+                self.assertEqual(self.files(), before)
+
+    def test_no_tmp_folder_is_fine(self):
+        self.tmp.rmdir()
+        src = Path(self._tmp.name) / "p.json"
+        src.write_text(json.dumps(parts()), encoding="utf-8")
+        code, out = run_tool(ARCHIVE_PY, str(src), home=self.home)
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("PRUNED", out)
+
+
+# Card-by-tool (1.4.1): `archive.py --card` writes the profile card from the parts' `card` section,
+# with git stamps it takes itself, the LOCK-UL enum enforced, and one card-state line printed last
+# that is the lock's Stack `card` slot verbatim (CP9 matches it).
+class CardByTool(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        base = Path(self._tmp.name)
+        self.home = base / "home"
+        self.repo = base / "Shop_Front"
+        self.repo.mkdir()
+        (self.repo / "package.json").write_text("{}\n", encoding="utf-8")
+        (self.repo / "CLAUDE.md").write_text("# contract\n", encoding="utf-8")
+        self.card = self.home / "generated-prompts" / "by-repo" / "shop-front.profile.md"
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def git(self, *args: str) -> str:
+        return subprocess.run(["git", "-C", str(self.repo), "-c", "user.email=t@example.invalid",
+                               "-c", "user.name=t", "-c", "commit.gpgsign=false", *args],
+                              capture_output=True, encoding="utf-8", check=True).stdout.strip()
+
+    def commit_all(self) -> None:
+        self.git("init", "-q")
+        self.git("add", "package.json", "CLAUDE.md")
+        self.git("commit", "-q", "-m", "init")
+
+    def section(self, **over) -> dict:
+        c = {"repo": "Shop_Front", "path": str(self.repo), "derived": "2026-11-10",
+             "user_level": "none", "stamp_files": ["package.json", "CLAUDE.md"],
+             "ancestors": "none found", "stack": "node 22"}
+        c.update(over)
+        return c
+
+    def run_card(self, card: dict, *flags: str, **top) -> tuple[int, str]:
+        src = Path(self._tmp.name) / "card.json"
+        src.write_text(json.dumps({"card": card, **top}), encoding="utf-8")
+        return run_tool(ARCHIVE_PY, "--card", *flags, str(src), home=self.home)
+
+    @staticmethod
+    def card_lines(out: str) -> list[str]:
+        return [ln for ln in out.splitlines() if ln.startswith("card ")]
+
+    def test_writes_the_card_with_git_stamps_and_prints_card_new(self):
+        self.commit_all()
+        sha = self.git("log", "-1", "--format=%h", "--", "package.json")
+        code, out = self.run_card(self.section())
+        self.assertEqual(code, 0, out)
+        text = self.card.read_text(encoding="utf-8")
+        self.assertIn(f"stamp:    package.json@{sha} ; CLAUDE.md@{sha}\n", text)
+        self.assertIn("key:      shop-front\n", text)
+        self.assertIn("ancestors:   none found · user-level: none\n", text)
+        self.assertIn("gates:       NOT CACHED", text)
+
+    def test_printed_line_matches_the_written_card(self):
+        self.commit_all()
+        (self.repo / "package.json").write_text('{"x": 1}\n', encoding="utf-8")   # dirty
+        code, out = self.run_card(self.section())
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.card_lines(out), ["card new"])
+        self.assertEqual(out.strip().splitlines()[-1], "card new")
+        stamp_line = next(ln for ln in out.splitlines() if ln.startswith("stamp "))
+        written = next(ln for ln in self.card.read_text(encoding="utf-8").splitlines()
+                       if ln.startswith("stamp:"))
+        self.assertEqual(stamp_line.split(None, 1)[1], written.split(None, 1)[1])
+        self.assertIn(" dirty", written)
+
+    def test_user_level_outside_the_enum_is_refused_and_nothing_written(self):
+        self.commit_all()
+        for bad in ("~/.claude/CLAUDE.md", "not scanned", "Present"):
+            code, out = self.run_card(self.section(user_level=bad))
+            self.assertEqual(code, 2, out)
+            self.assertIn("user_level must be present, unreadable or none", out)
+            self.assertEqual(self.card_lines(out), [])
+            self.assertFalse(self.card.exists())
+        self.assertFalse((self.home / "generated-prompts").exists())
+
+    def test_no_repo_stamps_are_the_honest_unverified_string(self):
+        code, out = self.run_card(self.section())          # the folder is not a git work tree
+        self.assertEqual(code, 0, out)
+        front = self.card.read_text(encoding="utf-8")
+        self.assertIn("stamp:    package.json@unverified (git unavailable) ; "
+                      "CLAUDE.md@unverified (git unavailable)\n", front)
+        self.assertEqual(self.card_lines(out), ["card new"])
+        _c, dout = run_tool(DOCTOR, "--archive", home=self.home)
+        self.assertNotIn("stamp is not", dout)
+
+    def test_no_git_binary_stamps_are_the_honest_unverified_string(self):
+        self.commit_all()
+        src = Path(self._tmp.name) / "card.json"
+        src.write_text(json.dumps({"card": self.section()}), encoding="utf-8")
+        env = dict(os.environ, PATH="", GENPROMPT_HOME=str(self.home), PYTHONIOENCODING="utf-8")
+        proc = subprocess.run([sys.executable, str(ARCHIVE_PY), "--card", str(src)], cwd=str(ROOT),
+                              env=env, capture_output=True, encoding="utf-8", check=False)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("package.json@unverified (git unavailable)", self.card.read_text(encoding="utf-8"))
+
+    def test_dry_run_writes_nothing_and_says_so(self):
+        self.commit_all()
+        for flags, top in ((("--dry-run",), {}), ((), {"flags": "--go --dry-run"})):
+            code, out = self.run_card(self.section(), *flags, **top)
+            self.assertEqual(code, 0, out)
+            self.assertEqual(self.card_lines(out), ["card not written (--dry-run)"])
+            self.assertEqual(out.strip().splitlines()[-1], "card not written (--dry-run)")
+            self.assertFalse((self.home / "generated-prompts").exists())
+
+    def test_missing_field_or_newline_is_refused(self):
+        code, out = self.run_card(self.section(stamp_files=[]))
+        self.assertEqual(code, 2, out)
+        code, out = self.run_card(self.section(stack="a\nb"))
+        self.assertEqual(code, 2, out)
+        self.assertFalse(self.card.exists())
 
 
 if __name__ == "__main__":

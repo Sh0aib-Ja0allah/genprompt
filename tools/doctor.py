@@ -43,6 +43,15 @@ def genprompt_home(env: dict | None = None) -> Path:
     return home if home.is_absolute() else home.resolve()
 
 
+def user_home() -> Path | None:
+    """The user's own home directory (not the genprompt home), or None when it cannot be found.
+    archive.py uses it only to FAIL a prompt that names it (R11); nothing is read or written there."""
+    try:
+        return Path.home()
+    except (RuntimeError, KeyError):
+        return None
+
+
 GENPROMPT_HOME = genprompt_home()
 ARCHIVE = GENPROMPT_HOME / "generated-prompts"
 SHARDS = ARCHIVE / "by-repo"
@@ -60,6 +69,7 @@ SELF_CHECK_RE = re.compile(r"^\|\s*#\s*\|\s*Item\s*\|\s*Verdict\s*\|\s*Reason\s*
 RUNTIME_EXCLUDE = {"history", "examples", "commands", ".git", ".claude-plugin", ".github",
                    "generated-prompts", ".ruff_cache", "__pycache__"}
 PROFILE_KEYS = ("repo", "path", "key", "derived", "stamp")
+STAMP_OK = r"\S+@(?:[0-9a-f]{6,}|unverified \(git unavailable\)|untracked|missing)"
 BANNED = [
     (re.compile(r"\{\{[A-Z_]+\}\}"), "retired {{PLACEHOLDER}} syntax"),
 ]
@@ -69,6 +79,16 @@ PERSONAL_PATH = (re.compile(r"\b[A-Za-z]:[\\/]+Users[\\/]+(?!<)[\w.-]+|/(?:Users
 # LOCK-UL (1.4.0): the user-level CLAUDE.md is reported as present / unreadable / none, never by
 # path, because its path names the user's home (CP7 found it in locks, a card slot and grounding).
 USER_LEVEL_RE = re.compile(r"user-level:\s*(?!(?:present|unreadable|none)\b|<)([^\s,;·|)]+)", re.I)
+UL_PATHLIKE = re.compile(r"[\\/~$]|^[A-Za-z]:")
+
+
+def user_level_problem(m: re.Match) -> str:
+    """Say what is wrong with a user-level slot USER_LEVEL_RE matched: a path (never echoed, it
+    names the user's home) or a word off the vocabulary, such as CP8 W1's "not scanned"."""
+    if UL_PATHLIKE.search(m.group(1)):
+        return "is a path"
+    value = re.split(r"[,;·|)\n]", m.string[m.start(1):], maxsplit=1)[0].strip().strip("`")
+    return f'is "{value[:40]}", not one of present|unreadable|none (vocabulary miss)'
 
 findings: list[tuple[str, str, str]] = []
 info_counts: Counter[str] = Counter()
@@ -185,6 +205,7 @@ def check_suite() -> None:
     if protocol is not None and "GENPROMPT-PROTOCOL v3 LOADED" not in protocol:
         add("ERROR", "suite", "PROTOCOL.md lost its load marker line")
     check_protocol_size()
+    check_budgets()
     check_write_grants([cmd for _l, cmd, *_ in bs.ARCHETYPES] + [bs.ENTRY])
 
     picker =read(HOME / "archetypes" / "README.md", "suite") or ""
@@ -280,8 +301,9 @@ def check_write_grants(emitters: list[str], commands: Path = COMMANDS) -> None:
 
 # E-09c: every archetype command @-includes PROTOCOL.md, so its size is paid on every emission.
 # Budget: 1.2.0 (E-11b) was 16,800; E-09f cut PROTOCOL to 14,010 bytes, so 14,600 keeps the same
-# ~600 B headroom. Raise it only with a reason.
-PROTOCOL_MAX_BYTES = 14_600
+# ~600 B headroom. Raise it only with a reason. 1.4.1: 15,200 for the R4 untrusted-input rule
+# (1.4.1); per-command R5 budgets now govern (PROTOCOL 14,628, ~570 B headroom kept).
+PROTOCOL_MAX_BYTES = 15_200
 
 
 def check_protocol_size(path: Path = HOME / "PROTOCOL.md", limit: int = PROTOCOL_MAX_BYTES) -> None:
@@ -292,6 +314,67 @@ def check_protocol_size(path: Path = HOME / "PROTOCOL.md", limit: int = PROTOCOL
     if size > limit:
         add("WARN", "suite", f"PROTOCOL.md is {size} bytes, over the {limit}-byte core budget: move "
                              f"read-on-demand detail to its owning section with a 'Read only when' pointer")
+
+
+# R5 (1.4.1): the static load of every command, the command file plus every @${CLAUDE_PLUGIN_ROOT}/
+# include, is what a run pays before reading anything else. The command budgets catch a total
+# that grew too far (ERROR); PROTOCOL_MAX_BYTES above stays as the earlier, tighter signal on the
+# one file every archetype command shares. Budgets: the aa96986 floor + 2,000 B, rounded up to 500.
+COMMAND_BUDGETS = {
+    "approve": 32000, "audit": 33000, "auto": 24000, "cleanup": 33500, "commit": 31500,
+    "design": 34000, "docs": 31500, "doctor": 7500, "fix": 35500, "greenfield": 32000,
+    "help": 22500, "history": 20000, "hotfix": 34000, "investigate": 37500, "kickoff": 31500,
+    "learn": 24000, "next": 32500, "onboard": 34000, "perf": 33000, "plan": 32000,
+    "profile": 53000, "redesign": 34000, "release": 34000, "resume": 30500, "review": 41000,
+    "roadmap": 35000, "security": 35500, "slice": 34500, "test": 34000, "upgrade": 35000,
+}
+# The floors at the previous release (WARN past +5%). doctor runs no git, so they are pinned here;
+# re-measure and replace them (and FLOOR_BASE_REF) when the next release is tagged.
+FLOOR_BASE_REF = "aa96986"
+FLOOR_BASE = {
+    "approve": 29823, "audit": 30915, "auto": 21911, "cleanup": 31014, "commit": 29284,
+    "design": 31597, "docs": 29356, "doctor": 5165, "fix": 33151, "greenfield": 29645,
+    "help": 20068, "history": 17543, "hotfix": 31506, "investigate": 35206, "kickoff": 29485,
+    "learn": 21861, "next": 30142, "onboard": 31657, "perf": 30612, "plan": 29610,
+    "profile": 50747, "redesign": 31809, "release": 31799, "resume": 28253, "review": 38618,
+    "roadmap": 32515, "security": 33230, "slice": 32368, "test": 31649, "upgrade": 32591,
+}
+FLOOR_GROWTH_WARN = 0.05
+INCLUDE_RE = re.compile(r"@\$\{CLAUDE_PLUGIN_ROOT\}/([^\s`'\")]+)")
+
+
+def static_bytes(cmd_file: Path, root: Path = HOME) -> tuple[int, list[str]]:
+    """(the command file's bytes plus every @${CLAUDE_PLUGIN_ROOT}/ include's, missing includes)."""
+    data = cmd_file.read_bytes()
+    total, missing = len(data), []
+    for rel in INCLUDE_RE.findall(data.decode("utf-8", errors="replace")):
+        inc = root / rel
+        if inc.is_file():
+            total += inc.stat().st_size
+        else:
+            missing.append(rel)
+    return total, missing
+
+
+def check_budgets(root: Path = HOME, budgets: dict[str, int] | None = None,
+                  base: dict[str, int] | None = None) -> None:
+    budgets = COMMAND_BUDGETS if budgets is None else budgets
+    base = FLOOR_BASE if base is None else base
+    for p in sorted((root / "commands").glob("*.md")):
+        total, missing = static_bytes(p, root)
+        for rel in missing:
+            add("ERROR", "budget", f"commands/{p.name}: includes {rel}, which does not exist")
+        limit = budgets.get(p.stem)
+        if limit is None:
+            add("ERROR", "budget", f"commands/{p.name}: no static-load budget in COMMAND_BUDGETS (R5)")
+        elif total > limit:
+            add("ERROR", "budget", f"commands/{p.name}: static load {total} B is over its {limit} B "
+                                   f"budget (command file + includes; R5)")
+        prev = base.get(p.stem)
+        if prev and total > prev * (1 + FLOOR_GROWTH_WARN):
+            add("WARN", "budget", f"commands/{p.name}: static load {total} B grew "
+                                  f"{(total - prev) / prev:.1%} over {FLOOR_BASE_REF} ({prev} B), "
+                                  f"more than {FLOOR_GROWTH_WARN:.0%}")
 
 
 # E-18b: the Agensi bundle that tools/build_skill_bundle.py WOULD build must match the repo. No zip is
@@ -815,8 +898,8 @@ def lint_prompt(text: str, filename: str | None = None,
     if vc:
         res.append(("verdict-line", vc[0], vc[1]))
 
-    # user-level reported as a path (WARN: LOCK-UL, it names the user's home)
-    ul = [f"line {n}: user-level: {m.group(1)}" for n, ln in enumerate(lines, 1)
+    # user-level reported as a path or off the vocabulary (WARN: LOCK-UL, a path names the user's home)
+    ul = [f"line {n}: user-level {user_level_problem(m)}" for n, ln in enumerate(lines, 1)
           for m in USER_LEVEL_RE.finditer(ln)]
     res.append(("user-level", WARN if ul else PASS,
                 "; ".join(ul[:3]) + " (report present|unreadable|none, never a path)" if ul else
@@ -932,10 +1015,16 @@ def check_profiles(today: dt.date) -> None:
         except ValueError:
             add("WARN", "archive", f"profile {prof.name}: derived date missing or invalid")
         ul = USER_LEVEL_RE.search(text)
-        if ul:
-            add("WARN", "archive", f"profile {prof.name}: user-level is a path ({ul.group(1)}); "
+        if ul and user_level_problem(ul) == "is a path":
+            add("WARN", "archive", f"profile {prof.name}: user-level is a path; "
                                    f"report present|unreadable|none, never a path (LOCK-UL)")
-        if not re.search(r"\S+@[0-9a-f]{6,}", front.get("stamp", "")):
+        elif ul:
+            add("WARN", "archive", f"profile {prof.name}: user-level {user_level_problem(ul)}: "
+                                   f"run /genprompt:profile in that repo to re-derive the card")
+        # card-by-tool (1.4.1): archive.py --card writes `<file>@unverified (git unavailable)` when
+        # git is missing or the path is no work tree (and @untracked / @missing for a file with no
+        # commit). Those stamps are honest and never match Step 2's check, so they are not a WARN.
+        if not re.search(STAMP_OK, front.get("stamp", "")):
             add("WARN", "archive", f"profile {prof.name}: stamp is not <file>@<sha> (cannot be checked)")
 
 

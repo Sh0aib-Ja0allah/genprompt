@@ -1,6 +1,7 @@
 """genprompt archive writer: write one prompt file and its shard row, deterministically.
 
 Usage:  python3 tools/archive.py [--dry-run | --replace] [<parts.json> | -]   (default: stdin)
+        python3 tools/archive.py --card [--dry-run] [<parts.json> | -]   (write the profile card)
         python3 tools/archive.py --where   (print the resolved home; read-only, see below)
 
 The generator composes the parts; this tool does the writing, so the archive follows §10
@@ -28,7 +29,15 @@ to a worker, so a gap in the archive (a broken follows chain) is worse than a fl
      first gets the three §10 header lines).
   3. runs doctor's per-file lint (the same code as `doctor.py --prompt`) on the file as written
      and checks that the row parses back into the same 5 fields.
+     Two checks are stricter here than in the lint, because an archived prompt is pasted on (R11):
+     naming the generator's environment or credentials (the OS temp dir and so the Claude
+     scratchpad, ~/.claude, ~/.ssh, ~/.aws, ~/.gnupg, ~/.kube, ~/.docker) in any spelling is a
+     FAIL (home-path; the header's `path` value, a `Repo:` line and anything at or under the repo
+     are exempt; other home paths are fine), and a `user-level:` slot that is not
+     present/unreadable/none is a FAIL, not a WARN.
   FAIL -> "ARCHIVED WITH ERRORS" with every failure, exit 1. WARN only -> exit 0.
+  4. after a clean run (exit 0), parts files (*.json) directly in <home>/tmp/ older than 7 days are
+     deleted, never this run's own file and never anything outside <home>/tmp/ (R13).
 
 An existing file is never overwritten by accident (exit 3, nothing written). --replace is the
 deliberate fix-and-re-archive path: it overwrites that same file and rewrites its shard row in
@@ -41,6 +50,24 @@ GENPROMPT_HOME overrides the genprompt home (default ~/.genprompt), through doct
 root or home) and writes nothing, so the generator learns the home and reads a cached card
 before surveying the repo (E-21; 1.3.1 C1, card-first).
 
+--card (card-by-tool, 1.4.1) writes the profile card <home>/generated-prompts/by-repo/<key>.profile.md
+from the parts file's `card` section, in the §2.9 template's layout:
+  required  repo, path, derived (YYYY-MM-DD), user_level, stamp_files (the manifests and the
+            contract, repo-relative)
+  optional  key (default: the path's basename, lowercased, `_` and spaces turned into `-`), branch,
+            default_branch, scope, stack, role, contract, ancestors, truth, docnaming, code_roots,
+            forbidden, blockers ("-" when absent)
+  Stamps come from git, never from the generator: `<file>@<git log -1 --format=%h -- <file>>`, plus
+  ` dirty` when `git status` shows the file changed, or `<file>@untracked` when it has no commit
+  (`<file>@missing` when it does not exist).
+  With no git, or a path outside a git work tree, every stamp is exactly
+  `<file>@unverified (git unavailable)`; such a card never matches PROTOCOL Step 2's stamp check,
+  so it is re-derived every run. user_level must be present, unreadable or none (LOCK-UL): any
+  other value, a missing field or a newline in a field exits 2 and writes nothing. It prints one
+  card-state line, the value of the lock's Stack `card` slot: `card new` after a write, or
+  `card not written (--dry-run)` under --dry-run (or `--dry-run` in the parts' flags), which never
+  writes. An existing card is replaced: a card is a cache, not a record.
+
 Exit codes: 0 archived (warnings allowed) · 1 archived with errors (or dry run with errors) ·
 2 bad input, nothing written · 3 refused: the file exists and --replace was not given.
 Standard library only.
@@ -48,9 +75,14 @@ Standard library only.
 from __future__ import annotations
 
 import importlib.util
+import datetime as dt
 import json
 import re
+import os
+import subprocess
 import sys
+import tempfile
+import time
 from pathlib import Path
 
 sys.dont_write_bytecode = True
@@ -62,7 +94,123 @@ _spec.loader.exec_module(doctor)
 KEY_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 EXIT_OK, EXIT_ERRORS, EXIT_INPUT, EXIT_EXISTS = 0, 1, 2, 3
 BODY_PARTS = ("header_table", "grounding", "prompt", "self_check", "rule")
-USAGE = "usage: archive.py [--dry-run | --replace] [<parts.json> | -]  |  archive.py --where"
+USAGE = ("usage: archive.py [--dry-run | --replace] [<parts.json> | -]  |  "
+         "archive.py --card [--dry-run] [<parts.json> | -]  |  archive.py --where")
+USER_LEVELS = ("present", "unreadable", "none")
+CARD_REQUIRED = ("repo", "path", "derived", "user_level", "stamp_files")
+CARD_BODY = ("branch", "default_branch", "scope", "stack", "role", "contract", "ancestors", "truth",
+             "docnaming", "code_roots", "forbidden", "blockers")
+STAMP_NO_GIT = "unverified (git unavailable)"
+CARD_NEW, CARD_DRY = "card new", "card not written (--dry-run)"
+TMP_KEEP_DAYS = 7
+REPO_ANCHOR_RE = re.compile(r"^\W*Repo:")          # the prompt's `Repo:` anchor line (§4.14)
+PATH_CHAR = re.compile(r"[\w.-]")
+
+
+def _norm(path: str) -> str:
+    """Compare paths the same way everywhere: one forward slash per separator, lowercase."""
+    return re.sub(r"[\\/]+", "/", path).lower()
+
+
+def _forms(path: str) -> list[str]:
+    """A normalised path plus its Git Bash spelling (c:/users/x -> /c/users/x)."""
+    p = _norm(path).rstrip("/")
+    m = re.match(r"^([a-z]):(/.*)$", p)
+    return [p, f"/{m.group(1)}{m.group(2)}"] if m else [p]
+
+
+# R11 (scope ruling): only the generator's environment and credentials FAIL. The temp dir covers
+# the Claude scratchpad; AppData as a whole, .config, Downloads, the genprompt home and every
+# other home path are fine. Known gap, accepted (evals only): a split workspace beside a repo that
+# itself sits in the temp dir (<tmp>/app-split-s02/w1 next to <tmp>/app) FAILs, because only the
+# repo path and what is under it are exempt.
+SENSITIVE_UNDER_HOME = (".claude", ".ssh", ".aws", ".gnupg", ".kube", ".docker", "appdata/local/temp")
+
+
+def sensitive_roots() -> list[str]:
+    """Every spelling (normalised) of the paths a prompt must not name: <home>/<each of
+    SENSITIVE_UNDER_HOME> absolute, Git Bash, ~/ and $HOME forms, and the OS temp dir."""
+    out = []
+    home = doctor.user_home()
+    for tail in SENSITIVE_UNDER_HOME:
+        if home is not None:
+            out += _forms(f"{home}/{tail}")
+        out += [f"~/{tail}", f"$home/{tail}", f"${{home}}/{tail}"]
+    try:
+        tmp = tempfile.gettempdir()
+        for t in {tmp, os.path.realpath(tmp)}:
+            out += _forms(t)
+    except OSError:
+        pass
+    return sorted({r for r in out if "/" in r and not re.fullmatch(r"/?[a-z]?:?/?", r)},
+                  key=len, reverse=True)
+
+
+def _names(ln: str, root: str, repos: list[str]) -> bool:
+    """True when the normalised line names root (whole path segments) outside every repo form."""
+    start = 0
+    while (i := ln.find(root, start)) >= 0:
+        start = i + 1
+        end = i + len(root)
+        if (end < len(ln) and PATH_CHAR.match(ln[end])) or (i > 0 and PATH_CHAR.match(ln[i - 1])):
+            continue                                   # ~/.claude-mem, src/tmp: not the root
+        if any(ln.startswith(r, i) and (i + len(r) == len(ln) or not PATH_CHAR.match(ln[i + len(r)]))
+               for r in repos):
+            continue                                   # at or under the repo: exempt first
+        return True
+    return False
+
+
+def sensitive_path_lines(text: str, repo_path: str, roots: list[str]) -> list[int]:
+    """Line numbers naming a sensitive root (R11). Exempt: the line-1 header's `path=` value, a
+    `Repo:` anchor line, and anything at or under the repo path."""
+    repos = [r for r in _forms(repo_path or "") if r]
+    hits = []
+    for n, raw in enumerate(text.splitlines(), 1):
+        if n == 1 and raw.startswith("<!-- genprompt"):
+            raw = re.sub(r"(\|\s*path=)[^|]*", r"\1", raw)
+        if REPO_ANCHOR_RE.match(raw):
+            continue
+        ln = _norm(raw)
+        if any(_names(ln, root, repos) for root in roots):
+            hits.append(n)
+    return hits
+
+
+def archive_checks(text: str, name: str, p: dict, cmd_by_letter: dict[str, str]) -> list:
+    """doctor's prompt lint, with the user-level WARN raised to FAIL, plus the home-path check."""
+    res = [(c, doctor.FAIL if c == "user-level" and s == doctor.WARN else s, d)
+           for c, s, d in doctor.lint_prompt(text, name, cmd_by_letter)]
+    hits = sensitive_path_lines(text, p.get("path") or "", sensitive_roots())
+    res.append(("home-path", doctor.FAIL if hits else doctor.PASS,
+                f"line {', '.join(map(str, hits[:5]))}: names the temp dir or scratchpad, ~/.claude "
+                f"or a credential folder (use a {{slot}})" if hits else
+                "no temp, ~/.claude or credential path"))
+    return res
+
+
+def prune_tmp(home: Path, keep: Path | None, now: float | None = None) -> int:
+    """Delete parts files (*.json) directly in <home>/tmp/ older than TMP_KEEP_DAYS (R13). Never
+    this run's file, never a link, never anything that resolves outside <home>/tmp/."""
+    tmp = home / "tmp"
+    if tmp.is_symlink() or not tmp.is_dir():
+        return 0
+    tmp_r = tmp.resolve()
+    keep_r = keep.resolve() if keep is not None else None
+    cutoff = (time.time() if now is None else now) - TMP_KEEP_DAYS * 86400
+    gone = 0
+    for f in tmp.iterdir():
+        try:
+            if f.suffix.lower() != ".json" or f.is_symlink() or not f.is_file():
+                continue
+            r = f.resolve()
+            if r.parent != tmp_r or r == keep_r or f.stat().st_mtime >= cutoff:
+                continue
+            f.unlink()
+            gone += 1
+        except OSError:
+            continue
+    return gone
 
 
 def say(msg: str = "") -> None:
@@ -187,6 +335,121 @@ def report_lint(results) -> tuple[int, int]:
             sum(1 for _c, s, _d in results if s == doctor.WARN))
 
 
+# --- card-by-tool (1.4.1) -------------------------------------------------------------------------
+
+def _git(repo: str, *args: str) -> str | None:
+    """stdout of a read-only git call in repo, or None when git is missing or the call fails."""
+    try:
+        proc = subprocess.run(["git", "--no-optional-locks", "-C", repo, *args], capture_output=True,
+                              encoding="utf-8", errors="replace", timeout=30, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return proc.stdout if proc.returncode == 0 else None
+
+
+def card_stamps(repo: str, files: list[str]) -> list[str]:
+    """One `<file>@<short sha>[ dirty]` per file, from git. No git or no work tree: every stamp is
+    `<file>@unverified (git unavailable)`. A file with no commit is `<file>@untracked` (or
+    `<file>@missing` when it does not exist)."""
+    if not Path(repo).is_dir() or (_git(repo, "rev-parse", "--is-inside-work-tree") or "").strip() != "true":
+        return [f"{f}@{STAMP_NO_GIT}" for f in files]
+    out = []
+    for f in files:
+        sha = _git(repo, "log", "-1", "--format=%h", "--", f)
+        if sha is None:
+            out.append(f"{f}@{STAMP_NO_GIT}")
+            continue
+        sha = sha.strip()
+        if not sha:
+            out.append(f"{f}@{'untracked' if (Path(repo) / f).exists() else 'missing'}")
+            continue
+        dirty = (_git(repo, "status", "--porcelain", "--", f) or "").strip()
+        out.append(f"{f}@{sha}" + (" dirty" if dirty else ""))
+    return out
+
+
+def card_problems(c) -> list[str]:
+    """Why a card section cannot be written (nothing is written then)."""
+    if not isinstance(c, dict):
+        return ["the parts file has no `card` object"]
+    out = [f"card: missing field: {k}" for k in CARD_REQUIRED if not c.get(k)]
+    ul = c.get("user_level")
+    if ul and ul not in USER_LEVELS:
+        out.append(f"card: user_level must be present, unreadable or none, never a path or other "
+                   f"value (LOCK-UL); got {ul!r}")
+    files = c.get("stamp_files")
+    if files and (not isinstance(files, list) or not all(isinstance(f, str) and f.strip() for f in files)):
+        out.append("card: stamp_files must be a list of repo-relative file names")
+    if c.get("derived") and not doctor.DATE_RE.match(str(c["derived"])):
+        out.append(f"card: derived {c['derived']!r} is not YYYY-MM-DD")
+    key = c.get("key") or card_key(str(c.get("path") or ""))
+    if not KEY_RE.match(key):
+        out.append(f"card: key {key!r} is not lowercase kebab-case (§10.1)")
+    for k, v in c.items():
+        if k != "stamp_files" and not isinstance(v, str):
+            out.append(f"card: {k} must be a string")
+        elif isinstance(v, str) and ("\n" in v or "\r" in v):
+            out.append(f"card: {k} contains a newline, which would break the card")
+    return out
+
+
+def card_key(path: str) -> str:
+    """derive.md step 7: the directory basename, lowercased, `_` and spaces turned into `-`."""
+    return re.sub(r"[_ ]", "-", re.split(r"[\\/]", path.rstrip("\\/"))[-1].lower()) if path else ""
+
+
+def card_text(c: dict, stamps: list[str]) -> str:
+    """The card in the §2.9 template's layout (guide/01-target-profile.md)."""
+    v = {k: (c.get(k) or "-") for k in CARD_BODY}
+    return ("---\n"
+            f"repo:     {c['repo']}\n"
+            f"path:     {c['path']}\n"
+            f"key:      {c.get('key') or card_key(c['path'])}\n"
+            f"derived:  {c['derived']}\n"
+            f"stamp:    {' ; '.join(stamps)}\n"
+            "---\n"
+            f"branch:          {v['branch']}\n"
+            f"default_branch:  {v['default_branch']}\n"
+            f"scope:       {v['scope']}\n"
+            f"stack:       {v['stack']}\n"
+            f"role:        {v['role']}\n"
+            f"contract:    {v['contract']}\n"
+            f"ancestors:   {v['ancestors']} · user-level: {c['user_level']}\n"
+            f"truth:       {v['truth']}\n"
+            f"docnaming:   {v['docnaming']}\n"
+            f"code_roots:  {v['code_roots']}\n"
+            f"forbidden:   {v['forbidden']}\n"
+            f"blockers:    {v['blockers']}\n"
+            "gates:       NOT CACHED: always re-derived at runtime (§2.5)\n")
+
+
+def write_card(p: dict, dry: bool) -> int:
+    """--card: write (or, dry, only show) the profile card; print the lock's card-state line last."""
+    c = p.get("card")
+    problems = card_problems(c)
+    for msg in problems:
+        say(f"FAIL  card  {msg}")
+    if problems:
+        say("CARD NOT WRITTEN: fix the card section and re-run.")
+        return EXIT_INPUT
+    stamps = card_stamps(c["path"], [f.strip() for f in c["stamp_files"]])
+    text = card_text(c, stamps)
+    card = doctor.genprompt_home() / "generated-prompts" / "by-repo" / f"{c.get('key') or card_key(c['path'])}.profile.md"
+    if any(s.endswith(f"@{STAMP_NO_GIT}") for s in stamps):
+        say(f"WARN  card  git unavailable: stamps are '{STAMP_NO_GIT}', so this card is re-derived every run")
+    if dry:
+        say(f"DRY RUN: would write {card}")
+        sys.stdout.write(text)
+        say(CARD_DRY)
+        return EXIT_OK
+    card.parent.mkdir(parents=True, exist_ok=True)
+    card.write_text(text, encoding="utf-8", newline="\n")
+    say(f"CARD      {card}")
+    say(f"stamp     {' ; '.join(stamps)}")
+    say(CARD_NEW)
+    return EXIT_OK
+
+
 def main(argv: list[str]) -> int:
     reconfigure = getattr(sys.stdout, "reconfigure", None)
     if callable(reconfigure):
@@ -201,11 +464,21 @@ def main(argv: list[str]) -> int:
         say(f"local-rules {rules.as_posix()} ({'present' if rules.is_file() else 'absent'})")
         say(cwd_card(home))
         return EXIT_OK
-    dry, replace = "--dry-run" in argv, "--replace" in argv
-    rest = [a for a in argv if a not in ("--dry-run", "--replace")]
-    if len(rest) > 1 or any(a.startswith("--") for a in rest) or (dry and replace):
+    dry, replace, card = "--dry-run" in argv, "--replace" in argv, "--card" in argv
+    rest = [a for a in argv if a not in ("--dry-run", "--replace", "--card")]
+    if len(rest) > 1 or any(a.startswith("--") for a in rest) or (dry and replace) or (card and replace):
         say(USAGE)
         return EXIT_INPUT
+    if card:
+        try:
+            p = load_parts(rest[0] if rest else None)
+        except (OSError, ValueError) as exc:
+            say(f"FAIL  input  {exc}")
+            return EXIT_INPUT
+        if not dry and "--dry-run" in str(p.get("flags") or "").split():
+            say("dry-run signalled in parts: not written")
+            dry = True
+        return write_card(p, dry)
     try:
         p = load_parts(rest[0] if rest else None)
     except (OSError, ValueError) as exc:
@@ -253,7 +526,7 @@ def main(argv: list[str]) -> int:
             exists = " (exists: needs --replace)" if target.exists() else ""
             say(f"would write  {target}  ({len(text.splitlines())} lines){exists}")
             say(f"line 1       {text.splitlines()[0]}")
-            fails, _warns = report_lint(doctor.lint_prompt(text, target.name, cmd_by_letter))
+            fails, _warns = report_lint(archive_checks(text, target.name, p, cmd_by_letter))
         say(f"would update {shard} ({how})")
         say(f"row          {row}")
         return EXIT_ERRORS if fails else EXIT_OK
@@ -268,7 +541,8 @@ def main(argv: list[str]) -> int:
     # 2. validate what is on disk: the file, and that the row parses back into the same 5 fields
     fails = warns = 0
     if target is not None:
-        fails, warns = report_lint(doctor.lint_prompt(target.read_text(encoding="utf-8"), target.name, cmd_by_letter))
+        fails, warns = report_lint(archive_checks(target.read_text(encoding="utf-8"), target.name, p,
+                                                  cmd_by_letter))
     shard_lines = shard.read_text(encoding="utf-8").splitlines()
     sep = doctor.shard_separator(shard_lines)
     rows = [doctor.split_row(ln, sep) for ln in shard_lines if ln.strip() and not ln.startswith("#")]
@@ -286,6 +560,10 @@ def main(argv: list[str]) -> int:
         return EXIT_ERRORS
     say(f"ARCHIVED  {where}" + (f"  ({warns} warning(s))" if warns else ""))
     say(f"ROW       {shard.name} ({how}): {row}")
+    src = Path(rest[0]) if rest and rest[0] != "-" else None
+    pruned = prune_tmp(doctor.genprompt_home(), src)
+    if pruned:
+        say(f"PRUNED    {pruned} parts file(s) older than {TMP_KEEP_DAYS} days from tmp/")
     return EXIT_OK
 
 

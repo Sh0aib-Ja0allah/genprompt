@@ -77,6 +77,20 @@ class PassingFile(Base):
         for ok in ("present", "unreadable", "none"):
             self.assertStatus(BASE + f"\n- Ancestors: none found · user-level: {ok}\n", "user-level", "PASS")
 
+    def test_user_level_detail_names_a_vocabulary_miss_and_never_echoes_a_path(self):
+        # CP8 W1: "not scanned" is a vocabulary miss, not a path; a path is reported, never echoed
+        def detail(slot: str) -> tuple[str, str]:
+            return lint(BASE + f"\n- Ancestors: none · user-level: {slot}\n")["user-level"]
+
+        status, text = detail("not scanned")
+        self.assertEqual(status, "WARN")
+        self.assertIn('user-level is "not scanned", not one of present|unreadable|none (vocabulary miss)',
+                      text)
+        status, text = detail("/home/someone/.claude")
+        self.assertEqual(status, "WARN")
+        self.assertIn("user-level is a path", text)
+        self.assertNotIn("someone", text)
+
     def test_lock_auto_is_a_valid_value(self):
         # E-11b: opt-in auto-go archives lock=auto
         self.assertStatus(BASE.replace("lock=accepted", "lock=auto", 1), "header-vocab", "PASS")

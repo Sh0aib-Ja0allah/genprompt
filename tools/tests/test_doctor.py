@@ -81,7 +81,8 @@ class ProfileFreshness(unittest.TestCase):
     """§2.9: freshness is the file@sha stamps; doctor (which cannot run git in the repo) only
     enforces the 90-day ceiling, so a 30-day-old card that used to WARN at 14 days is now valid."""
 
-    def run_with_cards(self, ages: dict[str, int], body: str = "stack: x\n") -> str:
+    def run_with_cards(self, ages: dict[str, int], body: str = "stack: x\n",
+                       stamp: str = "package.json@abc1234 ; CLAUDE.md@def5678") -> str:
         import datetime as _dt
         with tempfile.TemporaryDirectory() as tmp:
             shards = Path(tmp) / "generated-prompts" / "by-repo"
@@ -93,9 +94,22 @@ class ProfileFreshness(unittest.TestCase):
                 derived = (_dt.date.today() - _dt.timedelta(days=age)).isoformat()
                 (shards / f"{key}.profile.md").write_text(
                     f"---\nrepo: {key}\npath: /srv/{key}\nkey: {key}\nderived: {derived}\n"
-                    f"stamp: package.json@abc1234 ; CLAUDE.md@def5678\n---\n{body}", encoding="utf-8")
+                    f"stamp: {stamp}\n---\n{body}", encoding="utf-8")
             _code, out = run_tool(DOCTOR, "--archive", home=Path(tmp))
         return out
+
+    # card-by-tool (1.4.1), CP9 L4: archive.py --card writes this exact stamp with no git; doctor
+    # accepts it (and @untracked / @missing) without an ERROR or WARN, and still flags junk.
+    def test_card_with_the_honest_no_git_stamp_is_valid(self):
+        out = self.run_with_cards({"nogit": 3}, stamp="package.json@unverified (git unavailable) ; "
+                                                     "CLAUDE.md@unverified (git unavailable)")
+        self.assertEqual(error_lines(out), [], out)
+        self.assertNotIn("WARN ", out.split("Summary:")[0], out)
+        self.assertIn("Summary: 0 ERROR, 0 WARN", out)
+        out = self.run_with_cards({"newfile": 3}, stamp="package.json@untracked ; CLAUDE.md@missing")
+        self.assertIn("Summary: 0 ERROR, 0 WARN", out)
+        out = self.run_with_cards({"junk": 3}, stamp="package.json@unknown")
+        self.assertIn("profile junk.profile.md: stamp is not <file>@<sha>", out)
 
     def test_card_within_the_ceiling_is_valid(self):
         out = self.run_with_cards({"thirty": 30, "eightynine": 89})
@@ -111,9 +125,19 @@ class ProfileFreshness(unittest.TestCase):
         # LOCK-UL (1.4.0): the card slot is present / unreadable / none, never the user's home path
         out = self.run_with_cards({"leak": 5}, "ancestors:   none found · user-level: /home/someone/.claude/CLAUDE.md\n")
         self.assertIn("profile leak.profile.md: user-level is a path", out)
+        self.assertNotIn("/home/someone", out)              # the path is never echoed
         out = self.run_with_cards({"clean": 5}, "ancestors:   none found · user-level: present\n")
         self.assertNotIn("user-level is a path", out)
         self.assertIn("Summary: 0 ERROR, 0 WARN", out)
+
+    def test_card_user_level_vocabulary_miss_has_its_own_message(self):
+        # CP8 W1: three cards said `user-level: not scanned`. That is a word off the vocabulary, not a
+        # path, so doctor says so and names the fix.
+        out = self.run_with_cards({"miss": 5}, "ancestors:   none found · user-level: not scanned\n")
+        self.assertIn('profile miss.profile.md: user-level is "not scanned", not one of '
+                      'present|unreadable|none (vocabulary miss): run /genprompt:profile', out)
+        self.assertNotIn("is a path", out)
+        self.assertIn("Summary: 0 ERROR, 1 WARN", out)
 
 
 def load_doctor():
@@ -235,6 +259,62 @@ class ProtocolSize(unittest.TestCase):
         self.assertIn("core budget", msgs[0])
 
 
+class Budgets(unittest.TestCase):
+    """R5: each command's static load (file + @${CLAUDE_PLUGIN_ROOT}/ includes) has a budget (ERROR
+    over it) and WARNs past +5% over the previous release's floor."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        (self.root / "commands").mkdir()
+        (self.root / "inc.md").write_bytes(b"y" * 900)
+        self.cmd = self.root / "commands" / "demo.md"
+        self.cmd.write_bytes(b"x" * 80 + b"\n@${CLAUDE_PLUGIN_ROOT}/inc.md\n")   # 111 + 900 = 1011
+        self.doc = load_doctor()
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def run_check(self, budget: int | None, base: int | None) -> list[tuple[str, str]]:
+        self.doc.findings.clear()
+        self.doc.check_budgets(self.root, {} if budget is None else {"demo": budget},
+                               {} if base is None else {"demo": base})
+        return [(sev, msg) for sev, _area, msg in self.doc.findings]
+
+    def test_static_bytes_count_the_file_and_its_includes(self):
+        self.assertEqual(self.doc.static_bytes(self.cmd, self.root), (1011, []))
+
+    def test_at_the_budget_and_within_growth_is_quiet(self):
+        self.assertEqual(self.run_check(1011, 963), [])          # 1011 / 963 = +4.98%
+
+    def test_over_the_budget_is_an_error(self):
+        out = self.run_check(1010, 1011)
+        self.assertEqual([s for s, _m in out], ["ERROR"], out)
+        self.assertIn("over its 1010 B budget", out[0][1])
+
+    def test_growth_over_five_percent_warns(self):
+        out = self.run_check(2000, 950)                          # +6.4%
+        self.assertEqual([s for s, _m in out], ["WARN"], out)
+        self.assertIn("6.4%", out[0][1])
+
+    def test_a_command_without_a_budget_or_a_missing_include_is_an_error(self):
+        self.assertEqual([s for s, _m in self.run_check(None, None)], ["ERROR"])
+        (self.root / "inc.md").unlink()
+        out = self.run_check(5000, None)
+        self.assertEqual([s for s, _m in out], ["ERROR"], out)
+        self.assertIn("does not exist", out[0][1])
+
+    def test_the_tables_cover_exactly_the_shipped_commands(self):
+        names = {p.stem for p in (ROOT / "commands").glob("*.md")}
+        self.assertEqual(set(self.doc.COMMAND_BUDGETS), names)
+        self.assertEqual(set(self.doc.FLOOR_BASE), names)
+
+    def test_this_repo_is_within_every_budget(self):
+        self.doc.findings.clear()
+        self.doc.check_budgets()
+        self.assertEqual([f for f in self.doc.findings if f[1] == "budget"], [])
+
+
 class Suite(unittest.TestCase):
     def test_suite_passes_on_this_repo(self):
         code, out = run_tool(DOCTOR, "--suite")
@@ -242,8 +322,10 @@ class Suite(unittest.TestCase):
         self.assertEqual(code, 0, out)
 
     def test_protocol_is_within_its_final_budget(self):
-        # E-11b set the final 1.2.0 budget; the repo's PROTOCOL.md must fit it (0 WARN)
+        # E-11b set the final 1.2.0 budget; the repo's PROTOCOL.md must fit it (0 WARN).
+        # 1.4.1: raised to 15,200 for the R4 untrusted-input rule; R5 per-command budgets govern.
         doc = load_doctor()
+        self.assertEqual(doc.PROTOCOL_MAX_BYTES, 15_200)
         self.assertLessEqual((ROOT / "PROTOCOL.md").stat().st_size, doc.PROTOCOL_MAX_BYTES)
         _code, out = run_tool(DOCTOR, "--suite")
         self.assertIn("Summary: 0 ERROR, 0 WARN", out)

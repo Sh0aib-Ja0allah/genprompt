@@ -54,6 +54,7 @@ Phase 3: author ONE doc, `<PROFILE.docnaming: plan doc>`, with this TOC:
 Gates for later slices (stated here, not run): <PROFILE.gates>
 Constraints: no code changes, no commits.
 OUT OF SCOPE (do not plan or start): <item/ID/path> because <reason> (<file:line>); one per line.
+[INSERT §4.14 report header line: GENPROMPT-REPORT · Repo · Branch · HEAD · Prompt · Gates · Status]
 Then present the ordered slice plan in chat, and stop.
 START NOW with Phase 1 only.
 ```
