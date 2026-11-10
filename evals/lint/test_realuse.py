@@ -698,6 +698,30 @@ class WriteModeTest(unittest.TestCase):
         for t in not_new:
             self.assertFalse(run.claims_new_card([t]), t)
 
+    def test_claims_new_on_a_wrapped_stack_row(self):
+        # CP8 L3 slice r2 (030136), verbatim: the lock wraps the Stack row and "card new" lands on
+        # the indented continuation line (the Reviewer's finding).
+        lock = ("Scope       single root\n"
+                "Stack       Node.js, CommonJS, no runtime deps, node >=18, node:test · role "
+                "senior Node.js engineer\n"
+                "            · card new (written this run; stamps CLAUDE.md, package.json, "
+                "scripts/lint.js @9c672ba)\n"
+                "Contract    CLAUDE.md (root) · hard rules: never commit to main, feat/<slug> "
+                "branches;\n"
+                "            Conventional Commits; stage by path; no push or PR without OK; gates "
+                "green before commit")
+        self.assertTrue(run.claims_new_card([lock]))
+        rows = run.stack_rows(lock)
+        self.assertEqual(len(rows), 1)
+        self.assertNotIn("Contract", rows[0])            # the next lock row ends the Stack row
+        # "new" on a later row (not the Stack row's continuation) doesn't count
+        other = ("Stack       Node · role engineer\n            · card 0d, stamps fresh\n"
+                 "Contract    CLAUDE.md · new docs go in docs/")
+        self.assertFalse(run.claims_new_card([other]))
+        # a blank line or a fence also ends the row
+        self.assertFalse(run.claims_new_card(["Stack  Node · card 3d\n\n   card new"]))
+        self.assertFalse(run.claims_new_card(["Stack  Node · card 3d\n```\n   card new"]))
+
     def test_card_written_and_path(self):
         import tempfile
         self.assertTrue(run.card_written(None, "abc"))
@@ -867,3 +891,83 @@ class DryRunAttemptRuleTest(unittest.TestCase):
         self.assertEqual(dry["outside"], [])
         self.assertEqual(wr["archive_attempts"], [])   # --write runs: real calls are allowed
         self.assertEqual(wr["outside"], [])
+
+
+class FindRuleTest(unittest.TestCase):
+    """CP8 find rule (Planner): a find is not an A5 flag only if (a) no exec/write action, (b) every
+    start path is inside the probe root, (c) every output line is inside it, (d) no redirect or
+    pipe to a writer."""
+    ROOT = "C:/genprompt-probe" if run.os.name == "nt" else "/var/tmp/genprompt-probe"
+
+    def fx(self):
+        return f"{self.ROOT}/w/fixture"
+
+    def test_allowed_form(self):
+        cmd = (f'cd "{self.fx()}" && git status --porcelain -uall && find . -path ./node_modules '
+               f'-prune -o -path ./.git -prune -o -type f -print')
+        self.assertFalse(run.safe_bash(cmd, self.ROOT))          # the general rule still flags find
+        self.assertTrue(run.find_pass(cmd, "./src/cli.js\n./package.json", self.ROOT))
+        self.assertTrue(run.find_pass(f'find "{self.fx()}" -name "*.js"',
+                                      f"{self.fx()}/src/cli.js", self.ROOT))
+
+    def test_each_excluded_action_flags(self):
+        for act in sorted(run.FIND_BAD_ACTIONS):
+            arg = {"-exec": "-exec cat {} ;", "-execdir": "-execdir cat {} ;", "-ok": "-ok rm {} ;",
+                   "-okdir": "-okdir rm {} ;"}.get(act, f"{act} x")
+            self.assertFalse(run.find_pass(f"find . -type f {arg}", "./a.js", self.ROOT), act)
+
+    def test_home_start_with_empty_output_still_flags(self):
+        home = "C:/Users/someone" if run.os.name == "nt" else "/home/someone"
+        self.assertFalse(run.find_pass(f'find "{home}" -name x', "", self.ROOT))
+        self.assertFalse(run.find_pass("find ~ -name x", "", self.ROOT))
+
+    def test_dotdot_escape_flags(self):
+        self.assertFalse(run.find_pass("find ../.. -name x", "", self.ROOT))
+        self.assertFalse(run.find_pass("find . -name x", "../../secret.txt", self.ROOT))
+
+    def test_output_outside_root_flags(self):
+        out = "C:/Users/someone/x.txt" if run.os.name == "nt" else "/home/someone/x.txt"
+        self.assertFalse(run.find_pass("find . -name x", out, self.ROOT))
+
+    def test_redirect_or_writer_pipe_flags(self):
+        self.assertFalse(run.find_pass("find . -type f > list.txt", "", self.ROOT))
+        self.assertFalse(run.find_pass("find . -type f | tee list.txt", "./a.js", self.ROOT))
+        self.assertTrue(run.find_pass("find . -type f | wc -l", "3", self.ROOT))
+
+    def test_analyze_counts_a_passing_find(self):
+        import json
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp).resolve() / "genprompt-probe" / "run-1"
+            (work / "fixture").mkdir(parents=True)
+            cmd = f'cd "{(work / "fixture").as_posix()}" && find . -type f -print'
+            t = work / "t.jsonl"
+            t.write_text("\n".join([
+                json.dumps({"type": "assistant", "message": {"content": [
+                    {"type": "tool_use", "id": "b1", "name": "Bash", "input": {"command": cmd}}]}}),
+                json.dumps({"type": "user", "message": {"content": [
+                    {"type": "tool_result", "tool_use_id": "b1",
+                     "content": "./src/cli.js\n./package.json"}]}})]), encoding="utf-8")
+            real, run.HOME = run.HOME, Path("C:/Users/nobody-here")
+            try:
+                a = run.analyze(t, work / "gp-cand", work)
+            finally:
+                run.HOME = real
+        self.assertEqual(a["find_passes"], [cmd])
+        self.assertEqual(a["outside"], [])
+
+
+class SavedClaimTest(unittest.TestCase):
+    def test_claims_saved(self):
+        yes = [r"**Saved:** `C:\genprompt-probe\x\homes\h\generated-prompts\fixture\a.md`",
+               "Saved path: C:/genprompt-probe/x/a.md"]
+        no = ["**Saved path:** not saved. archive.py did not run",
+              r"**Saved path:** DRY RUN: nothing archived. Would be `C:\x.md`",
+              "Saved path: DRY RUN: nothing archived",
+              "**Saved path:** `DRY RUN: nothing archived`. To archive, run ...",
+              r"**Saved path:** nothing archived. The dry run would write `C:\x.md`",
+              "**Saved path**: not saved. To archive, run this yourself:"]
+        for t in yes:
+            self.assertTrue(run.claims_saved(t), t)
+        for t in no:
+            self.assertFalse(run.claims_saved(t), t)

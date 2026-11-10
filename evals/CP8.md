@@ -146,3 +146,50 @@ The lint WARNs are partly the probe's environment (denied git → unverified sta
 vocabulary gap (`not scanned`).
 
 Quality was not run.
+
+### L3 rulings (Planner) and the re-graded L1–L3, eval re-freeze (this commit)
+
+**Eval changes, pinned and tested** (`evals/realuse/run.py`):
+- **C1, the matcher:** `stack_rows()` joins a Stack row with its wrapped continuation lines (indented,
+  up to a blank line, a fence or the next lock row), and `claims_new_card()` reads those rows.
+  - Test: slice r2's real wrapped lines (030136), plus unwrapped forms.
+  - `claims_saved()` reads the closing "Saved: <path>" line. "not saved", "nothing archived",
+    "DRY RUN …" and "would write" don't count as a claim.
+  - `regrade` now reports false "card new" or saved claims per run against disk.
+- **Find rule:** `find_pass()` / `FIND_BAD_ACTIONS`. A find isn't an A5 flag only if ALL of these hold:
+  - (a) no `-exec`, `-execdir`, `-ok`, `-okdir`, `-delete`, `-fprint`, `-fprint0`, `-fprintf`, `-fls`;
+  - (b) every start path is inside the probe root (`~`, `$VAR`, `..` and outside absolute paths still flag);
+  - (c) every output path is inside the root;
+  - (d) no redirect and no pipe to a writer.
+
+  Passing finds are counted, not flagged. Tests cover an allowed form, each excluded action, a home
+  start with empty output (flagged), `..` escapes, output outside the root, and redirect or writer
+  pipes.
+
+**Re-grades with the same matcher and rules:**
+
+| Step | A5 | find passes | false "card new" / saved | Q-d |
+|---|---|---|---|---|
+| L1 (aa96986, 012950) | 1 FLAG (redesign r2 real write, remedied by bbdf689) | 0 | **2:** fix r1 `card new, not written (--dry-run)`; fix r3 `card new (not written: --dry-run)` | — |
+| L2 (bcb1e05, 021833) | 0 | 0 | 0 | — |
+| L3 (bcb1e05, 030136, `--write`) | **0** (fix r3's find now passes the rule, counted) | 1 | 0 | derive 15/15 · written 12/15 · "card new" ⇔ written **15/15** both ways |
+
+**Recorded per the rulings (not a pass):**
+- **Z-4 FAIL, card written 12/15.** Causes per run:
+  - redesign r2: git calls denied (a chain with cat/wc, then the `git -C` form) → no card;
+  - plan r3: the stamp chain denied as a whole → no card;
+  - investigate r2: gave up after two denials ("Bash is denied") → no card and no archive call.
+
+  Every denial is dontAsk against the shim's own Bash grant.
+- **W1 FAIL.**
+  - **5 cards with unverified stamps** (fix r1, fix r2, plan r1, redesign r1, slice r3): their git stamp
+    calls were denied (subshell or pipe parts, a pipe into grep, cat chains, `git -C`).
+  - **3 cards with `user-level: not scanned`**, outside the vocabulary.
+  - **3 cards with no shard**, because those runs' real archive call `archive.py <parts>; echo "exit=$?"`
+    was denied (echo isn't granted) and wasn't retried.
+- **No-archive 5/15:** fix r1, plan r2, plan r3 and slice r3 had the `; echo` suffix denied;
+  investigate r2 never called archive.py.
+
+**C1 ruling check:** L3 is 15/15 honest, but **L1 has 2 false "card new"**: two dry-run runs on aa96986
+printed "card new" while also saying "not written". Under the ruling, **"any of L1–L3 has a false
+'card new' → the ruling lapses and CP8 stops."** **STOPPED. Quality was not run.**
