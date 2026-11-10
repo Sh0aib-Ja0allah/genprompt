@@ -502,6 +502,15 @@ class BuildShims(unittest.TestCase):
         listed = auto[auto.index("these six commands"):auto.index("End with:")]
         self.assertEqual(re.findall(r"`:([a-z]+)` \(", listed), core)
 
+    # Card-by-tool (1.4.1): archive.py calls (--where, --card, the archive) run alone and bare, so a
+    # chained or cd-prefixed call is not denied by the allowed-tools pattern; a denied one is retried
+    # once bare.
+    def test_protocol_runs_archive_py_alone_and_bare(self):
+        proto = (ROOT / "PROTOCOL.md").read_text(encoding="utf-8")
+        boundary = proto[proto.index("**Write boundary (absolute).**"):proto.index("**Every worker repo")]
+        self.assertIn("- Run `archive.py` alone and bare (no `cd`, pipe or `&&`); if a call is denied, "
+                      "retry it once bare.", boundary)
+
     def test_check_fails_when_a_template_has_no_414_insert(self):
         arch = self.copy / "archetypes" / "H-commit.md"
         text = arch.read_text(encoding="utf-8")

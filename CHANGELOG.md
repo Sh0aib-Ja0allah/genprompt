@@ -4,6 +4,8 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-10 · PROTOCOL.md write boundary · Card-by-tool (1.4.1): run `archive.py` alone and
+  bare (no `cd`, pipe or `&&`); if a call is denied, retry it once bare. +100 B on every command.
 - 2026-11-10 · tools/archive.py, tools/doctor.py · Card-by-tool (1.4.1): `archive.py --card`
   writes the profile card from the parts' `card` section, taking each stamp from git itself
   (`<file>@unverified (git unavailable)` with no git or no repo), refusing a user_level outside

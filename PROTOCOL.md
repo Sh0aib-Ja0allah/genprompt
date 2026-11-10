@@ -30,6 +30,7 @@ Step 0) add to this suite and win where they conflict; the TARGET LOCK says so.
   (the archive.py parts file).
 - The one exception: after showing the diff, `/genprompt:learn` may edit `~/.genprompt/local-rules.md`.
 - Never edit the genprompt root or run a **mutating git command** anywhere.
+- Run `archive.py` alone and bare (no `cd`, pipe or `&&`); if a call is denied, retry it once bare.
 
 **Every worker repo is read-only to you.**
 - Allowed: Read, Glob, Grep and read-only git (`status`, `log`, `diff`, `show`, `grep`, …).
