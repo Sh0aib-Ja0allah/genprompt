@@ -525,6 +525,17 @@ class BuildShims(unittest.TestCase):
         self.assertIn("- Run `archive.py` alone and bare (no `cd`, pipe or `&&`); if a call is denied, "
                       "retry it once bare.", boundary)
 
+    # 1.4.1: Step 6's archive bullet opens with the --dry-run exception, so a dry-run request never
+    # reads "Then run it without --dry-run" before learning it must not.
+    def test_archive_run_bullet_opens_with_the_dry_run_exception(self):
+        proto = (ROOT / "PROTOCOL.md").read_text(encoding="utf-8")
+        step6 = proto[proto.index("## Step 6"):]
+        bullet = " ".join(step6[step6.index("   - Under a `--dry-run`"):
+                                step6.index("   - archive.py builds")].split())
+        self.assertTrue(bullet.startswith("- Under a `--dry-run` request the dry run is the only run. Run "
+                                          "`python3"), bullet[:80])
+        self.assertTrue(bullet.endswith("Then run it without `--dry-run` to archive."), bullet[-60:])
+
     def test_check_fails_when_a_template_has_no_414_insert(self):
         arch = self.copy / "archetypes" / "H-commit.md"
         text = arch.read_text(encoding="utf-8")

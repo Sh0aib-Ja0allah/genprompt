@@ -4,6 +4,8 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-10 · PROTOCOL.md Step 6 item 2 · 1.4.1: the archive-run bullet opens with the
+  `--dry-run` exception ("the dry run is the only run") before the two-run order. +0 B.
 - 2026-11-10 · PROTOCOL.md Step 2, guide/01 §2.0 step 7 + §2.9 (derive.md) · Card-by-tool
   (1.4.1): the card is written with `archive.py --card`, never by hand; derive.md defines the
   parts file, the user_level enum and no git (every stamp `<file>@unverified (git unavailable)`,

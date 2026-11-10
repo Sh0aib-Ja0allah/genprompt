@@ -179,10 +179,10 @@ Reply "go" to accept, or correct any line.
      - `via`: the Step 1 source: `argument`, `continuation`, `cwd` or `ask`.
      - `lock`: `go` (`--go` skipped the wait), `auto` (opt-in auto-go), `accepted` (the user
        said go, changed nothing) or `corrected` (the user changed a lock line).
-   - Run `python3 "${CLAUDE_PLUGIN_ROOT}/tools/archive.py" --dry-run <parts.json>` first (`python`
-     if `python3` fails). Cite its PASS/WARN/FAIL lines as the
-     evidence for rows 8, 15, 16, 21 and 22 instead of grading them by eye. Then run it without
-     `--dry-run` to archive. Under a `--dry-run` request the dry run is the only run.
+   - Under a `--dry-run` request the dry run is the only run. Run
+     `python3 "${CLAUDE_PLUGIN_ROOT}/tools/archive.py" --dry-run <parts.json>` first (`python` if
+     `python3` fails). Cite its PASS/WARN/FAIL lines as the evidence for rows 8, 15, 16, 21 and 22
+     instead of grading them by eye. Then run it without `--dry-run` to archive.
    - archive.py builds the file name, line 1 and the shard row.
    - No python: say so and mark row 22 FAIL.
 3. Print in chat, prompt first, in this order:
