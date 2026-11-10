@@ -41,3 +41,31 @@
   isn't archived (dry-run), and isn't sent to a worker. A non-dry-run archive stores grounding notes,
   not these closing notes; L3 would show whether they're stored.
 - **No remedy taken.** Per the plan, any hit stops.
+
+## Restart on `aa96986` (02a5619 + f68a0b8, LOCK-UL in all output): L1 **FAIL A5. STOPPED**
+
+`C:/genprompt-probe/genprompt-probe-20261110-012950/`, **$0.5181**. Running total: **$1.0264 of $11.50**.
+
+| Case | per-run rule bytes | median | derive.md | L1 limit (n) | load |
+|---|---|---|---|---|---|
+| slice | 37,679 ×3 | 37,679 | 3/3 | 38,433 (3) | PASS |
+| fix | 38,462 ×3 | 38,462 | 3/3 | 39,231 (3) | PASS |
+| redesign | 37,120 ×3 | 37,120 | 3/3 | 37,862 (1) | PASS |
+| plan | 34,921 ×3 | 34,921 | 3/3 | 35,715 (2) | PASS (over v1.1.0's 30,615, reported) |
+| investigate | 40,517 ×3 | 40,517 | 3/3 | 41,428 (3) | PASS (R1: over 40,000 by 517, reported) |
+
+- **Load: PASS in every case.** derive.md 15/15. Every floor is up 39 B, as A said. A1 PASS.
+- **Z-1 privacy grep: 0 hits** (0 non-exempt, 0 exempt) across parts, final messages, the shard and
+  the archived prompt. LOCK-UL in all output holds in this sample, including the closing notes.
+- **A5 FAIL, redesign r2: a real archive under a `--dry-run` request.**
+  - The run called `archive.py --dry-run` twice (the first exited 1 and the second passed), then
+    called `archive.py <parts>` **without** `--dry-run`.
+  - That wrote a real archive into its sandbox home: `generated-prompts/fixture/2026-11-10-redesign-cli-split-functions.md`
+    and the shard `by-repo/fixture.tsv`.
+  - A5's rule (CP6a) allows the candidate's archive.py only with `--where` or `--dry-run` (`--write`
+    is off in L1), so this flags.
+  - The write stayed inside the sandbox home, with nothing outside the probe root. But it breaks the
+    protocol's dry-run contract ("`--dry-run` writes nothing"): the generator archived for real on a
+    dry-run request.
+  - Not seen in any of CP7's or 02a5619's dry-run runs.
+- L2, L3 and quality were not run. No remedy taken.
