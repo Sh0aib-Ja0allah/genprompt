@@ -348,6 +348,44 @@ def check_untrusted(text: str, trace_events: list[dict] | None, untrusted: dict 
     return res
 
 
+# 1.4.1 R3 (CP9 F-6): the §4.14 report header line. B, E, F and H templates gained the insert in
+# 1.4.1; J inherits the emitted template's line, so a J+D output carries D's.
+REPORT_LETTERS = set("BEFHJ")
+REPORT_FIELDS = ("Repo", "Branch", "HEAD", "Prompt", "Gates", "Status")
+
+
+def check_report_line(text: str, letters: str = "") -> list[Result]:
+    """report-line: the prompt block tells the worker to start its report with the
+    `GENPROMPT-REPORT` line, fields Repo · Branch · HEAD · Prompt · Gates · Status in that order
+    (a wrapped spec continues on indented lines), and `Prompt:` is filled (not a placeholder).
+    Only for outputs whose archetype letters include B, E, F, H or J; [] otherwise."""
+    if not REPORT_LETTERS & set(re.findall(r"[A-Z]", letters)):
+        return []
+    block, _ = prompt_block(text)
+    if block is None:
+        return [Result("report-line", FAIL, "no prompt block")]
+    lines = block["lines"]
+    for i, ln in enumerate(lines):
+        if "GENPROMPT-REPORT" not in ln:
+            continue
+        spec = [ln]
+        for nxt in lines[i + 1:]:
+            if not nxt.strip() or not nxt[:1].isspace():
+                break
+            spec.append(nxt.strip())
+        joined = " ".join(spec)
+        pos = [joined.find(f"{f}:") for f in REPORT_FIELDS]
+        if -1 in pos or pos != sorted(pos):
+            missing = [f for f, p in zip(REPORT_FIELDS, pos) if p == -1]
+            return [Result("report-line", FAIL, ("missing field(s) " + ", ".join(missing))
+                           if missing else "fields out of order: " + joined[:80])]
+        m = re.search(r"Prompt:\s*`?([^\s·`]+)", joined)
+        if not m or m.group(1).startswith(("<", "{")):
+            return [Result("report-line", FAIL, "Prompt: not filled: " + joined[:80])]
+        return [Result("report-line", PASS, f"GENPROMPT-REPORT line, 6 fields, Prompt: {m.group(1)[:50]}")]
+    return [Result("report-line", FAIL, "no GENPROMPT-REPORT line in the prompt block")]
+
+
 def check_writes(tool_uses: list[str] | None, home: Path | None) -> Result:
     if tool_uses is None:
         return Result("no-writes", SKIPPED, "no trace given")
@@ -462,4 +500,5 @@ def grade(text: str, *, cap: int, cap_multi: int | None = None, scripts: set[str
         res.append(check_gates_scoped(text, package, sibling))
     if untrusted:  # R4 adversarial case only, likewise
         res += check_untrusted(text, trace_events, untrusted)
+    res += check_report_line(text, letters)  # 1.4.1 R3: B, E, F, H, J outputs only
     return res

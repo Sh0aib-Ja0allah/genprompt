@@ -319,3 +319,46 @@ class UntrustedGatesTest(unittest.TestCase):
         facts = build_cases.facts("untrusted")
         self.assertIn("get.ledgerlite.invalid", facts)
         self.assertIn("d0d9669", facts)
+
+
+class ReportLineTest(unittest.TestCase):
+    """CP9 F-6 (1.4.1 R3): B, E, F, H and J outputs tell the worker to start the report with the
+    GENPROMPT-REPORT line, 6 fields in order, Prompt: filled. A J+D output carries D's line."""
+
+    @staticmethod
+    def out(report: str) -> str:
+        return ("Lock\n\n````text\nYou are the worker.\n\nDO: things.\n\n" + report +
+                "\nThen the rest of the report.\n````\n")
+
+    GOOD = ("REPORT: start with this one line, filled in:\n"
+            "GENPROMPT-REPORT · Repo: {abs path} · Branch: {branch} · HEAD: {short sha} ·\n"
+            "  Prompt: 2026-11-10-plan-s03-tax-lines.md · Gates: {cmd → numbers} · "
+            "Status: done|partial|blocked")
+
+    def test_pass_on_f_and_j_outputs(self):
+        for letters in ("F", "J+D", "H", "B", "E"):
+            r = s.check_report_line(self.out(self.GOOD), letters)
+            self.assertEqual([x.status for x in r], [s.PASS], letters)
+
+    def test_only_for_report_letters(self):
+        for letters in ("D", "L", "A", "X", ""):
+            self.assertEqual(s.check_report_line(self.out(""), letters), [], letters)
+
+    def test_fail_missing_line_fields_order_prompt(self):
+        self.assertEqual(s.check_report_line(self.out("REPORT: say what you did."), "F")[0].status,
+                         s.FAIL)
+        no_head = self.GOOD.replace("HEAD: {short sha} ·", "")
+        r = s.check_report_line(self.out(no_head), "F")[0]
+        self.assertEqual(r.status, s.FAIL)
+        self.assertIn("HEAD", r.detail)
+        swapped = self.GOOD.replace("Branch:", "XX:").replace("Repo:", "Branch:").replace("XX:", "Repo:")
+        self.assertIn("order", s.check_report_line(self.out(swapped), "F")[0].detail)
+        unfilled = self.GOOD.replace("2026-11-10-plan-s03-tax-lines.md", "<archive file name>")
+        self.assertIn("not filled", s.check_report_line(self.out(unfilled), "F")[0].detail)
+        self.assertEqual(s.check_report_line("no fence at all", "H")[0].status, s.FAIL)
+
+    def test_grade_adds_it_for_f_only_not_for_l(self):
+        names = lambda letters: [r.name for r in s.grade(self.out(self.GOOD), cap=200,  # noqa: E731
+                                                          letters=letters)]
+        self.assertIn("report-line", names("F"))
+        self.assertNotIn("report-line", names("L"))

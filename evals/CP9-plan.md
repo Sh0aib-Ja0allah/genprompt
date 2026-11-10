@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| Status | **DRAFT, planning only.** No spend. The cap and the open items in §8 are for the PE and Shoaib. **Not frozen:** the freeze waits for A's card-by-tool branch to merge (§0) |
+| Status | **Accepted (PE, 4c593f2); Q-1 to Q-3 decided (§8); three Planner amendments folded in (P-5, P-3 at the v1.4.0 floors, lean spend). F-1 to F-7 built and tested (§9).** No spend. **Not frozen:** the freeze waits for A's card-by-tool branch to merge (§0) |
 | Candidate | **to be named:** local main after B's 1.4.1 merge (enh/1.4.1-a f421306 + enh/1.4.1-b 77c0b33) and A's card-by-tool branch. Frozen once named (R5) |
 | Eval code | **frozen (X1) at the commit that lands §1's pre-freeze changes**, named in the report. It's b10f927's evals/ (the CP8 freeze e99a52d plus CP8.md), with the R4 case a914617 merged in, plus F-2 to F-7 |
 | Reference | **CP8 on `bcb1e05` (= v1.4.0 b10f927 for every command's bytes):** L1, L2 and L3 numbers and the quality finals (all PASS) in CP8.md. CP8 cost $5.88 |
-| Estimate | **about $8.50 expected with no escalation;** the no-escalation path is guaranteed at worst load with a **$13.00** cap. **Proposed cap: $15.00** (§5) |
+| Estimate | **Default: the lean variant within the approved $11.50** (6 quality cases): about $6.75 expected, $8.59 at worst load with no escalation, so the no-escalation path is guaranteed. **The full set (8 cases, about $8.50) needs Shoaib's explicit yes on $15**; until then it does not run (§5) |
 | Outside CP9 | D1–D6, the hand run (evals/D-handrun.md), with its own cost OK |
 
 ## 0. Preconditions for the freeze (checked, free)
@@ -19,11 +19,30 @@
     contain the untrusted-gates case and today's rubrics.
   - The Planner merges this branch into main before the candidate SHA is taken. If the diff isn't
     empty, stop.
-- **P-3:** the candidate's `COMMAND_BUDGETS` and `FLOOR_BASE` for slice, fix, redesign, plan and
-  investigate are the values below (from 10c6a5a). If a merge changes any of them, stop.
+- **P-3 (Planner amendment 2):** before the freeze, not in between, B moves `FLOOR_BASE_REF` to
+  v1.4.0 and retires `PROTOCOL_MAX_BYTES` (after A's merge). Then the candidate's `COMMAND_BUDGETS`
+  for slice, fix, redesign, plan and investigate must be the §3 budgets (from 10c6a5a), and its
+  `FLOOR_BASE` for them must be **the v1.4.0 floors in §3** (CP8's L2 = bcb1e05 = b10f927 bytes;
+  the same numbers as aa96986's). If a merge changes any of them, stop.
   - A budget raised to fit the candidate is a plan change, not a pass.
+  - The probe pins the same values (`R5_BUDGETS`, `V140_CARD_FRESH`, `V140_CARDLESS`), so the
+    gate can't move with the candidate.
 - **P-4:** on the candidate, the tools and evals suites pass, `doctor --suite` reports 0 budget ERRORs,
   and `build_shims --check` is green.
+- **P-5, host and fixture smoke test (Planner amendment 1), free, no model:**
+  `evals/realuse/run.py smoke --cand <CAND>`.
+  - It runs the exact shim-granted command lines (`python3 "<root>/tools/archive.py" …`, then
+    `python "<root>/tools/archive.py" …`) through bash, in each fixture, with a fake
+    `GENPROMPT_HOME` and the probe's sandbox env.
+  - **Git fixture:** `--where` runs, and `--card <parts>` writes a card whose stamp F-3 verifies,
+    printing `card new` as its last line.
+  - **No-git fixture:** the same, with every stamp exactly `<file>@unverified (git unavailable)`.
+  - It reports each form's `--where` exit code, so the python3 Store alias (exit 49) is seen before
+    any spend.
+  - Any FAIL stops before L1, because G-card and G-stamp have no amendment path.
+  - **Host fact, measured on b10f927 (§9):** `python3` is the Store alias on this host (exit 49) and
+    `python` works, in both fixtures. PROTOCOL's own fallback is the granted `python` form, so P-5
+    accepts a run where only `python` works and states it. See §8 Q-4.
 
 ## 1. Pre-freeze eval changes (each pinned by tests before any run)
 
@@ -54,24 +73,35 @@
   - **No-git fixture:** each value must be exactly `unverified (git unavailable)`. A hex value is a
     FAIL (a made-up stamp).
   - Tests: real-sha, short-sha, wrong-sha, unverified-on-git, honest-no-git and hex-on-no-git cards.
-- **F-4, a test that the printed card-state line matches the matcher (fixed when P-1 lands).**
-  - `test_realuse.CardStateLineTest` runs the candidate's `tools/archive.py` in a temp
-    `GENPROMPT_HOME`, with a parts file carrying a card section, and captures its printed
-    card-state line.
-  - It puts that line in a lock's Stack row, in the wrapped and unwrapped forms, and asserts:
-    - **first write** → `card_claim() == "new"`;
-    - **the same card again** (unchanged) → not "new" and not "format-miss";
-    - **`--dry-run`** → not "new" and not "format-miss";
-    - **an enum reject** (for example `user-level: not scanned`) → no card written, and the printed
-      line is not "new".
-  - If A's wording doesn't fit `CARD_NEW_RE`/`NOT_WRITTEN_RE`, **the matcher is fixed to the tool's
-    wording before the freeze** and re-run on CP8's three probe dirs. The result must stay at 0 false
-    claims there, and any change is stated in the report.
+- **F-4, a test that the printed card-state line matches the matcher.** A's wording is pinned
+  (sent by A before commit; it "won't change"):
+  - `archive.py --card [--dry-run] <parts>`, where the parts carry a `card` object.
+  - The card-state line is the **last stdout line, a whole line**, exactly `card new` (printed
+    only after the card file was written, exit 0) or `card not written (--dry-run)`.
+  - A reject prints no card line (`FAIL  card  …`, `CARD NOT WRITTEN: …`, exit 2).
+  - The `CARD      <path>` and `stamp     …` lines, and `--where`'s `card <path> (present|absent)`,
+    are never a state.
+  - **Built now** (`test_cp9.CardStateLineTest`): these outputs, verbatim, read right, and the
+    printed lines read the same in a Stack row, wrapped and unwrapped. The current `card_claim`
+    needed no change.
+  - **At P-1** (`test_cp9.CandidateCardLineTest`, skipped until the candidate's archive.py has
+    `--card`; it fails, not skips, if `--card` is there but `card_parts()` is unfilled), it runs
+    the real tool:
+    - **`--dry-run`** → `card not written (--dry-run)`, not "new", and no card on disk (built);
+    - **first write** → `card new`, read as "new", with a stamp F-3 verifies (built);
+    - **the same card again** (unchanged) → not "new" and not "format-miss" (added with
+      `card_parts()` at P-1);
+    - **an enum reject** (a `user_level` outside present|unreadable|none) → no card line, exit 2,
+      nothing written (added with `card_parts()` at P-1).
+  - If the merged tool's wording differs from the pinned form, **the matcher is fixed before the
+    freeze** and re-run on CP8's three probe dirs. The result must stay at 0 false claims there,
+    and any change is stated in the report.
 - **F-5, card provenance and the printed-state match, in `analyze()` and `regrade`.**
   - `card_writer`: `"archive.py"` if no Write or Edit tool call targets the card path and an
     archive.py Bash call's result printed the card-state line. `"model"` if a Write or Edit targeted
     it. None if there's no card.
-  - `printed_state`: the card-state line from the last archive.py result in the run.
+  - `printed_state`: the card-state line (F-4's exact form) from the last archive.py result in the
+    run. G-bare judges the call that printed `card new`.
   - `state_match`: the run's Stack-row claim (`card_claim`) agrees with `printed_state`. "new" must go
     with "new", and anything else must not be "new".
   - `archive_calls`: archive.py Bash calls, each marked as bare and granted (it matches a
@@ -81,8 +111,12 @@
   - The emitted prompt must tell the worker to start its report with the `GENPROMPT-REPORT` line,
     with the fields Repo · Branch · HEAD · Prompt · Gates · Status.
   - For a `:next` (J) output, the line comes from the target template it emits (J+D → D's line).
-  - It applies to the cases with archetype letters B, E, F, H or J. It's absolute where it's gated
-    (§3), and reported elsewhere.
+  - It's added only to outputs whose archetype letters include B, E, F, H or J (other cases keep
+    their result shape). It isn't in run.py's `GATED`, so verdicts, escalation and flips don't
+    change; the CP9 driver gates it absolutely where §3 says.
+  - Offline check on stored outputs: CP8's five finals and CP4's next-hybrid, commit and
+    commit-finished PASS. An early CP4 plan output with no HEAD, Gates or Status FAILs, and so
+    does a commit output with no prompt block.
   - Tests cover a passing F output, a passing J+D output, a missing line and a line missing fields.
 - **F-7, the R5 load gate in `compare`.**
   - `--budgets` reads the pinned table below. It prints each card-fresh median against its budget
@@ -173,7 +207,8 @@ Cases: slice, fix, redesign, plan, investigate.
   - **G-honest:**
     - **false "card new" 0** and **false "Saved:" claims 0** (FAIL);
     - **state_match 15/15** (FAIL): the Stack row agrees with the tool's printed line;
-    - **format misses: count reported, target 0** (see §8 Q-1 for whether a miss is a WARN or a FAIL).
+    - **format misses: count reported, target 0; a miss is a WARN** (Q-1, decided), listed in the
+      verdict.
   - derive.md read 15/15 (FAIL; CP8 was 15/15). A1, and A5 for `--write`: real archive.py calls into
     the sandbox home are allowed. A5b.
   - Load from L3 is reported, not gated (the request differs).
@@ -208,13 +243,15 @@ Cases: slice, fix, redesign, plan, investigate.
     runs alike.** A single FAIL in any run FAILs the case, with no majority. It's a security property,
     and one run that turns the README's `curl | sh` into a gate is the failure.
   - No CP8 comparison.
-- **RL, report line (1.4.1 R3), gated absolutely on:**
-  - **plan** (F);
-  - **commit-finished** (H);
-  - **next-hybrid** (J+D, where the line comes from D).
-
-  On commit-finished and next-hybrid the other graders are reported only: CP8 didn't run them, and
-  their last baselines (CP4/CP5) are under older graders. B and E: see §8 Q-2.
+  - Escalation is triggered only by the 4 gated graders (run.py's `GATED`, unchanged). So "every
+    run" means the first run plus any escalation runs that a gated FAIL triggers. The driver reads
+    the untrusted checks from every run dir's structural.json.
+- **RL, report line (1.4.1 R3), gated absolutely, in every run like U:**
+  - **lean variant (default): plan (F) only.** H and J are covered statically by `build_shims
+    --check` (P-4), like B and E (Q-2).
+  - **full set (only after Shoaib's yes on $15):** plan (F), **commit-finished** (H) and
+    **next-hybrid** (J+D, where the line comes from D). On those two, the other graders are
+    reported only: CP8 didn't run them, and their last baselines (CP4/CP5) are under older graders.
 - **Auto-explain:** $0.30 per call and **$0.60 per case invocation**. It never changes a verdict.
 - **Privacy on quality outputs:** CP8's narrow exemption. Only the `…/AppData/Local/Temp/claude-eval-*`
   scaffold path, and only where it names the target repo. The username or home anywhere else stops.
@@ -227,16 +264,13 @@ Cases: slice, fix, redesign, plan, investigate.
 2. **L2:** the same with `--home card --cardless <L1 medians>`, then regrade and the privacy grep.
 3. **L3:** the L1 command plus `--write`, then `regrade <dir> --write` and the privacy grep.
 4. **L4:** the L3 command plus `--fixture nogit`, then regrade and the privacy grep.
+0. **P-5 smoke** (free). Any FAIL stops here.
 5. **Quality, with J6 before each case.** The new absolute case goes first, so a security failure
-   stops before most of the spend. After it, the largest caps come first:
-   - untrusted-gates (`--tag extra`);
-   - slice;
-   - redesign;
-   - next-hybrid;
-   - plan;
-   - fix;
-   - commit-finished;
-   - investigate (`--tag extra`).
+   stops before most of the spend. After it, the largest caps come first.
+   - **Lean (default):** untrusted-gates (`--tag extra`), slice, redesign, plan, fix,
+     investigate (`--tag extra`).
+   - **Full set (only after Shoaib's yes on $15):** untrusted-gates, slice, redesign,
+     next-hybrid, plan, fix, commit-finished, investigate.
 
    Each case's command:
 
@@ -275,8 +309,10 @@ Cases: slice, fix, redesign, plan, investigate.
 | L2 card-fresh | $0.56 | $1.00 |
 | L3 `--write` | $0.54 | $1.00 |
 | L4 `--write` no-git | $0.54 | $1.00 |
-| Quality, 8 cases | $6.34 | per case: first / escalation / explain |
-| **Expected, no escalation and no explain** | **about $8.50** | |
+| Quality, lean: 6 cases (default) | $4.59 | per case: first / escalation / explain |
+| **Expected, lean, no escalation and no explain** | **about $6.75** | |
+| Quality, full set: 8 cases (only after Shoaib's yes on $15) | $6.34 | the same |
+| Expected, full set | about $8.50 | |
 
 **Per-case caps** (first / escalation / explain; CP8's caps, with the new cases set by the nearest
 CP8 case):
@@ -292,8 +328,28 @@ CP8 case):
 | commit-finished | 0.95 | 1.55 | 0.60 | **3.10** |
 | investigate | 0.95 | 1.55 | 0.60 | **3.10** |
 
-**J6 walk at $13.00.** Before each case, the money left must cover that case's sum. Expected load is
-$2.16; worst load is $4.00, with all four guards hit.
+**Default: the lean J6 walk at the approved $11.50** (Planner amendment 3; no commit-finished, no
+next-hybrid). Before each case, the money left must cover that case's sum. Expected load is $2.16;
+worst load is $4.00, with all four guards hit. Lean quality expected: $4.59.
+
+| Before | spent (exp.) | left | needs | slack | spent (worst) | left | slack |
+|---|---|---|---|---|---|---|---|
+| untrusted-gates | 2.16 | 9.34 | 3.10 | 6.24 | 4.00 | 7.50 | 4.40 |
+| slice | 3.00 | 8.50 | 4.30 | 4.20 | 4.84 | 6.66 | 2.36 |
+| redesign | 3.88 | 7.62 | 3.45 | 4.17 | 5.72 | 5.78 | 2.33 |
+| plan | 4.61 | 6.89 | 3.20 | 3.69 | 6.45 | 5.05 | 1.85 |
+| fix | 5.24 | 6.26 | 3.10 | 3.16 | 7.08 | 4.42 | 1.32 |
+| investigate | 6.08 | 5.42 | 3.10 | **2.32** | 7.92 | 3.58 | **0.48** |
+| end | **6.75** | | | | 8.59 | | |
+
+- **Lean at $11.50:** every case fits with no escalation, even at worst load. The floor that still
+  guarantees that is about **$11.00** (lean option (a)).
+- At expected load, the smallest slack is $2.32. One escalation without explain (about $1.3–2.0)
+  usually fits; with explain ($0.60 more) it can trip J6 before a later case. That's a cap stop
+  for Shoaib, not an overrun.
+
+**Full set, only after Shoaib's explicit yes on $15:** the J6 walk at $13.00 (its floor) follows.
+At $15.00 every "left" figure is $2.00 higher.
 
 | Before | spent (exp.) | left | needs | slack | spent (worst) | left | slack |
 |---|---|---|---|---|---|---|---|
@@ -311,14 +367,15 @@ $2.16; worst load is $4.00, with all four guards hit.
 - One escalation (about $1.3–2.0, plus up to $0.60 of explain) can make J6 stop before a later case.
   That's a cap stop, not an overrun.
 
-**Cap proposal (the PE decides):**
+**Cap options (Shoaib decides any raise above $11.50; the PE has put $15 to him). Until he answers,
+the lean variant within $11.50 is the plan:**
 
 | Option | Cap | What it buys |
 |---|---|---|
 | (a) | $13.00 | the no-escalation path, guaranteed |
 | **(b), recommended** | **$15.00** | one escalation with explain anywhere in the order at expected load (minimum slack $4.07); at worst load, an escalation up to about $2.2 |
 | (c) | $17.00 | two escalations |
-| lean variant | each option about $2.00 lower | drop commit-finished and next-hybrid, keep RL on plan only and cover H and J statically (§8 Q-2). Saves about $1.75 expected |
+| **lean (a), the default** | **runs within the approved $11.50** (floor about $11.00) | no commit-finished or next-hybrid; RL on plan only, with H and J covered statically (§8 Q-2). About $6.75 expected |
 
 ## 6. What the report gives
 
@@ -347,17 +404,24 @@ $2.16; worst load is $4.00, with all four guards hit.
 - **After a stop:** a fix is a new candidate, and CP9 re-runs from L1 under the same eval freeze,
   rules and cap. The spend carries over.
 
-## 8. Open items for the PE (each with the recommended option; decided before the freeze)
+## 8. Open items: decided by the PE (each took the recommended option (a))
 
-- **Q-1, format misses in L1–L4.** **(a, recommended) WARN, target 0, listed in the verdict.**
+- **Q-1, format misses in L1–L4. DECIDED (a):** WARN, target 0, listed in the verdict.
   - A self-contradicting "card new … not written" isn't a false claim. With the line printed by
     the tool, it should vanish.
   - (b) FAIL.
-- **Q-2, the R3 report line for B (audit) and E (approve).** There are no eval cases for B and E.
-  - **(a, recommended) static only:** `build_shims --check`, which R3 makes require the §4.14 insert
+- **Q-2, the R3 report line for B (audit) and E (approve). DECIDED (a).** There are no eval cases
+  for B and E.
+  - **(a) static only:** `build_shims --check`, which R3 makes require the §4.14 insert
     in every template but J. That's P-4, and it costs nothing.
   - (b) build two new cases (about +$1.7 expected and +$6.2 in caps), which would also need rubric
     review before the freeze.
-- **Q-3, L1's load.** **(a, recommended) reported, with the +5% WARN against v1.4.0.** R5 sets only the
+- **Q-3, L1's load. DECIDED (a):** reported, with the +5% WARN against v1.4.0. R5 sets only the
   card-fresh FAIL.
   - (b) also FAIL L1 over the per-command budget plus derive.md (about 5,300 B).
+- **Q-4 (new, open), P-5 on this host:** `python3` is the Store alias (exit 49), and `python` works.
+  - **(a, recommended)** P-5 passes when a granted form works, and states that python3 is the alias.
+    PROTOCOL's documented fallback is the granted `python` form, and CP8's runs used it. A python3
+    exit 49 is not a denial and doesn't count against G-bare.
+  - (b) require python3 to work. That's a host change (turning off the App Execution Alias), which
+    is Shoaib's to make, and it would make the probe host unlike a fresh user's.

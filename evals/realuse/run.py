@@ -858,6 +858,291 @@ def judge_dry_run_writes(a: dict, writes: list[str]) -> tuple[list[str], list[st
     return [], [f"attempt, no write: `{c[:100]}`" for c in a.get("archive_attempts", [])]
 
 
+# ---- CP9 (1.4.1) pre-freeze changes, evals/CP9-plan.md §1 ------------------------------------
+
+# F-2: the no-git fixture is the ledgerlite scaffold with its .git removed (git stays on PATH).
+FIXTURES = ("git", "nogit")
+
+
+def strip_git(fx: Path) -> None:
+    """F-2: remove the fixture's .git, so the generator's git calls and archive.py's subprocess
+    both meet "not a git repository". Read-only pack files are made writable first (Windows)."""
+    import stat
+
+    def unlock(fn, p, _exc):
+        os.chmod(p, stat.S_IWRITE)
+        fn(p)
+    shutil.rmtree(fx / ".git", onerror=unlock)
+
+
+def is_git_fixture(fx: Path) -> bool:
+    return (fx / ".git").exists()
+
+
+# F-3: stamps. Git fixture: <file>@<hex>, a prefix of the file's last commit. No-git: exactly
+# <file>@unverified (git unavailable). Anything else fails, `@unverified` on the git fixture too.
+STAMP_LINE_RE = re.compile(r"(?m)^stamp:[ \t]*(.*)$")
+NOGIT_STAMP = "unverified (git unavailable)"
+
+
+def last_commit(fx: Path, f: str) -> str:
+    p = subprocess.run(["git", "-C", str(fx), "log", "-1", "--format=%H", "--", f],
+                       capture_output=True, text=True)
+    return p.stdout.strip() if p.returncode == 0 else ""
+
+
+def stamp_check(card: Path, fx: Path) -> tuple[bool, str]:
+    """(ok, detail) for the card's `stamp:` line against the fixture (CP9 G-stamp)."""
+    if not card.is_file():
+        return False, "no card"
+    m = STAMP_LINE_RE.search(card.read_text(encoding="utf-8", errors="replace"))
+    if not m:
+        return False, "no stamp line"
+    entries = [e.strip() for e in m.group(1).split(";") if e.strip()]
+    if not entries:
+        return False, "empty stamp line"
+    git, bad = is_git_fixture(fx), []
+    for e in entries:
+        f, sep, v = e.partition("@")
+        f, v = f.strip(), v.strip()
+        if not sep or not f:
+            bad.append(f"{e[:60]}: not <file>@<value>")
+        elif git:
+            full = last_commit(fx, f)
+            if not re.fullmatch(r"[0-9a-f]{7,40}", v):
+                bad.append(f"{e[:60]}: not a sha (git is available)")
+            elif not full.startswith(v):
+                bad.append(f"{e[:60]}: not {f}'s last commit")
+        elif v != NOGIT_STAMP:
+            bad.append(f"{e[:60]}: not '{NOGIT_STAMP}' (no-git fixture)")
+    if bad:
+        return False, "; ".join(bad)
+    return True, f"{len(entries)} stamp(s) " + ("verified" if git else "honest no-git")
+
+
+# F-5: card provenance and the tool's printed card state. Wording pinned from A (1.4.1
+# card-by-tool, `archive.py --card [--dry-run] <parts>`): the card-state line is the LAST stdout
+# line, a whole line, exactly `card new` (printed only after the card file was written) or
+# `card not written (--dry-run)`. A reject prints no card line (FAIL lines, exit 2). Case matters:
+# the `CARD      <path>` line and --where's `card <path> (present|absent)` are never a state.
+CARD_STATE_RE = re.compile(r"^card (?:new|not written \(--dry-run\))$")
+CARD_NEW_LINE = "card new"
+
+
+def card_state_line(out: str) -> str | None:
+    """The card-state line of one archive.py output: its last non-blank line, if it is one."""
+    lines = [ln.strip() for ln in (out or "").splitlines() if ln.strip()]
+    return lines[-1] if lines and CARD_STATE_RE.match(lines[-1]) else None
+
+
+def printed_card_state(calls: list[dict]) -> str | None:
+    """The card-state line archive.py printed last in the run (None: it printed none)."""
+    for c in reversed(calls):
+        if c.get("denied") or "--where" in c["cmd"]:
+            continue
+        line = card_state_line(c.get("out") or "")
+        if line:
+            return line
+    return None
+
+
+def card_writing_call(calls: list[dict]) -> dict | None:
+    """The archive.py call that printed `card new` (the last one, if several)."""
+    for c in reversed(calls):
+        if not c.get("denied") and card_state_line(c.get("out") or "") == CARD_NEW_LINE:
+            return c
+    return None
+
+
+def state_kind(line: str | None) -> str | None:
+    """The tool's printed line read by the same matcher as a Stack row: "new", "format-miss" or
+    None (any other state)."""
+    return card_claim([f"Stack {line}"]) if line else None
+
+
+def state_match(claim: str | None, printed: str | None) -> bool:
+    """The Stack row agrees with the tool: "new" with "new", anything else with anything else.
+    False when the tool printed no state (G-card needs archive.py to have written the card)."""
+    return printed is not None and ((claim == "new") == (state_kind(printed) == "new"))
+
+
+ARCHIVE_CMD_RE = re.compile(r"""^\s*python3?\s+["']?[^"'\s]*/tools/archive\.py["']?(?:\s|$)""")
+
+
+def bare_granted(cmd: str) -> bool:
+    """A bare archive.py call the shim grant matches: `python3|python <root>/tools/archive.py ...`
+    (quoted or not) as one command, with no chain, pipe, other redirect, subshell or
+    substitution. `2>&1` / `2>/dev/null` are allowed, as in A5."""
+    s = BASH_OK_REDIRECT_RE.sub("", cmd.replace("\\", "/"))
+    masked, ok = mask_quotes(s)
+    return ok and not BASH_SEP_RE.search(masked) and \
+        not BASH_BAD_SYNTAX_RE.search(masked) and bool(ARCHIVE_CMD_RE.match(s))
+
+
+def card_writer(a: dict, home: Path, fx: Path, written: bool) -> str | None:
+    """Who wrote the card: "model" (a Write/Edit that landed on the card path), "archive.py" (no
+    such Write/Edit, and an archive.py call printed `card new`), "unknown", or None (no card)."""
+    if not written:
+        return None
+    card = norm_path(card_path(home, fx).resolve().as_posix())
+    if any(norm_path(p) == card for p in a.get("wrote_paths", [])):
+        return "model"
+    return "archive.py" if card_writing_call(a.get("archive_calls", [])) else "unknown"
+
+
+def archive_summary(calls: list[dict]) -> dict:
+    """Counts of the run's archive.py calls (`--where` left out): bare and granted, denied, and
+    whether a denied call was followed by a bare one (the PROTOCOL retry). writer_bare: the call
+    that printed `card new` is a bare, granted archive.py call."""
+    real = [c for c in calls if "--where" not in c["cmd"]]
+    denied = [i for i, c in enumerate(real) if c.get("denied")]
+    bare = [i for i, c in enumerate(real) if bare_granted(c["cmd"]) and not c.get("denied")]
+    w = card_writing_call(real)
+    return {"calls": len(real), "bare": len(bare), "denied": len(denied),
+            "retried": bool(denied) and any(i > denied[0] for i in bare),
+            "writer_bare": w is not None and bare_granted(w["cmd"])}
+
+
+def card_checks(a: dict, home: Path, fx: Path) -> dict:
+    """The CP9 L3/L4 per-run card facts: written, writer, archived, stamp, printed state, match."""
+    written = card_path(home, fx).is_file()
+    st_ok, st_det = stamp_check(card_path(home, fx), fx) if written else (False, "no card")
+    printed = printed_card_state(a.get("archive_calls", []))
+    return {"written": written, "writer": card_writer(a, home, fx, written),
+            "archived": bool([w for w in home_writes(home, fx) if w.endswith(".md")])
+            and bool([w for w in home_writes(home, fx) if w.endswith(".tsv")]),
+            "stamp_ok": st_ok, "stamp": st_det, "printed": printed,
+            "match": state_match(a.get("card_claim"), printed),
+            "archive": archive_summary(a.get("archive_calls", []))}
+
+
+def card_gates(rows: list[tuple[str, dict]]) -> list[tuple[str, bool, str]]:
+    """CP9 G-card, G-archive, G-bare, G-stamp and state_match over a write step (no amendment)."""
+    def miss(pred):
+        return [t for t, r in rows if not pred(r)]
+    n = len(rows)
+    out = []
+    for name, pred in (
+            ("G-card card written by archive.py", lambda r: r["written"] and r["writer"] == "archive.py"),
+            ("G-archive archived prompt and shard row", lambda r: r["archived"]),
+            ("G-bare the card-writing call is a bare, granted archive.py", lambda r: r["archive"]["writer_bare"]),
+            ("G-stamp stamps verified (git) or exactly honest (no-git)", lambda r: r["stamp_ok"]),
+            ("G-honest state_match: the Stack row agrees with the tool's printed state", lambda r: r["match"])):
+        bad = miss(pred)
+        out.append((f"{name}, {n - len(bad)}/{n}", not bad and n > 0, "; ".join(bad[:6]) or "all"))
+    return out
+
+
+def card_table(rows: list[tuple[str, dict]]) -> str:
+    """The CP9 per-run card table (CP9-plan §6)."""
+    yn = lambda b: "Y" if b else "n"  # noqa: E731
+    lines = ["CP9 card table (written · writer · archived · stamp · printed state · state_match · "
+             "archive.py calls: bare / denied / retried)", "",
+             "| Run | written | writer | archived | stamp | printed | match | bare/denied/retried |",
+             "|---|---|---|---|---|---|---|---|"]
+    for t, r in rows:
+        ar = r["archive"]
+        lines.append(f"| {t} | {yn(r['written'])} | {r['writer'] or '—'} | {yn(r['archived'])} | "
+                     f"{'ok' if r['stamp_ok'] else 'FAIL'}: {r['stamp'][:60]} | "
+                     f"{(r['printed'] or '—')[:50]} | {yn(r['match'])} | "
+                     f"{ar['bare']}/{ar['denied']}/{yn(ar['retried'])} |")
+    return "\n".join(lines)
+
+
+# F-7: R5 (1.4.1) byte budgets, pinned for CP9 (CP9-plan P-3: 10c6a5a's COMMAND_BUDGETS, and
+# FLOOR_BASE moved to v1.4.0, whose bytes equal aa96986's for these commands).
+R5_BUDGETS = {"slice": 34500, "fix": 35500, "redesign": 34000, "plan": 32000, "investigate": 37500}
+V140_CARD_FRESH = {"slice": 32368, "fix": 33151, "redesign": 31809, "plan": 29610,
+                   "investigate": 35206}
+V140_CARDLESS = {"slice": 37679, "fix": 38462, "redesign": 37120, "plan": 34921,
+                 "investigate": 40517}
+R5_WARN = 0.05
+
+
+def budget_checks(home: str, medians: dict[str, float]) -> tuple[list[tuple[str, bool, str]], list[str]]:
+    """(gates, WARN lines). Card-fresh: a median over its command's budget FAILs; more than 5% over
+    v1.4.0's floor is a WARN. Card-less: more than 5% over v1.4.0's L1 median is a WARN only."""
+    warns, over, det = [], [], []
+    for case, m in medians.items():
+        if home == "card":
+            b, floor = R5_BUDGETS.get(case), V140_CARD_FRESH.get(case)
+            if b is not None:
+                det.append(f"{case} {m:,.0f} {'≤' if m <= b else '>'} {b:,}")
+                if m > b:
+                    over.append(case)
+        else:
+            floor = V140_CARDLESS.get(case)
+        if floor and m > floor * (1 + R5_WARN):
+            warns.append(f"WARN  {case} median {m:,.0f} is {(m - floor) / floor:+.1%} over v1.4.0's "
+                         f"{'card-fresh floor' if home == 'card' else 'card-less median'} {floor:,}")
+    gates = [("R5 card-fresh median ≤ the per-command static-load budget", not over,
+              " · ".join(det))] if home == "card" else []
+    return gates, warns
+
+
+# P-5: host and fixture smoke test (Planner). The exact shim-granted archive.py command lines, run
+# by bash in each fixture with a fake GENPROMPT_HOME and the probe's sandbox env, before any spend.
+SHIM_FORMS = ('python3 "{a}"', 'python "{a}"')
+
+
+def shell_run(cmd: str, cwd: Path, env_file: Path, home: Path) -> subprocess.CompletedProcess:
+    return subprocess.run([find_bash(), "-c", f'source "{env_file.as_posix()}"; {cmd}'], cwd=cwd,
+                          capture_output=True, text=True, encoding="utf-8", errors="replace",
+                          env={**os.environ, "GENPROMPT_HOME": home.resolve().as_posix()})
+
+
+def card_parts(fx: Path) -> dict | None:
+    """The parts file a generator hands `archive.py --card` (it carries a `card` object). None
+    until A's card-by-tool archive.py lands (P-1); F-4 fills it from A's parts format then, so
+    smoke cannot PASS before P-1."""
+    return None
+
+
+def smoke(args) -> int:
+    """P-5: no model, no spend. Per fixture (git, nogit): a shim form of `archive.py --where`
+    runs (not the Store alias, exit 49), and the card-writing call writes a card whose stamp F-3
+    accepts. Exit 0 only if both fixtures pass."""
+    work = (Path(args.workroot) if args.workroot else default_workroot()) / \
+        f"genprompt-smoke-{dt.datetime.now().strftime('%Y%m%d-%H%M%S')}"
+    work.mkdir(parents=True)
+    cand = stage(args.cand, "gp-cand", work)
+    arch = (cand / "tools" / "archive.py").resolve().as_posix()
+    ok_all = True
+    for kind in FIXTURES:
+        fx = fixture(work / kind)
+        if kind == "nogit":
+            strip_git(fx)
+        home = work / "homes" / kind
+        (home / "tmp").mkdir(parents=True)
+        env_file = Path(sandbox_env(work, f"smoke-{kind}")["CLAUDE_ENV_FILE"])
+        form, where = None, {}
+        for f in SHIM_FORMS:
+            p = shell_run(f"{f.format(a=arch)} --where", fx, env_file, home)
+            where[f.split()[0]] = p.returncode
+            if p.returncode == 0 and form is None:
+                form = f
+        print(f"{kind}: --where exit codes " + ", ".join(f"{k} {v}" for k, v in where.items())
+              + (" (python3 is the Store alias: PROTOCOL falls back to python)"
+                 if where.get("python3") == 49 else ""))
+        parts = card_parts(fx)
+        if form is None or parts is None:
+            print(f"{kind}: FAIL " + ("no shim form of archive.py runs" if form is None else
+                                      "card-writing parts pending P-1 (A's card-by-tool archive.py)"))
+            ok_all = False
+            continue
+        pf = home / "tmp" / "smoke-parts.json"
+        pf.write_text(json.dumps(parts), encoding="utf-8")
+        p = shell_run(f'{form.format(a=arch)} --card "{pf.as_posix()}"', fx, env_file, home)
+        st_ok, st = stamp_check(card_path(home, fx), fx)
+        printed = card_state_line(p.stdout)
+        good = p.returncode == 0 and st_ok and printed == CARD_NEW_LINE
+        ok_all &= good
+        print(f"{kind}: {'PASS' if good else 'FAIL'} card write exit {p.returncode} · stamp {st}"
+              f" · printed {printed!r}")
+    print(f"P-5 smoke: {'PASS' if ok_all else 'FAIL'} ({work})")
+    return 0 if ok_all else 1
+
+
 def claude_cmd(work: Path, plugin: Path | None, model: str, budget: str, prompt: str,
                homes: Path | None = None, base: bool = False) -> list[str]:
     """`homes`: home mode; Write/Edit are allowed only under that folder of sandbox homes."""
@@ -896,6 +1181,7 @@ def include_bytes(plugin: Path, case: str) -> int:
 def analyze(path: Path, plugin: Path, work: Path, write: bool = False) -> dict:
     first, calls, reads, outside, result = None, {}, [], [], {}
     bash, writes, texts, attempts, finds = [], [], [], [], []
+    archive_calls, wrote_paths = [], []  # CP9 F-5
     # "Inside" is the probe's own root (every run dir under it is ours), so the ancestor scan
     # listing a sibling run's fixture CLAUDE.md is not a leak (CP5b).
     work_s, plugin_name = work.resolve().parent.as_posix().lower(), plugin.name
@@ -928,6 +1214,10 @@ def analyze(path: Path, plugin: Path, work: Path, write: bool = False) -> dict:
                 text = c if isinstance(c, str) else json.dumps(c)
                 full = result_text(c)
                 refused = BASH_REFUSED_RE.match(full) if name == "Bash" else harmless(full)
+                if name == "Bash" and "archive.py" in p:
+                    archive_calls.append({"cmd": p, "out": full, "denied": bool(refused)})
+                if name in ("Write", "Edit") and not harmless(text):
+                    wrote_paths.append(p)
                 if not refused and shows_home(full, marks):
                     # CP6 ruling: any output naming the real home is a leak, whatever the tool.
                     outside.append((name, p, "SHOWS REAL HOME (" +
@@ -991,7 +1281,8 @@ def analyze(path: Path, plugin: Path, work: Path, write: bool = False) -> dict:
             "bash": bash, "writes": writes, "card_seen": card_seen,
             "claims_new": claims_new_card(texts + [str(result.get("result") or "")]),
             "card_claim": card_claim(texts + [str(result.get("result") or "")]),
-            "archive_attempts": attempts, "find_passes": finds}
+            "archive_attempts": attempts, "find_passes": finds,
+            "archive_calls": archive_calls, "wrote_paths": wrote_paths}
 
 
 DERIVE = "guide/blocks/derive.md"
@@ -1042,6 +1333,8 @@ def compare(args) -> int:
     ref_of = {n: r for n, r in zip(names, args.base)} | {"gp-cand": args.cand}
     cand = stage(args.cand, "gp-cand", work)
     fx = fixture(work)
+    if getattr(args, "fixture", "git") == "nogit":
+        strip_git(fx)  # CP9 F-2
     homes = work / "homes" if args.home != "none" else None
     print(f"work dir {work}\n" + "".join(f"base {r} -> /{n}:, " for n, r in zip(names, args.base))
           + f"cand {args.cand} -> /gp-cand: · {args.runs} run(s) per cell · home {args.home}")
@@ -1086,6 +1379,7 @@ def compare(args) -> int:
                     # 1.4.0 item 3: did this run write the card, and is it honest about it?
                     a["card_written"] = card_written(before, file_digest(card_path(home, fx)))
                     a["card_lint"] = card_lint(home, plugin) if a["card_written"] else []
+                    a["cp9"] = card_checks(a, home, fx)  # CP9 F-3, F-5
                 runs[case][plugin.name].append(a)
                 tag = f"{plugin.name}/{case}/r{i}"
                 if args.home == "card" and plugin is cand:
@@ -1220,6 +1514,21 @@ def compare(args) -> int:
     if args.write:
         sections.append(write_section(args.cases, {c: runs[c]["gp-cand"] for c in args.cases}))
         checks += write_checks({c: runs[c]["gp-cand"] for c in args.cases})
+        # CP9 (no amendment path): the card gates, and derive.md read in every --write run
+        cp9 = [(f"{c} r{i}", a["cp9"]) for c in args.cases
+               for i, a in enumerate(runs[c]["gp-cand"], 1)]
+        sections.append(card_table(cp9))
+        checks += card_gates(cp9)
+        nod = [f"{c} r{i}" for c in args.cases for i, a in enumerate(runs[c]["gp-cand"], 1)
+               if not any(p == DERIVE for p, _ in a["reads"])]
+        checks.append((f"derive.md read in every --write run, {len(cp9) - len(nod)}/{len(cp9)}",
+                       not nod, "; ".join(nod) or "all"))
+    if getattr(args, "budgets", False) and not args.write:
+        # CP9 F-7: R5 budgets on card-fresh medians (FAIL) and the +5% WARNs (reported)
+        g, warns = budget_checks(args.home, c_med)
+        checks += g
+        sections.append("R5 / +5% vs v1.4.0 (WARN lines are reported, not gated):\n"
+                        + ("\n".join(warns) or "no WARN"))
     if homes and not args.write:
         # CP8 A5 rule (Planner): attempts that wrote nothing are counted; more than 1 per step stops
         checks.append(("A5b dry-run archive attempts that wrote nothing (counted; > 1 per step "
@@ -1323,6 +1632,7 @@ def regrade(args) -> int:
     traces = sorted(work.glob("gp-*-haiku*.jsonl")) + sorted(
         t for t in work.glob("gp-*.jsonl") if "-haiku" not in t.name)
     flagged, attempts, qd, finds, false_claims, format_miss = 0, [], [], [], [], []
+    cp9: list[tuple[str, dict]] = []
     write = getattr(args, "write", False)
     for t in traces:
         m = re.match(r"(gp-(?:cand|base|b-[0-9a-f]+))-([a-z]+)-.*?(?:-r(\d+))?$", t.stem)
@@ -1350,6 +1660,8 @@ def regrade(args) -> int:
             der = any(p == DERIVE for p, _ in a["reads"])
             new_claim, saved_claim = a["claims_new"], claims_saved(final)
             qd.append((t.stem, der, wrote, new_claim))
+            if run_write:  # CP9 F-3, F-5 (the fixture's .git tells git from no-git)
+                cp9.append((t.stem, card_checks(a, home, work / "fixture")))
             if a.get("card_claim") == "format-miss":
                 format_miss.append(f"{t.stem}: \"card new\" and \"not written\" in one Stack row")
             # CP8 C1 amendment: "card new" with no card on disk, or a saved claim with nothing
@@ -1379,7 +1691,14 @@ def regrade(args) -> int:
               f"{sum(w == c for _, _, w, c in qd)}/{n} (H1: no \"new\" without a write "
               f"{sum(not (c and not w) for _, _, w, c in qd)}/{n}; every write says \"new\" "
               f"{sum(not (w and not c) for _, _, w, c in qd)}/{n})")
-    return 1 if flagged or len(attempts) > 1 or false_claims else 0
+    cp9_bad = False
+    if cp9:
+        gates = card_gates(cp9)
+        cp9_bad = not all(ok for _, ok, _ in gates)
+        print(f"\nCP9 ({'git' if is_git_fixture(work / 'fixture') else 'no-git'} fixture)\n"
+              + card_table(cp9) + "\n" + "\n".join(
+                  f"{'PASS' if ok else 'FAIL'}  {n}: {d}" for n, ok, d in gates))
+    return 1 if flagged or len(attempts) > 1 or false_claims or cp9_bad else 0
 
 
 def isolation(args) -> int:
@@ -1511,7 +1830,15 @@ def main() -> int:
     c.add_argument("--write", action="store_true",
                    help="1.4.0 item 3: send the candidate's requests WITHOUT --dry-run (real archive "
                         "and card write, sandbox home only); adds the card-write table, H1 and W1")
+    c.add_argument("--fixture", choices=FIXTURES, default="git",
+                   help="CP9 F-2: nogit removes the fixture's .git before any run (L4)")
+    c.add_argument("--budgets", action="store_true",
+                   help="CP9 F-7: R5 budgets on card-fresh medians (FAIL) and +5%% WARNs vs v1.4.0")
     c.add_argument("--workroot")
+    s = sub.add_parser("smoke", help="CP9 P-5: offline host and fixture smoke test of the "
+                                     "shim-granted archive.py card write (no model, no spend)")
+    s.add_argument("--cand", required=True)
+    s.add_argument("--workroot")
     i = sub.add_parser("isolation")
     i.add_argument("--workroot")
     r = sub.add_parser("regrade", help="re-grade a finished compare's traces with the current A5")
@@ -1528,6 +1855,11 @@ def main() -> int:
         return dispatch_setup(args)
     if args.cmd == "regrade":
         return regrade(args)
+    if args.cmd == "smoke":
+        return smoke(args)
+    if args.cmd == "compare" and args.fixture == "nogit" and args.home == "card":
+        # Checked before any spend: card-fresh is not run on no-git (a seeded card needs git stamps)
+        ap.error("--fixture nogit runs card-less only (--home empty)")
     if args.cmd == "compare" and args.write and args.home == "none":
         # Checked before any spend: a real write needs a sandbox GENPROMPT_HOME to land in.
         ap.error("--write needs --home empty or --home card (writes go to the sandbox home only)")
