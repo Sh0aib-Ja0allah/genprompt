@@ -233,32 +233,6 @@ class ReleaseSync(unittest.TestCase):
         self.assertIn(f"says {self.count + 1} archetypes", errs[0])
 
 
-class ProtocolSize(unittest.TestCase):
-    """E-09c: a suite WARN once PROTOCOL.md passes the core budget."""
-
-    def setUp(self):
-        self._tmp = tempfile.TemporaryDirectory()
-        self.path = Path(self._tmp.name) / "PROTOCOL.md"
-        self.doc = load_doctor()
-
-    def tearDown(self):
-        self._tmp.cleanup()
-
-    def warns(self, size: int) -> list[str]:
-        self.path.write_bytes(b"x" * size)
-        self.doc.findings.clear()
-        self.doc.check_protocol_size(self.path)
-        return [msg for sev, _area, msg in self.doc.findings if sev == "WARN"]
-
-    def test_at_the_budget_is_quiet(self):
-        self.assertEqual(self.warns(self.doc.PROTOCOL_MAX_BYTES), [])
-
-    def test_over_the_budget_warns(self):
-        msgs = self.warns(self.doc.PROTOCOL_MAX_BYTES + 1)
-        self.assertEqual(len(msgs), 1, msgs)
-        self.assertIn("core budget", msgs[0])
-
-
 class Budgets(unittest.TestCase):
     """R5: each command's static load (file + @${CLAUDE_PLUGIN_ROOT}/ includes) has a budget (ERROR
     over it) and WARNs past +5% over the previous release's floor."""
@@ -321,12 +295,13 @@ class Suite(unittest.TestCase):
         self.assertEqual(error_lines(out), [], out)
         self.assertEqual(code, 0, out)
 
-    def test_protocol_is_within_its_final_budget(self):
-        # E-11b set the final 1.2.0 budget; the repo's PROTOCOL.md must fit it (0 WARN).
-        # 1.4.1: raised to 15,200 for the R4 untrusted-input rule; R5 per-command budgets govern.
+    def test_suite_has_no_warning_and_the_protocol_check_is_retired(self):
+        # 1.4.1: PROTOCOL_MAX_BYTES and its WARN are retired; the R5 budgets and the +5% growth
+        # WARN against the v1.4.0 floors govern every command's load, PROTOCOL.md included.
         doc = load_doctor()
-        self.assertEqual(doc.PROTOCOL_MAX_BYTES, 15_200)
-        self.assertLessEqual((ROOT / "PROTOCOL.md").stat().st_size, doc.PROTOCOL_MAX_BYTES)
+        self.assertFalse(hasattr(doc, "PROTOCOL_MAX_BYTES"))
+        self.assertFalse(hasattr(doc, "check_protocol_size"))
+        self.assertEqual(doc.FLOOR_BASE_REF, "v1.4.0")
         _code, out = run_tool(DOCTOR, "--suite")
         self.assertIn("Summary: 0 ERROR, 0 WARN", out)
 

@@ -204,7 +204,6 @@ def check_suite() -> None:
     protocol = read(HOME / "PROTOCOL.md", "suite")
     if protocol is not None and "GENPROMPT-PROTOCOL v3 LOADED" not in protocol:
         add("ERROR", "suite", "PROTOCOL.md lost its load marker line")
-    check_protocol_size()
     check_budgets()
     check_write_grants([cmd for _l, cmd, *_ in bs.ARCHETYPES] + [bs.ENTRY])
 
@@ -299,27 +298,11 @@ def check_write_grants(emitters: list[str], commands: Path = COMMANDS) -> None:
                                   f"{', '.join(sorted(has))} (§10.8)")
 
 
-# E-09c: every archetype command @-includes PROTOCOL.md, so its size is paid on every emission.
-# Budget: 1.2.0 (E-11b) was 16,800; E-09f cut PROTOCOL to 14,010 bytes, so 14,600 keeps the same
-# ~600 B headroom. Raise it only with a reason. 1.4.1: 15,200 for the R4 untrusted-input rule
-# (1.4.1); per-command R5 budgets now govern (PROTOCOL 14,628, ~570 B headroom kept).
-PROTOCOL_MAX_BYTES = 15_200
-
-
-def check_protocol_size(path: Path = HOME / "PROTOCOL.md", limit: int = PROTOCOL_MAX_BYTES) -> None:
-    """WARN when PROTOCOL.md grows past the core budget; move read-on-demand detail to its section."""
-    if not path.is_file():
-        return
-    size = path.stat().st_size
-    if size > limit:
-        add("WARN", "suite", f"PROTOCOL.md is {size} bytes, over the {limit}-byte core budget: move "
-                             f"read-on-demand detail to its owning section with a 'Read only when' pointer")
-
-
 # R5 (1.4.1): the static load of every command, the command file plus every @${CLAUDE_PLUGIN_ROOT}/
 # include, is what a run pays before reading anything else. The command budgets catch a total
-# that grew too far (ERROR); PROTOCOL_MAX_BYTES above stays as the earlier, tighter signal on the
-# one file every archetype command shares. Budgets: the aa96986 floor + 2,000 B, rounded up to 500.
+# that grew too far (ERROR). They replace the old PROTOCOL.md-only size WARN (PROTOCOL_MAX_BYTES,
+# retired in 1.4.1): PROTOCOL's bytes are inside every archetype command's load, so its growth
+# shows here. Budgets: the aa96986 floor + 2,000 B, rounded up to 500 (unchanged in 1.4.1).
 COMMAND_BUDGETS = {
     "approve": 32000, "audit": 33000, "auto": 24000, "cleanup": 33500, "commit": 31500,
     "design": 34000, "docs": 31500, "doctor": 7500, "fix": 35500, "greenfield": 32000,
@@ -329,8 +312,10 @@ COMMAND_BUDGETS = {
     "roadmap": 35000, "security": 35500, "slice": 34500, "test": 34000, "upgrade": 35000,
 }
 # The floors at the previous release (WARN past +5%). doctor runs no git, so they are pinned here;
-# re-measure and replace them (and FLOOR_BASE_REF) when the next release is tagged.
-FLOOR_BASE_REF = "aa96986"
+# re-measure and replace them (and FLOOR_BASE_REF) when the next release is tagged. Measured at
+# v1.4.0 (b10f927) with static_bytes; every value equals aa96986's, because no command file or
+# included rule file changed between them (1.4.0 added archive.py's guard, evals, docs, version).
+FLOOR_BASE_REF = "v1.4.0"
 FLOOR_BASE = {
     "approve": 29823, "audit": 30915, "auto": 21911, "cleanup": 31014, "commit": 29284,
     "design": 31597, "docs": 29356, "doctor": 5165, "fix": 33151, "greenfield": 29645,

@@ -4,6 +4,12 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-10 · tools/doctor.py · 1.4.1 floor move: the R5 +5% growth WARN now measures against
+  the v1.4.0 floors (FLOOR_BASE_REF aa96986 -> v1.4.0). Re-measured at v1.4.0, every floor equals
+  aa96986's, because no command file or included rule file changed between them; COMMAND_BUDGETS
+  unchanged. PROTOCOL_MAX_BYTES (15,200) and its PROTOCOL.md-only size WARN are retired: PROTOCOL's
+  bytes sit inside every archetype command's load, so the per-command budgets and the growth WARN
+  cover it. Rule bytes +0.
 - 2026-11-10 · PROTOCOL.md Step 6 item 2 · 1.4.1: the archive-run bullet opens with the
   `--dry-run` exception ("the dry run is the only run") before the two-run order. +0 B.
 - 2026-11-10 · PROTOCOL.md Step 2, guide/01 §2.0 step 7 + §2.9 (derive.md) · Card-by-tool
