@@ -81,3 +81,12 @@
 - **L1 on aa96986: A5 FAIL 1/15** (redesign r2, a REAL WRITE under --dry-run), with 0 counted
   attempts. It is recorded as "**FAIL 1/15 on aa96986, remedied in <B's guard SHA>**".
 - L1's load is carried under P-a.
+
+## CP8 continues on `bcb1e05` (aa96986 + B's dry-run guard bbdf689), eval freeze `90f5892`
+
+- **L1: load carried under P-a; A5 FAIL 1/15 on aa96986, remedied in bcb1e05 (guard bbdf689).**
+  - Only tools/archive.py, its test and the CHANGELOG changed. Every command's includes are
+    md5-identical to aa96986 (PE).
+  - r2's parts flags were `--go --dry-run`, so the guard would have caught that run. It prints
+    "dry-run signalled in parts: not written", and its exit code equals the dry run's.
+- **L1 medians used as `--cardless` for L2:** slice 37,679 · fix 38,462 · redesign 37,120 · plan 34,921 · investigate 40,517.
