@@ -74,10 +74,11 @@ profile rules at all, when both hold:
 - `derived:` is at most 90 days old
 
 Otherwise (card missing, stale or past 90 days), every time, however small the task: read
-`guide/blocks/derive.md` (§2.0 and the card template), derive the profile and Write the card
-(`--dry-run` never writes it). It names the only cases that need the rest of §2,
+`guide/blocks/derive.md` (§2.0 and the card template), derive the profile and write the card with
+`archive.py --card` (`--dry-run` never writes it). It names the only cases that need the rest of §2,
 `stacks/stack-matrix.md` or `stacks/workspaces.md`. Don't assume a file exists. The lock's Stack
-line gives the card's age (today − `derived`, in days); `new` only if this run wrote the card.
+line gives the card's age (today − `derived`, in days); `new` only if this run wrote the card
+(archive.py printed `card new`).
 
 Re-derive the gates every time, cache or not, from the manifest's real script keys, the contract's
 own commands and the tools you can prove present, because gates rot and a wrong gate is the most

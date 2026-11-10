@@ -46,9 +46,15 @@ order. Read a numbered section below only when its step names a condition that h
    `git symbolic-ref refs/remotes/origin/HEAD`, else `origin/main` or `origin/master`, said to be
    inferred. `docnaming`: the pattern the repo's own docs show, else `docs/<kebab-topic>.md`;
    read §2.7 only when the repo shows no naming pattern.
-7. Write the card to `~/.genprompt/generated-prompts/by-repo/<key>.profile.md`. `key`: the
-   directory basename, lowercased, `_` and spaces turned into `-`. `stamp:` the manifests and the
-   contract, each `<file>@<git log -1 --format=%h -- <file>>`. `--dry-run` never writes it.
+7. Write the card with `archive.py --card <parts.json>`, never by hand: Write a parts file to
+   `~/.genprompt/tmp/<key>.card.json` holding a `card` object with `repo`, `path`, `derived`,
+   `user_level` (`present`, `unreadable` or `none`; anything else is refused), `stamp_files` (the
+   manifests and the contract) and the template's other fields. The tool sets `key` from `path`
+   (basename, lowercased, `_` and spaces turned into `-`) and each stamp from
+   `git log -1 --format=%h -- <file>`. No git, or no repo: every stamp is
+   `<file>@unverified (git unavailable)`, a stamp that never matches, so every run re-derives the
+   card. The lock's `card` slot is the tool's last line: `card new`, or
+   `card not written (--dry-run)`, because `--dry-run` never writes it.
 
 ### 2.9 The profile card (template)
 

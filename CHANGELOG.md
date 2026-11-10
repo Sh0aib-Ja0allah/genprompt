@@ -4,6 +4,11 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-10 · PROTOCOL.md Step 2, guide/01 §2.0 step 7 + §2.9 (derive.md) · Card-by-tool
+  (1.4.1): the card is written with `archive.py --card`, never by hand; derive.md defines the
+  parts file, the user_level enum and no git (every stamp `<file>@unverified (git unavailable)`,
+  never fresh, so every run re-derives the card), and the lock's card slot is the tool's printed
+  line. +57 B on every command (PROTOCOL); derive.md is read on demand.
 - 2026-11-10 · PROTOCOL.md write boundary · Card-by-tool (1.4.1): run `archive.py` alone and
   bare (no `cd`, pipe or `&&`); if a call is denied, retry it once bare. +100 B on every command.
 - 2026-11-10 · tools/archive.py, tools/doctor.py · Card-by-tool (1.4.1): `archive.py --card`

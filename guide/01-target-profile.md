@@ -120,9 +120,15 @@ order. Read a numbered section below only when its step names a condition that h
    `git symbolic-ref refs/remotes/origin/HEAD`, else `origin/main` or `origin/master`, said to be
    inferred. `docnaming`: the pattern the repo's own docs show, else `docs/<kebab-topic>.md`;
    read §2.7 only when the repo shows no naming pattern.
-7. Write the card to `~/.genprompt/generated-prompts/by-repo/<key>.profile.md`. `key`: the
-   directory basename, lowercased, `_` and spaces turned into `-`. `stamp:` the manifests and the
-   contract, each `<file>@<git log -1 --format=%h -- <file>>`. `--dry-run` never writes it.
+7. Write the card with `archive.py --card <parts.json>`, never by hand: Write a parts file to
+   `~/.genprompt/tmp/<key>.card.json` holding a `card` object with `repo`, `path`, `derived`,
+   `user_level` (`present`, `unreadable` or `none`; anything else is refused), `stamp_files` (the
+   manifests and the contract) and the template's other fields. The tool sets `key` from `path`
+   (basename, lowercased, `_` and spaces turned into `-`) and each stamp from
+   `git log -1 --format=%h -- <file>`. No git, or no repo: every stamp is
+   `<file>@unverified (git unavailable)`, a stamp that never matches, so every run re-derives the
+   card. The lock's `card` slot is the tool's last line: `card new`, or
+   `card not written (--dry-run)`, because `--dry-run` never writes it.
 
 ### 2.1 Exclusions, and ancestors
 
@@ -378,7 +384,8 @@ Keys and invalidation.
   suffix the key with `-2` and note it.
 - Fresh means the stamps still hold. A card is fresh while every `stamp:` entry still matches
   `git log -1 --format=%h -- <file>` and no stamped file is dirty (`git status --porcelain <file>`).
-  Invalidate the whole card as soon as one stamp moves. There is no fixed short TTL: a quiet repo's
+  Invalidate the whole card as soon as one stamp moves. An `unverified (git unavailable)` stamp
+  never matches. There is no fixed short TTL: a quiet repo's
   card can stay valid for weeks, because nothing it was derived from has changed.
 - Hard ceiling: 90 days. Re-derive a card whose `derived` is more than 90 days old even if every
   stamp matches. Stamps cover the manifests and the contract, not everything the card reads (the
@@ -392,8 +399,9 @@ Keys and invalidation.
 - First use writes it. Every prompt for a repo that has no card derives the profile and writes
   the card to `by-repo/<key>.profile.md`, however small the task, so the next run can reuse it.
   A stale or expired card is rewritten the same way. `--dry-run` never writes the card.
-- The lock reports what happened: `card new` only when this run's Write of the card succeeded,
-  `card not written (--dry-run)` under `--dry-run`, never `new` for a card that was not written.
+- The lock reports what happened, copying the line `archive.py --card` printed: `card new` only
+  when this run wrote the card, `card not written (--dry-run)` under `--dry-run`, never `new` for
+  a card that was not written.
 - Future work, not active: skipping the TARGET LOCK wait when the card is fresh ("auto-go") stays
   off until the archive's `lock=` data (PROTOCOL Step 6) shows that locks are rarely corrected.
 - Why git shas and not mtimes: a checkout or pull changes mtimes without changing content.

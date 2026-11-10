@@ -337,8 +337,22 @@ class BuildShims(unittest.TestCase):
         flat = " ".join(step2.split())
         self.assertIn("Otherwise (card missing, stale or past 90 days), every time, however small the "
                       "task: read `guide/blocks/derive.md`", flat)
-        self.assertIn("derive the profile and Write the card (`--dry-run` never writes it)", flat)
-        self.assertIn("`new` only if this run wrote the card.", flat)
+        # card-by-tool (1.4.1): the card is written by archive.py --card, and its printed line is
+        # what the lock says.
+        self.assertIn("derive the profile and write the card with `archive.py --card` (`--dry-run` "
+                      "never writes it)", flat)
+        self.assertIn("`new` only if this run wrote the card (archive.py printed `card new`).", flat)
+        derive = " ".join((ROOT / "guide" / "blocks" / "derive.md").read_text(encoding="utf-8").split())
+        for phrase in ("Write the card with `archive.py --card <parts.json>`, never by hand",
+                       "`user_level` (`present`, `unreadable` or `none`; anything else is refused)",
+                       "No git, or no repo: every stamp is `<file>@unverified (git unavailable)`, a "
+                       "stamp that never matches, so every run re-derives the card.",
+                       "The lock's `card` slot is the tool's last line: `card new`, or "
+                       "`card not written (--dry-run)`, because `--dry-run` never writes it."):
+            self.assertIn(phrase, derive)
+        archive = (ROOT / "tools" / "archive.py").read_text(encoding="utf-8")
+        self.assertIn('STAMP_NO_GIT = "unverified (git unavailable)"', archive)
+        self.assertIn('CARD_NEW, CARD_DRY = "card new", "card not written (--dry-run)"', archive)
         self.assertNotIn("Only when the card is", flat)
         stack = next(ln for ln in proto.splitlines() if ln.startswith("Stack "))
         self.assertIn("card <Nd, stamps fresh | Nd, stale: <file> moved | new | not written (--dry-run)>",
