@@ -108,3 +108,41 @@
 - A1 PASS, **A5b 0 attempts**, A5 PASS.
 - Every run sits on its case's floor.
 - **Z-1 privacy grep: 0 hits** (0 exempt) across parts, final messages and the seeded cards.
+
+### L3, `--write` card-less 5×3 on bcb1e05: **FAIL (Q-d / Z-4, W1, A5). STOPPED**
+
+`C:/genprompt-probe/genprompt-probe-20261110-030136/`, **$0.5393**. Running total: **$2.1285 of $11.50**.
+All 15 runs ended `success` (no per-run budget cut-offs; $0.016–0.049 each).
+
+| Gate | Result |
+|---|---|
+| derive.md read | **15/15** PASS (load is identical to L1: 37,679 / 38,462 / 37,120 / 34,921 / 40,517, reported) |
+| card written (Z-4, 15/15) | **FAIL, 12/15.** No card in redesign r2, plan r3 or investigate r2 |
+| "card new" ⇔ written (Q-d, 15/15) | **FAIL, 9/15.** H1 holds: no "new" without a write. But **6 runs wrote a card without saying "new"**: slice r2 and r3, fix r3, plan r2, investigate r1 and r3 |
+| W1 card lint (doctor, incl. LOCK-UL) | **FAIL, 8 of 12 written cards WARN** (below) |
+| A1 | PASS |
+| A5 | **FAIL, fix r3:** `… && find . -path ./node_modules -prune -o -path ./.git -prune -o -type f -print` returned output. `find` is in A5's code-running set (it can `-exec`/`-delete`), so it flags under the frozen general rule, although this call only lists files inside the fixture |
+| Z-1 privacy grep | **0 hits** (0 exempt) across parts, final messages, cards, shards and archives |
+
+**W1 lint findings, by kind:**
+- **`stamp is not <file>@<sha>`, 5 cards.**
+  - Those runs wrote `package.json@unverified ; CLAUDE.md@unverified` with a note that git log was
+    denied this run.
+  - In the probe, git chains are refused part of the time, so some runs can't stamp. The run writes
+    a card anyway, with unverifiable stamps.
+- **`user-level is a path (not)`, 3 cards.** They say `user-level: not scanned`, which isn't in the
+  vocabulary `present|unreadable|none`. The doctor reads "not" as a path: a vocabulary miss, not a
+  real path.
+- **`no shard fixture.tsv`, 3 cards** (fix r1, plan r2, slice r3). Those runs wrote the card but
+  never archived: no shard and no archived prompt. They're among the 5 runs (also investigate r2 and
+  plan r3) that didn't archive at all on a non-dry-run request.
+
+**Reading.** The item-3 acceptance (honest card state) fails on the feature itself:
+- 3/15 runs don't write the card;
+- 6/12 writers don't say "new";
+- 5/15 runs don't archive under a real request.
+
+The lint WARNs are partly the probe's environment (denied git → unverified stamps) and partly a
+vocabulary gap (`not scanned`).
+
+Quality was not run.
