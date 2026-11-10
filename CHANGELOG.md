@@ -4,6 +4,47 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+## 1.4.0 (2026-11-10)
+
+More headroom: with a saved card, every command loads slightly less rule text than in 1.3.1, and
+plan stays under 1.1.0's load.
+
+Your user-level settings path is never shown. The TARGET LOCK, the profile card, the grounding
+notes and the run's closing notes report your user-level CLAUDE.md only as present, unreadable or
+none.
+
+Honest card state: in a repo with no saved card (or a stale one), every run now derives the
+profile and saves the card, however small the task, and the lock says "card new" only when this
+run wrote the card.
+
+Dry-run guard: a `--dry-run` request never archives. If the generator leaves `--dry-run` off its
+`archive.py` call, `archive.py` sees `--dry-run` in the request's recorded flags and writes nothing.
+
+Known issue: When the permission mode refuses a git or archive command, the card or the archive
+is skipped and the run says so. In the default mode Claude Code asks instead of refusing. Fixed in
+1.4.1 (archive.py writes the card).
+
+Known issue: Some cards may record user-level as "not scanned" instead of present/unreadable/none
+(fix in 1.4.1).
+
+Known issue: On Windows, if python3 is the Store alias, the first archive call fails (exit 49) and
+the generator falls back to python.
+
+Known issue: Under --dry-run with no saved card, the lock may read "card new, not written
+(--dry-run)". Nothing is written; fixed in 1.4.1.
+
+Testing: CP8 on frozen bcb1e05, $5.88 of $11.50. Quality 5/5 PASS (opus judge with escalation, 0
+escalations, no regression against 1.3.1). Load PASS: card-less first runs derived 15/15 (1.3.1:
+11/15); with a card every run sat on its floor (plan 29,610 B, 1,005 B under v1.1.0's line). In
+the `--write` run "card new" matched a written card 15/15, but permission refusals left 3/15
+runs without a card and 5/15 without an archive (the first known issue above). Privacy grep: 0
+hits.
+
+- 2026-11-10 · .claude-plugin/, CHANGELOG.md, README.md · Release prep: version 1.4.0. CP8
+  quality and load PASS at frozen bcb1e05 ($5.88 of $11.50); L3 Z-4 (card written 12/15) and W1
+  stated as known issue 1; README: Python 3 is required, first run is :profile or :onboard,
+  doctor --suite moves to troubleshooting, Read/Glob/Grep are machine-wide, read gates before
+  pasting into an unattended worker.
 - 2026-11-10 · tools/archive.py · Fix: a parts file whose `flags` records `--dry-run` is never
   archived, even when the command line omits `--dry-run` (CP8 L1: one redesign run archived for
   real under a --dry-run request). The run becomes a dry run, prints "dry-run signalled in parts:

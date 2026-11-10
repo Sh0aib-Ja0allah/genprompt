@@ -62,12 +62,18 @@ Then restart Claude Code, or run `/reload-plugins`, and type `/genprompt:help`.
 **Requirements**
 - Claude Code with plugin support
 - `git` on PATH. On Windows, Git for Windows, whose Git Bash is what Claude Code's Bash tool uses.
-- Python 3, only for `/genprompt:doctor` (the integrity check). Nothing else needs it.
+- Python 3. Every command that writes a prompt runs genprompt's `archive.py` first, and saving
+  each prompt to your archive needs it too. On Windows, if `python3` is only the Microsoft Store
+  alias, genprompt falls back to `python`.
 
 ## Quick start
 
-**First run:** after installing, run `/genprompt:doctor --suite` once. It checks that the installed
-rules are complete and consistent, and it needs nothing but Python 3.
+**First run:** in a repo you want to work on, run `/genprompt:profile`, or `/genprompt:onboard` if
+the repo is new to you. The first run in each repo reads the repo once and saves a profile card;
+later commands in that repo read the card instead.
+
+**Troubleshooting:** if a command behaves oddly after an install or update, run
+`/genprompt:doctor --suite`. It checks that the installed rules are complete and consistent.
 
 **The core loop:** `:onboard` → `:slice` → `:next` → `:review` → `:commit`. Most work is these five.
 
@@ -170,8 +176,11 @@ and your rules win over the suite's where they conflict. If the rule would help 
 - **Read-only on every repo.** It reads files and runs read-only git (`status`, `log`, `diff`,
   `show`, …). It never runs builds, tests, installs or migrations. It checks a worker's claims by
   reading commits, diffs and files.
-- **Pre-approved tools are narrow.** Each command pre-approves Read/Glob/Grep, read-only git, a few
-  listing commands, and writes under `~/.genprompt/` only. Anything else asks you first.
+- **What is pre-approved.** Each command pre-approves Read, Glob and Grep for any file on your
+  machine, not only the repo, plus read-only git, a few listing commands, genprompt's own
+  `archive.py`, and writes under `~/.genprompt/` only. Anything else asks you first.
+- **Check before you hand it off.** Before pasting a prompt into an unattended worker, read its
+  gate commands; a gate labelled (contract) comes from the repo's own docs.
 - **Grounded.** Every load-bearing instruction cites `file:line`, and anything unverified is marked.
 - **The repo's contract wins.** Branching, deploy and push rules come from the repo's `CLAUDE.md`.
   Release and deploy steps need your approval for each action.
