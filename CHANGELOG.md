@@ -4,6 +4,14 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-10 · tools/doctor.py · 1.4.1 (CP8 W1): a `user-level:` slot off the vocabulary gets its
+  own message instead of "is a path". A card saying `user-level: not scanned` now reads: user-level
+  is "not scanned", not one of present|unreadable|none (vocabulary miss): run /genprompt:profile in
+  that repo to re-derive the card. The prompt lint (and so archive.py's FAIL) says the same. A
+  user-level path is still reported, but its value is no longer echoed. Rule bytes +0.
+- 2026-11-10 · archetypes/X-investigate.md · X-wrap (1.4.1): the bisect bullet's 134-char line 24 is
+  rewrapped to 98 (a 1.4.0 rewrap slip). Byte-neutral: same words, same line count, +0 B on
+  investigate.
 - 2026-11-10 · tools/tests/test_archive.py · 1.4.1 merge (enh/1.4.1-a + enh/1.4.1-b on v1.4.0):
   two merge-gate tests. R11: home paths for a sibling repo, a reference repo and a split lane pass;
   the temp dir and scratchpad, `~/.claude`, `.ssh`, `.aws`, `.gnupg`, `.kube` and `.docker` fail

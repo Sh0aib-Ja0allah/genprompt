@@ -111,9 +111,19 @@ class ProfileFreshness(unittest.TestCase):
         # LOCK-UL (1.4.0): the card slot is present / unreadable / none, never the user's home path
         out = self.run_with_cards({"leak": 5}, "ancestors:   none found · user-level: /home/someone/.claude/CLAUDE.md\n")
         self.assertIn("profile leak.profile.md: user-level is a path", out)
+        self.assertNotIn("/home/someone", out)              # the path is never echoed
         out = self.run_with_cards({"clean": 5}, "ancestors:   none found · user-level: present\n")
         self.assertNotIn("user-level is a path", out)
         self.assertIn("Summary: 0 ERROR, 0 WARN", out)
+
+    def test_card_user_level_vocabulary_miss_has_its_own_message(self):
+        # CP8 W1: three cards said `user-level: not scanned`. That is a word off the vocabulary, not a
+        # path, so doctor says so and names the fix.
+        out = self.run_with_cards({"miss": 5}, "ancestors:   none found · user-level: not scanned\n")
+        self.assertIn('profile miss.profile.md: user-level is "not scanned", not one of '
+                      'present|unreadable|none (vocabulary miss): run /genprompt:profile', out)
+        self.assertNotIn("is a path", out)
+        self.assertIn("Summary: 0 ERROR, 1 WARN", out)
 
 
 def load_doctor():

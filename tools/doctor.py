@@ -78,6 +78,16 @@ PERSONAL_PATH = (re.compile(r"\b[A-Za-z]:[\\/]+Users[\\/]+(?!<)[\w.-]+|/(?:Users
 # LOCK-UL (1.4.0): the user-level CLAUDE.md is reported as present / unreadable / none, never by
 # path, because its path names the user's home (CP7 found it in locks, a card slot and grounding).
 USER_LEVEL_RE = re.compile(r"user-level:\s*(?!(?:present|unreadable|none)\b|<)([^\s,;·|)]+)", re.I)
+UL_PATHLIKE = re.compile(r"[\\/~$]|^[A-Za-z]:")
+
+
+def user_level_problem(m: re.Match) -> str:
+    """Say what is wrong with a user-level slot USER_LEVEL_RE matched: a path (never echoed, it
+    names the user's home) or a word off the vocabulary, such as CP8 W1's "not scanned"."""
+    if UL_PATHLIKE.search(m.group(1)):
+        return "is a path"
+    value = re.split(r"[,;·|)\n]", m.string[m.start(1):], maxsplit=1)[0].strip().strip("`")
+    return f'is "{value[:40]}", not one of present|unreadable|none (vocabulary miss)'
 
 findings: list[tuple[str, str, str]] = []
 info_counts: Counter[str] = Counter()
@@ -887,8 +897,8 @@ def lint_prompt(text: str, filename: str | None = None,
     if vc:
         res.append(("verdict-line", vc[0], vc[1]))
 
-    # user-level reported as a path (WARN: LOCK-UL, it names the user's home)
-    ul = [f"line {n}: user-level: {m.group(1)}" for n, ln in enumerate(lines, 1)
+    # user-level reported as a path or off the vocabulary (WARN: LOCK-UL, a path names the user's home)
+    ul = [f"line {n}: user-level {user_level_problem(m)}" for n, ln in enumerate(lines, 1)
           for m in USER_LEVEL_RE.finditer(ln)]
     res.append(("user-level", WARN if ul else PASS,
                 "; ".join(ul[:3]) + " (report present|unreadable|none, never a path)" if ul else
@@ -1004,9 +1014,12 @@ def check_profiles(today: dt.date) -> None:
         except ValueError:
             add("WARN", "archive", f"profile {prof.name}: derived date missing or invalid")
         ul = USER_LEVEL_RE.search(text)
-        if ul:
-            add("WARN", "archive", f"profile {prof.name}: user-level is a path ({ul.group(1)}); "
+        if ul and user_level_problem(ul) == "is a path":
+            add("WARN", "archive", f"profile {prof.name}: user-level is a path; "
                                    f"report present|unreadable|none, never a path (LOCK-UL)")
+        elif ul:
+            add("WARN", "archive", f"profile {prof.name}: user-level {user_level_problem(ul)}: "
+                                   f"run /genprompt:profile in that repo to re-derive the card")
         if not re.search(r"\S+@[0-9a-f]{6,}", front.get("stamp", "")):
             add("WARN", "archive", f"profile {prof.name}: stamp is not <file>@<sha> (cannot be checked)")
 
