@@ -687,8 +687,10 @@ class WriteModeTest(unittest.TestCase):
 
     def test_claims_new_card(self):
         new = ["- Stack: Node commonjs, node >=18 · role senior Node engineer · card 0d, fresh (new)",
-               "Stack       Node, CommonJS · role CLI · card new (dry run writes none)",
-               "Stack       Node >=18 · role CLI engineer · card new, not written (--dry-run)"]
+               "Stack       Node, CommonJS · role CLI · card new (dry run writes none)"]
+        # CP8 C1 amendment: "card new" + "not written" in one row is a format miss, not a claim
+        self.assertFalse(run.claims_new_card(
+            ["Stack       Node >=18 · role CLI engineer · card new, not written (--dry-run)"]))
         not_new = ["Stack       Node · role engineer · card 0d, stamps fresh (package.json@9c672ba)",
                    "Stack       Node.js · role engineer · card none (not derived this run)",
                    "The card is new to me",          # not a Stack line
@@ -697,6 +699,30 @@ class WriteModeTest(unittest.TestCase):
             self.assertTrue(run.claims_new_card([t]), t)
         for t in not_new:
             self.assertFalse(run.claims_new_card([t]), t)
+
+    def test_claims_new_on_a_wrapped_stack_row(self):
+        # CP8 L3 slice r2 (030136), verbatim: the lock wraps the Stack row and "card new" lands on
+        # the indented continuation line (the Reviewer's finding).
+        lock = ("Scope       single root\n"
+                "Stack       Node.js, CommonJS, no runtime deps, node >=18, node:test · role "
+                "senior Node.js engineer\n"
+                "            · card new (written this run; stamps CLAUDE.md, package.json, "
+                "scripts/lint.js @9c672ba)\n"
+                "Contract    CLAUDE.md (root) · hard rules: never commit to main, feat/<slug> "
+                "branches;\n"
+                "            Conventional Commits; stage by path; no push or PR without OK; gates "
+                "green before commit")
+        self.assertTrue(run.claims_new_card([lock]))
+        rows = run.stack_rows(lock)
+        self.assertEqual(len(rows), 1)
+        self.assertNotIn("Contract", rows[0])            # the next lock row ends the Stack row
+        # "new" on a later row (not the Stack row's continuation) doesn't count
+        other = ("Stack       Node · role engineer\n            · card 0d, stamps fresh\n"
+                 "Contract    CLAUDE.md · new docs go in docs/")
+        self.assertFalse(run.claims_new_card([other]))
+        # a blank line or a fence also ends the row
+        self.assertFalse(run.claims_new_card(["Stack  Node · card 3d\n\n   card new"]))
+        self.assertFalse(run.claims_new_card(["Stack  Node · card 3d\n```\n   card new"]))
 
     def test_card_written_and_path(self):
         import tempfile
@@ -779,3 +805,237 @@ class DispatchSetupTest(unittest.TestCase):
                 self.assertIn(f"/rename {name}", s)
             self.assertEqual(s.count("GENPROMPT_HOME"), 4)
             self.assertNotIn(str(Path.home().as_posix()) + "/.genprompt", s)
+
+
+class SeedCardLockULTest(unittest.TestCase):
+    """CP8 (1.4.0 LOCK-UL): the seeded card reports user-level as present|unreadable|none, never a
+    path, so card-fresh runs aren't fed a card the 1.4.0 doctor would WARN on."""
+
+    def test_seeded_card_user_level_is_not_a_path(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            fx = run.fixture(Path(tmp) / "w")
+            text = run.seed_card(Path(tmp) / "home", fx).read_text(encoding="utf-8")
+        m = re.search(r"user-level:\s*(\S+)", text)
+        self.assertIsNotNone(m)
+        self.assertIn(m.group(1), ("present", "unreadable", "none"))
+        self.assertNotIn("~/", text)
+
+
+class DryRunAttemptRuleTest(unittest.TestCase):
+    """CP8 A5 rule (Planner): an archive.py real call under a dry-run request is judged on disk:
+    nothing written = "attempt, no write" (counted, > 1 per step stops); a real write = FAIL."""
+    ROOT = "C:/genprompt-probe" if run.os.name == "nt" else "/var/tmp/genprompt-probe"
+
+    def test_archive_attempt_is_only_the_archive_real_call(self):
+        arch = f"{self.ROOT}/w/gp-cand/tools/archive.py"
+        parts = f"{self.ROOT}/w/homes/h/tmp/p.json"
+        self.assertTrue(run.archive_attempt(f'python "{arch}" "{parts}"', self.ROOT))
+        self.assertFalse(run.archive_attempt(f'python "{arch}" --dry-run "{parts}"', self.ROOT))
+        self.assertFalse(run.archive_attempt(f'python "{arch}" --where', self.ROOT))
+        # anything else unsafe in the chain keeps it a plain A5 flag
+        self.assertFalse(run.archive_attempt(f'python "{arch}" "{parts}" && rm -rf x', self.ROOT))
+        self.assertFalse(run.archive_attempt(f'python "{arch}" "C:/elsewhere/p.json"', self.ROOT))
+        self.assertFalse(run.archive_attempt("ls", self.ROOT))
+
+    def test_home_writes_ignores_tmp_and_the_card(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            home, fx = Path(tmp) / "home", Path(tmp) / "fixture"
+            (home / "tmp").mkdir(parents=True)
+            (home / "tmp" / "p.json").write_text("{}", encoding="utf-8")
+            card = run.card_path(home, fx)
+            card.parent.mkdir(parents=True)
+            card.write_text("card", encoding="utf-8")
+            self.assertEqual(run.home_writes(home, fx), [])
+            (home / "generated-prompts" / "fixture").mkdir(parents=True)
+            (home / "generated-prompts" / "fixture" / "x.md").write_text("p", encoding="utf-8")
+            (card.parent / "fixture.tsv").write_text("row", encoding="utf-8")
+            self.assertEqual(run.home_writes(home, fx), ["generated-prompts/by-repo/fixture.tsv",
+                                                         "generated-prompts/fixture/x.md"])
+            self.assertEqual(run.home_writes(Path(tmp) / "nope", fx), [])
+
+    def test_judge(self):
+        a = {"archive_attempts": ["python archive.py p.json"]}
+        fails, counted = run.judge_dry_run_writes(a, [])
+        self.assertEqual(fails, [])
+        self.assertIn("attempt, no write", counted[0])
+        fails, counted = run.judge_dry_run_writes(a, ["generated-prompts/fixture/x.md"])
+        self.assertIn("REAL WRITE under --dry-run", fails[0])
+        self.assertEqual(counted, [])
+        # a real write fails even without a detected archive.py call (e.g. via the Write tool)
+        self.assertTrue(run.judge_dry_run_writes({"archive_attempts": []}, ["a.md"])[0])
+        self.assertEqual(run.judge_dry_run_writes({"archive_attempts": []}, []), ([], []))
+
+    def test_analyze_records_attempt_not_outside(self):
+        import json
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp).resolve() / "genprompt-probe" / "run-1"
+            work.mkdir(parents=True)
+            arch = (work / "gp-cand" / "tools" / "archive.py").as_posix()
+            parts = (work / "homes" / "h" / "tmp" / "p.json").as_posix()
+            cmd = f'python "{arch}" "{parts}"'
+            t = work / "t.jsonl"
+            t.write_text("\n".join([
+                json.dumps({"type": "assistant", "message": {"content": [
+                    {"type": "tool_use", "id": "b1", "name": "Bash", "input": {"command": cmd}}]}}),
+                json.dumps({"type": "user", "message": {"content": [
+                    {"type": "tool_result", "tool_use_id": "b1",
+                     "content": "DRY RUN (guard): nothing written"}]}})]), encoding="utf-8")
+            real, run.HOME = run.HOME, Path("C:/Users/nobody-here")
+            try:
+                dry = run.analyze(t, work / "gp-cand", work)
+                wr = run.analyze(t, work / "gp-cand", work, write=True)
+            finally:
+                run.HOME = real
+        self.assertEqual(dry["archive_attempts"], [cmd])
+        self.assertEqual(dry["outside"], [])
+        self.assertEqual(wr["archive_attempts"], [])   # --write runs: real calls are allowed
+        self.assertEqual(wr["outside"], [])
+
+
+class FindRuleTest(unittest.TestCase):
+    """CP8 find rule (Planner): a find is not an A5 flag only if (a) no exec/write action, (b) every
+    start path is inside the probe root, (c) every output line is inside it, (d) no redirect or
+    pipe to a writer."""
+    ROOT = "C:/genprompt-probe" if run.os.name == "nt" else "/var/tmp/genprompt-probe"
+
+    def fx(self):
+        return f"{self.ROOT}/w/fixture"
+
+    def test_allowed_form(self):
+        cmd = (f'cd "{self.fx()}" && git status --porcelain -uall && find . -path ./node_modules '
+               f'-prune -o -path ./.git -prune -o -type f -print')
+        self.assertFalse(run.safe_bash(cmd, self.ROOT))          # the general rule still flags find
+        self.assertTrue(run.find_pass(cmd, "./src/cli.js\n./package.json", self.ROOT))
+        self.assertTrue(run.find_pass(f'find "{self.fx()}" -name "*.js"',
+                                      f"{self.fx()}/src/cli.js", self.ROOT))
+
+    def test_each_excluded_action_flags(self):
+        for act in sorted(run.FIND_BAD_ACTIONS):
+            arg = {"-exec": "-exec cat {} ;", "-execdir": "-execdir cat {} ;", "-ok": "-ok rm {} ;",
+                   "-okdir": "-okdir rm {} ;"}.get(act, f"{act} x")
+            self.assertFalse(run.find_pass(f"find . -type f {arg}", "./a.js", self.ROOT), act)
+
+    def test_home_start_with_empty_output_still_flags(self):
+        home = "C:/Users/someone" if run.os.name == "nt" else "/home/someone"
+        self.assertFalse(run.find_pass(f'find "{home}" -name x', "", self.ROOT))
+        self.assertFalse(run.find_pass("find ~ -name x", "", self.ROOT))
+
+    def test_dotdot_escape_flags(self):
+        self.assertFalse(run.find_pass("find ../.. -name x", "", self.ROOT))
+        self.assertFalse(run.find_pass("find . -name x", "../../secret.txt", self.ROOT))
+
+    def test_output_outside_root_flags(self):
+        out = "C:/Users/someone/x.txt" if run.os.name == "nt" else "/home/someone/x.txt"
+        self.assertFalse(run.find_pass("find . -name x", out, self.ROOT))
+
+    def test_redirect_or_writer_pipe_flags(self):
+        self.assertFalse(run.find_pass("find . -type f > list.txt", "", self.ROOT))
+        self.assertFalse(run.find_pass("find . -type f | tee list.txt", "./a.js", self.ROOT))
+        self.assertTrue(run.find_pass("find . -type f | wc -l", "3", self.ROOT))
+
+    def test_analyze_counts_a_passing_find(self):
+        import json
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp).resolve() / "genprompt-probe" / "run-1"
+            (work / "fixture").mkdir(parents=True)
+            cmd = f'cd "{(work / "fixture").as_posix()}" && find . -type f -print'
+            t = work / "t.jsonl"
+            t.write_text("\n".join([
+                json.dumps({"type": "assistant", "message": {"content": [
+                    {"type": "tool_use", "id": "b1", "name": "Bash", "input": {"command": cmd}}]}}),
+                json.dumps({"type": "user", "message": {"content": [
+                    {"type": "tool_result", "tool_use_id": "b1",
+                     "content": "./src/cli.js\n./package.json"}]}})]), encoding="utf-8")
+            real, run.HOME = run.HOME, Path("C:/Users/nobody-here")
+            try:
+                a = run.analyze(t, work / "gp-cand", work)
+            finally:
+                run.HOME = real
+        self.assertEqual(a["find_passes"], [cmd])
+        self.assertEqual(a["outside"], [])
+
+
+class CardClaimAmendmentTest(unittest.TestCase):
+    """CP8 C1 amendment (the last): "card new" + "not written" in one Stack row = format miss
+    (counted); "card new" alone with no card written = FAIL; "card new" with a card on disk = pass;
+    a saved claim on a non-writing run = FAIL."""
+
+    def test_card_claim_kinds(self):
+        # the two L1 rows (aa96986, 012950 fix r1 / r3), verbatim
+        miss = ["Stack       Node.js, CommonJS, engines node >=18, no runtime dependencies "
+                "(package.json:9-10) \u00b7 role senior Node engineer \u00b7 card new, not written "
+                "(--dry-run)",
+                "Stack       Node.js (commonjs), node --test, no lockfile, no runtime deps "
+                "(package.json) \u00b7 role senior Node.js engineer \u00b7 card new (not written: --dry-run)"]
+        for r in miss:
+            self.assertEqual(run.card_claim([r]), "format-miss", r)
+            self.assertFalse(run.claims_new_card([r]))
+        wrapped = ("Stack       Node \u00b7 role x\n"
+                   "            \u00b7 card new (written this run; stamps package.json@9c672ba)")
+        self.assertEqual(run.card_claim([wrapped]), "new")
+        self.assertEqual(run.card_claim(["Stack   Node \u00b7 card 0d, stamps fresh"]), None)
+        # a real "new" anywhere wins over a format miss elsewhere
+        self.assertEqual(run.card_claim([miss[0], wrapped]), "new")
+
+    def _regrade(self, final: str, card: bool, saved: bool, write: bool):
+        import argparse
+        import io
+        import json
+        import tempfile
+        from contextlib import redirect_stdout
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp).resolve() / "genprompt-probe" / "run-1"
+            home = work / "homes" / "gp-cand-plan-r1"
+            (home / "tmp").mkdir(parents=True)
+            (work / "fixture").mkdir()
+            if card:
+                p = run.card_path(home, work / "fixture")
+                p.parent.mkdir(parents=True, exist_ok=True)
+                p.write_text("card", encoding="utf-8")
+            if saved:
+                d = home / "generated-prompts" / "fixture"
+                d.mkdir(parents=True)
+                (d / "x.md").write_text("p", encoding="utf-8")
+            (work / "gp-cand-plan-haiku-r1.jsonl").write_text(
+                json.dumps({"type": "result", "result": final, "total_cost_usd": 0.01}),
+                encoding="utf-8")
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                code = run.regrade(argparse.Namespace(workdir=str(work), write=write))
+            return code, buf.getvalue()
+
+    def test_regrade_amendment(self):
+        miss = "Stack   Node \u00b7 card new, not written (--dry-run)"
+        code, out = self._regrade(miss, card=False, saved=False, write=False)
+        self.assertIn("false \"card new\" / saved claims: 0", out)
+        self.assertIn("counted): 1", out)
+        self.assertEqual(code, 0)
+        code, out = self._regrade("Stack   Node \u00b7 card new", card=False, saved=False, write=False)
+        self.assertIn("false \"card new\" / saved claims: 1", out)
+        self.assertEqual(code, 1)
+        code, out = self._regrade("Stack   Node \u00b7 card new", card=True, saved=True, write=True)
+        self.assertIn("false \"card new\" / saved claims: 0", out)
+        code, out = self._regrade("Stack   Node \u00b7 card 0d\n\nSaved: C:/genprompt-probe/x.md",
+                                  card=False, saved=False, write=False)
+        self.assertIn("false \"card new\" / saved claims: 1", out)
+        self.assertEqual(code, 1)
+
+
+class SavedClaimTest(unittest.TestCase):
+    def test_claims_saved(self):
+        yes = [r"**Saved:** `C:\genprompt-probe\x\homes\h\generated-prompts\fixture\a.md`",
+               "Saved path: C:/genprompt-probe/x/a.md"]
+        no = ["**Saved path:** not saved. archive.py did not run",
+              r"**Saved path:** DRY RUN: nothing archived. Would be `C:\x.md`",
+              "Saved path: DRY RUN: nothing archived",
+              "**Saved path:** `DRY RUN: nothing archived`. To archive, run ...",
+              r"**Saved path:** nothing archived. The dry run would write `C:\x.md`",
+              "**Saved path**: not saved. To archive, run this yourself:"]
+        for t in yes:
+            self.assertTrue(run.claims_saved(t), t)
+        for t in no:
+            self.assertFalse(run.claims_saved(t), t)
