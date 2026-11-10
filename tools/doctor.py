@@ -69,6 +69,7 @@ SELF_CHECK_RE = re.compile(r"^\|\s*#\s*\|\s*Item\s*\|\s*Verdict\s*\|\s*Reason\s*
 RUNTIME_EXCLUDE = {"history", "examples", "commands", ".git", ".claude-plugin", ".github",
                    "generated-prompts", ".ruff_cache", "__pycache__"}
 PROFILE_KEYS = ("repo", "path", "key", "derived", "stamp")
+STAMP_OK = r"\S+@(?:[0-9a-f]{6,}|unverified \(git unavailable\)|untracked|missing)"
 BANNED = [
     (re.compile(r"\{\{[A-Z_]+\}\}"), "retired {{PLACEHOLDER}} syntax"),
 ]
@@ -1020,7 +1021,10 @@ def check_profiles(today: dt.date) -> None:
         elif ul:
             add("WARN", "archive", f"profile {prof.name}: user-level {user_level_problem(ul)}: "
                                    f"run /genprompt:profile in that repo to re-derive the card")
-        if not re.search(r"\S+@[0-9a-f]{6,}", front.get("stamp", "")):
+        # card-by-tool (1.4.1): archive.py --card writes `<file>@unverified (git unavailable)` when
+        # git is missing or the path is no work tree (and @untracked / @missing for a file with no
+        # commit). Those stamps are honest and never match Step 2's check, so they are not a WARN.
+        if not re.search(STAMP_OK, front.get("stamp", "")):
             add("WARN", "archive", f"profile {prof.name}: stamp is not <file>@<sha> (cannot be checked)")
 
 

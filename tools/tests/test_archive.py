@@ -648,5 +648,119 @@ class TmpPrune(unittest.TestCase):
         self.assertNotIn("PRUNED", out)
 
 
+# Card-by-tool (1.4.1): `archive.py --card` writes the profile card from the parts' `card` section,
+# with git stamps it takes itself, the LOCK-UL enum enforced, and one card-state line printed last
+# that is the lock's Stack `card` slot verbatim (CP9 matches it).
+class CardByTool(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        base = Path(self._tmp.name)
+        self.home = base / "home"
+        self.repo = base / "Shop_Front"
+        self.repo.mkdir()
+        (self.repo / "package.json").write_text("{}\n", encoding="utf-8")
+        (self.repo / "CLAUDE.md").write_text("# contract\n", encoding="utf-8")
+        self.card = self.home / "generated-prompts" / "by-repo" / "shop-front.profile.md"
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def git(self, *args: str) -> str:
+        return subprocess.run(["git", "-C", str(self.repo), "-c", "user.email=t@example.invalid",
+                               "-c", "user.name=t", "-c", "commit.gpgsign=false", *args],
+                              capture_output=True, encoding="utf-8", check=True).stdout.strip()
+
+    def commit_all(self) -> None:
+        self.git("init", "-q")
+        self.git("add", "package.json", "CLAUDE.md")
+        self.git("commit", "-q", "-m", "init")
+
+    def section(self, **over) -> dict:
+        c = {"repo": "Shop_Front", "path": str(self.repo), "derived": "2026-11-10",
+             "user_level": "none", "stamp_files": ["package.json", "CLAUDE.md"],
+             "ancestors": "none found", "stack": "node 22"}
+        c.update(over)
+        return c
+
+    def run_card(self, card: dict, *flags: str, **top) -> tuple[int, str]:
+        src = Path(self._tmp.name) / "card.json"
+        src.write_text(json.dumps({"card": card, **top}), encoding="utf-8")
+        return run_tool(ARCHIVE_PY, "--card", *flags, str(src), home=self.home)
+
+    @staticmethod
+    def card_lines(out: str) -> list[str]:
+        return [ln for ln in out.splitlines() if ln.startswith("card ")]
+
+    def test_writes_the_card_with_git_stamps_and_prints_card_new(self):
+        self.commit_all()
+        sha = self.git("log", "-1", "--format=%h", "--", "package.json")
+        code, out = self.run_card(self.section())
+        self.assertEqual(code, 0, out)
+        text = self.card.read_text(encoding="utf-8")
+        self.assertIn(f"stamp:    package.json@{sha} ; CLAUDE.md@{sha}\n", text)
+        self.assertIn("key:      shop-front\n", text)
+        self.assertIn("ancestors:   none found · user-level: none\n", text)
+        self.assertIn("gates:       NOT CACHED", text)
+
+    def test_printed_line_matches_the_written_card(self):
+        self.commit_all()
+        (self.repo / "package.json").write_text('{"x": 1}\n', encoding="utf-8")   # dirty
+        code, out = self.run_card(self.section())
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.card_lines(out), ["card new"])
+        self.assertEqual(out.strip().splitlines()[-1], "card new")
+        stamp_line = next(ln for ln in out.splitlines() if ln.startswith("stamp "))
+        written = next(ln for ln in self.card.read_text(encoding="utf-8").splitlines()
+                       if ln.startswith("stamp:"))
+        self.assertEqual(stamp_line.split(None, 1)[1], written.split(None, 1)[1])
+        self.assertIn(" dirty", written)
+
+    def test_user_level_outside_the_enum_is_refused_and_nothing_written(self):
+        self.commit_all()
+        for bad in ("~/.claude/CLAUDE.md", "not scanned", "Present"):
+            code, out = self.run_card(self.section(user_level=bad))
+            self.assertEqual(code, 2, out)
+            self.assertIn("user_level must be present, unreadable or none", out)
+            self.assertEqual(self.card_lines(out), [])
+            self.assertFalse(self.card.exists())
+        self.assertFalse((self.home / "generated-prompts").exists())
+
+    def test_no_repo_stamps_are_the_honest_unverified_string(self):
+        code, out = self.run_card(self.section())          # the folder is not a git work tree
+        self.assertEqual(code, 0, out)
+        front = self.card.read_text(encoding="utf-8")
+        self.assertIn("stamp:    package.json@unverified (git unavailable) ; "
+                      "CLAUDE.md@unverified (git unavailable)\n", front)
+        self.assertEqual(self.card_lines(out), ["card new"])
+        _c, dout = run_tool(DOCTOR, "--archive", home=self.home)
+        self.assertNotIn("stamp is not", dout)
+
+    def test_no_git_binary_stamps_are_the_honest_unverified_string(self):
+        self.commit_all()
+        src = Path(self._tmp.name) / "card.json"
+        src.write_text(json.dumps({"card": self.section()}), encoding="utf-8")
+        env = dict(os.environ, PATH="", GENPROMPT_HOME=str(self.home), PYTHONIOENCODING="utf-8")
+        proc = subprocess.run([sys.executable, str(ARCHIVE_PY), "--card", str(src)], cwd=str(ROOT),
+                              env=env, capture_output=True, encoding="utf-8", check=False)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("package.json@unverified (git unavailable)", self.card.read_text(encoding="utf-8"))
+
+    def test_dry_run_writes_nothing_and_says_so(self):
+        self.commit_all()
+        for flags, top in ((("--dry-run",), {}), ((), {"flags": "--go --dry-run"})):
+            code, out = self.run_card(self.section(), *flags, **top)
+            self.assertEqual(code, 0, out)
+            self.assertEqual(self.card_lines(out), ["card not written (--dry-run)"])
+            self.assertEqual(out.strip().splitlines()[-1], "card not written (--dry-run)")
+            self.assertFalse((self.home / "generated-prompts").exists())
+
+    def test_missing_field_or_newline_is_refused(self):
+        code, out = self.run_card(self.section(stamp_files=[]))
+        self.assertEqual(code, 2, out)
+        code, out = self.run_card(self.section(stack="a\nb"))
+        self.assertEqual(code, 2, out)
+        self.assertFalse(self.card.exists())
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -4,6 +4,12 @@ One line per rule change: `- <YYYY-MM-DD> · <file> · <what changed and why>`.
 
 ## Unreleased
 
+- 2026-11-10 · tools/archive.py, tools/doctor.py · Card-by-tool (1.4.1): `archive.py --card`
+  writes the profile card from the parts' `card` section, taking each stamp from git itself
+  (`<file>@unverified (git unavailable)` with no git or no repo), refusing a user_level outside
+  present/unreadable/none (exit 2, nothing written), and printing the lock's card slot last:
+  `card new`, or `card not written (--dry-run)`, which never writes. doctor accepts the no-git
+  stamp without a WARN. Tools only: +0 B on every command.
 - 2026-11-10 · tools/doctor.py · 1.4.1 (CP8 W1): a `user-level:` slot off the vocabulary gets its
   own message instead of "is a path". A card saying `user-level: not scanned` now reads: user-level
   is "not scanned", not one of present|unreadable|none (vocabulary miss): run /genprompt:profile in

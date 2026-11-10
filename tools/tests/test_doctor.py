@@ -81,7 +81,8 @@ class ProfileFreshness(unittest.TestCase):
     """§2.9: freshness is the file@sha stamps; doctor (which cannot run git in the repo) only
     enforces the 90-day ceiling, so a 30-day-old card that used to WARN at 14 days is now valid."""
 
-    def run_with_cards(self, ages: dict[str, int], body: str = "stack: x\n") -> str:
+    def run_with_cards(self, ages: dict[str, int], body: str = "stack: x\n",
+                       stamp: str = "package.json@abc1234 ; CLAUDE.md@def5678") -> str:
         import datetime as _dt
         with tempfile.TemporaryDirectory() as tmp:
             shards = Path(tmp) / "generated-prompts" / "by-repo"
@@ -93,9 +94,22 @@ class ProfileFreshness(unittest.TestCase):
                 derived = (_dt.date.today() - _dt.timedelta(days=age)).isoformat()
                 (shards / f"{key}.profile.md").write_text(
                     f"---\nrepo: {key}\npath: /srv/{key}\nkey: {key}\nderived: {derived}\n"
-                    f"stamp: package.json@abc1234 ; CLAUDE.md@def5678\n---\n{body}", encoding="utf-8")
+                    f"stamp: {stamp}\n---\n{body}", encoding="utf-8")
             _code, out = run_tool(DOCTOR, "--archive", home=Path(tmp))
         return out
+
+    # card-by-tool (1.4.1), CP9 L4: archive.py --card writes this exact stamp with no git; doctor
+    # accepts it (and @untracked / @missing) without an ERROR or WARN, and still flags junk.
+    def test_card_with_the_honest_no_git_stamp_is_valid(self):
+        out = self.run_with_cards({"nogit": 3}, stamp="package.json@unverified (git unavailable) ; "
+                                                     "CLAUDE.md@unverified (git unavailable)")
+        self.assertEqual(error_lines(out), [], out)
+        self.assertNotIn("WARN ", out.split("Summary:")[0], out)
+        self.assertIn("Summary: 0 ERROR, 0 WARN", out)
+        out = self.run_with_cards({"newfile": 3}, stamp="package.json@untracked ; CLAUDE.md@missing")
+        self.assertIn("Summary: 0 ERROR, 0 WARN", out)
+        out = self.run_with_cards({"junk": 3}, stamp="package.json@unknown")
+        self.assertIn("profile junk.profile.md: stamp is not <file>@<sha>", out)
 
     def test_card_within_the_ceiling_is_valid(self):
         out = self.run_with_cards({"thirty": 30, "eightynine": 89})
