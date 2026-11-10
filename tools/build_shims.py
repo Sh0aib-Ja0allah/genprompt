@@ -352,12 +352,12 @@ def root_shim() -> str:
             "A pasted worker stop-report with no instruction means archetype J (`:next`). An empty "
             "request: resolve the target anyway, then, in one message and without asking twice, "
             "show the target and these six commands, each with its purpose: "
-            "`:onboard` (understand a repo you haven't worked in), "
             "`:slice` (build one feature or change set), "
-            "`:next` (continue from a worker's stop-report), "
-            "`:review` (review what the worker committed), "
             "`:fix` (fix confirmed bugs), "
-            "`:commit` (commit and push finished work). "
+            "`:commit` (commit and push finished work), "
+            "`:approve` (rule on findings or amend a prompt), "
+            "`:redesign` (rebuild one screen or one component), "
+            "`:next` (continue from a worker's stop-report). "
             "End with: for anything else, `/genprompt:help <your goal>`."
             "\n\nRequest: $ARGUMENTS\n")
 
@@ -411,6 +411,7 @@ _SEC_HEAD = re.compile(r"^### (4\.\d+)\b", re.M)
 _SEC_REF = re.compile(r"§(4\.\d+)")
 _INSERT_REF = re.compile(r"\[INSERT §(4\.\d+)")
 _INSERT_414 = re.compile(r"\[INSERT §4\.14\b[^\]]*\]")   # body may span lines
+REPORT_INHERITED = ("J-next",)   # templates whose GENPROMPT-REPORT line comes from another's
 
 # §4.20 is a table of situational blocks; an excerpt carries only the rows its archetype names.
 # Each row's bold name → how an archetype refers to it (case-insensitive, anywhere in its file).
@@ -586,8 +587,10 @@ def excerpt_errors() -> list[str]:
             errors.append(f"archetypes/{r.stem}.md names §{SITUATIONAL} but none of its rows")
         # E-10: a generator that composes §4.14 from the INSERT line alone must still emit the
         # report header (the baseline fix case did not), so one §4.14 INSERT must name it.
+        # R3 (1.4.1): every template needs one, except J, whose prompt is built from the emitted
+        # archetype's template and inherits that template's line.
         inserts = _INSERT_414.findall(text)
-        if inserts and not any("GENPROMPT-REPORT" in body for body in inserts):
+        if r.stem not in REPORT_INHERITED and not any("GENPROMPT-REPORT" in b for b in inserts):
             errors.append(f"archetypes/{r.stem}.md: no [INSERT §4.14 …] line names GENPROMPT-REPORT")
     return errors + checklist_errors()
 

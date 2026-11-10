@@ -242,8 +242,10 @@ class Suite(unittest.TestCase):
         self.assertEqual(code, 0, out)
 
     def test_protocol_is_within_its_final_budget(self):
-        # E-11b set the final 1.2.0 budget; the repo's PROTOCOL.md must fit it (0 WARN)
+        # E-11b set the final 1.2.0 budget; the repo's PROTOCOL.md must fit it (0 WARN).
+        # 1.4.1: raised to 15,200 for the R4 untrusted-input rule; R5 per-command budgets govern.
         doc = load_doctor()
+        self.assertEqual(doc.PROTOCOL_MAX_BYTES, 15_200)
         self.assertLessEqual((ROOT / "PROTOCOL.md").stat().st_size, doc.PROTOCOL_MAX_BYTES)
         _code, out = run_tool(DOCTOR, "--suite")
         self.assertIn("Summary: 0 ERROR, 0 WARN", out)
