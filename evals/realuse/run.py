@@ -1091,11 +1091,19 @@ def shell_run(cmd: str, cwd: Path, env_file: Path, home: Path) -> subprocess.Com
                           env={**os.environ, "GENPROMPT_HOME": home.resolve().as_posix()})
 
 
-def card_parts(fx: Path) -> dict | None:
-    """The parts file a generator hands `archive.py --card` (it carries a `card` object). None
-    until A's card-by-tool archive.py lands (P-1); F-4 fills it from A's parts format then, so
-    smoke cannot PASS before P-1."""
-    return None
+def card_parts(fx: Path, user_level: str = "unreadable") -> dict:
+    """The parts file a generator hands `archive.py --card` (1.4.1 card-by-tool, 6b3cee4): a `card`
+    object with repo, path, derived, user_level and stamp_files required, the §2.9 body optional.
+    Stamps are the tool's, never ours. `user_level` lets a test send a value the tool must reject."""
+    return {"card": {
+        "repo": fx.name, "path": fx.resolve().as_posix(), "derived": dt.date.today().isoformat(),
+        "user_level": user_level, "stamp_files": ["package.json", "CLAUDE.md"],
+        "branch": "main", "default_branch": "main (inferred: yes, no remote)",
+        "scope": "single root",
+        "stack": "Node.js >=18 (CommonJS), no framework, no runtime dependencies",
+        "role": "senior node engineer", "contract": "CLAUDE.md", "ancestors": "none found",
+        "truth": "CLAUDE.md (binding) > docs/ROADMAP.md > README.md", "code_roots": "src/ test/ scripts/",
+        "forbidden": "node_modules/", "blockers": "none stated"}}
 
 
 def smoke(args) -> int:
@@ -1125,9 +1133,8 @@ def smoke(args) -> int:
               + (" (python3 is the Store alias: PROTOCOL falls back to python)"
                  if where.get("python3") == 49 else ""))
         parts = card_parts(fx)
-        if form is None or parts is None:
-            print(f"{kind}: FAIL " + ("no shim form of archive.py runs" if form is None else
-                                      "card-writing parts pending P-1 (A's card-by-tool archive.py)"))
+        if form is None:
+            print(f"{kind}: FAIL no shim form of archive.py runs")
             ok_all = False
             continue
         pf = home / "tmp" / "smoke-parts.json"

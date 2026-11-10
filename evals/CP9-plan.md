@@ -84,15 +84,17 @@
   - **Built now** (`test_cp9.CardStateLineTest`): these outputs, verbatim, read right, and the
     printed lines read the same in a Stack row, wrapped and unwrapped. The current `card_claim`
     needed no change.
-  - **At P-1** (`test_cp9.CandidateCardLineTest`, skipped until the candidate's archive.py has
-    `--card`; it fails, not skips, if `--card` is there but `card_parts()` is unfilled), it runs
-    the real tool:
-    - **`--dry-run`** → `card not written (--dry-run)`, not "new", and no card on disk (built);
-    - **first write** → `card new`, read as "new", with a stamp F-3 verifies (built);
-    - **the same card again** (unchanged) → not "new" and not "format-miss" (added with
-      `card_parts()` at P-1);
-    - **an enum reject** (a `user_level` outside present|unreadable|none) → no card line, exit 2,
-      nothing written (added with `card_parts()` at P-1).
+  - **Against the real tool** (`test_cp9.CandidateCardLineTest`, this tree's archive.py after the
+    6b3cee4 merge; `card_parts()` follows A's parts format):
+    - **`--dry-run`** → `card not written (--dry-run)`, not "new", and no card on disk;
+    - **first write** → `card new`, read as "new", with a stamp F-3 verifies;
+    - **the same card again** → `card new` again. **Corrected from the draft:** A's tool replaces
+      the card every time it is called ("a card is a cache"), so that is an honest "new". An
+      unchanged fresh card is reported by the PROTOCOL as `card Nd, stamps fresh` without calling
+      `--card`, and the matcher reads that as not "new" (pure test);
+    - **parts `flags` with `--dry-run`** → `card not written (--dry-run)`, nothing written;
+    - **an enum reject** (`user_level` a path) → no card line, exit 2, the card on disk unchanged;
+    - **the no-git fixture** → `card new`, with every stamp exactly honest per F-3.
   - If the merged tool's wording differs from the pinned form, **the matcher is fixed before the
     freeze** and re-run on CP8's three probe dirs. The result must stay at 0 false claims there,
     and any change is stated in the report.
@@ -425,3 +427,34 @@ the lean variant within $11.50 is the plan:**
     exit 49 is not a denial and doesn't count against G-bare.
   - (b) require python3 to work. That's a host change (turning off the App Execution Alias), which
     is Shoaib's to make, and it would make the probe host unlike a fresh user's.
+
+## 9. Build status (F-1 to F-7, P-5): green, no spend, not frozen
+
+- **F-1:** a914617 came in by a three-way merge (4df00ef). Z-3 is intact: `explain unavailable` is
+  logged and `main()` survives, and both Z-3 tests pass.
+- **P-1 met:** local main 6b3cee4 (B's 1.4.1 merge plus A's card-by-tool) is merged into this
+  branch, so the eval tree tests the real `archive.py --card`.
+- **F-2 to F-7:** in `evals/realuse/run.py` (`--fixture nogit`, `stamp_check`, `card_state_line`,
+  `card_writer`, `state_match`, `bare_granted`, `archive_summary`, `card_gates`, `card_table`,
+  `--budgets`, `smoke`) and `evals/lint/structural.py` (`check_report_line`).
+  - Tests: `evals/lint/test_cp9.py` and `test_structural.ReportLineTest`.
+  - Suites: evals 170 tests OK, tools 252 OK, `build_cases --check` clean.
+- **P-5 smoke on this tree: PASS on both fixtures.**
+  - git: stamp `package.json@9c672ba ; CLAUDE.md@9c672ba`, verified;
+  - no-git: both stamps `@unverified (git unavailable)`;
+  - `card new` last in both.
+  - `python3` exits 49 (Store alias) and `python` works (Q-4).
+- **Regrade of CP8's dirs with the new code:**
+  - L1 (012950) and L2 (021833) are unchanged: 0 false claims; L1's 2 format misses.
+  - L3 (030136) now also prints the CP9 card gates and FAILs them, as expected for 1.4.0, which had
+    no card-by-tool: writer "model" on all 12 cards, G-archive 10/15, G-stamp 7/15. So `regrade
+    --write` exits 1 on CP8's L3.
+- **B's v1.4.0 floor table (408eacf, off 6b3cee4)** equals §3 on all five cases (floors, +5% WARN
+  thresholds, budgets). doctor WARNs only when a load is strictly over floor × 1.05; the probe uses
+  the same strict test.
+  - B's static loads at 408eacf: slice 33,212 · fix 33,995 · redesign 32,653 · plan 30,562 ·
+    investigate 36,050. That's +2.4% to +3.2% over v1.4.0, all under budget and the WARN line.
+- **Before the freeze:**
+  - B's floor branch merges (P-3);
+  - this branch merges into main, so the candidate holds these `evals/cases` (P-2);
+  - P-4 and P-5 are re-run on the named candidate.

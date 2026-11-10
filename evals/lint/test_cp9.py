@@ -179,38 +179,59 @@ ARCH = "C:/genprompt-probe/w/gp-cand/tools/archive.py"
 PARTS = "C:/genprompt-probe/w/homes/h/tmp/p.json"
 
 
-class CandidateCardLineTest(unittest.TestCase):
-    """F-4 (tool part): the candidate's own archive.py --card prints a line the matcher reads
-    right. Runs once A's card-by-tool archive.py is in this tree (P-1) and card_parts() is filled
-    from its parts format; until then it is skipped, and P-5 smoke cannot PASS either."""
+class CandidateCardLineTest(FixtureCase):
+    """F-4 (tool part): this tree's archive.py --card (A's card-by-tool, merged at 6b3cee4) prints
+    a card-state line the matcher reads right, on the git and the no-git fixture."""
 
     ARCHIVE = Path(__file__).resolve().parents[2] / "tools" / "archive.py"
 
-    def setUp(self):
-        if "--card" not in self.ARCHIVE.read_text(encoding="utf-8"):
-            self.skipTest("pending P-1: A's card-by-tool archive.py (--card) is not merged")
-        if run.card_parts(Path(".")) is None:
-            self.fail("archive.py has --card but run.card_parts() is still unfilled (F-4)")
-
-    def tool(self, fx: Path, home: Path, *flags: str) -> subprocess.CompletedProcess:
+    def tool(self, fx: Path, home: Path, *flags: str, user_level: str = "unreadable",
+             parts_flags: str = "") -> subprocess.CompletedProcess:
+        import os
         pf = home / "tmp" / "p.json"
         pf.parent.mkdir(parents=True, exist_ok=True)
-        pf.write_text(json.dumps(run.card_parts(fx)), encoding="utf-8")
+        parts = run.card_parts(fx, user_level)
+        if parts_flags:
+            parts["flags"] = parts_flags
+        pf.write_text(json.dumps(parts), encoding="utf-8")
         return subprocess.run([sys.executable, str(self.ARCHIVE), "--card", *flags, str(pf)], cwd=fx,
                               capture_output=True, text=True, encoding="utf-8",
-                              env={**__import__("os").environ, "GENPROMPT_HOME": home.as_posix()})
+                              env={**os.environ, "GENPROMPT_HOME": home.as_posix()})
 
-    def test_first_write_dry_run_and_reject(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            fx, home = run.fixture(Path(tmp) / "w"), Path(tmp) / "home"
-            dry = self.tool(fx, home, "--dry-run")
-            self.assertEqual(run.card_state_line(dry.stdout), "card not written (--dry-run)")
-            self.assertNotEqual(run.state_kind(run.card_state_line(dry.stdout)), "new")
-            self.assertFalse(run.card_path(home, fx).exists())
-            first = self.tool(fx, home)
-            self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
-            self.assertEqual(run.state_kind(run.card_state_line(first.stdout)), "new")
-            self.assertTrue(run.stamp_check(run.card_path(home, fx), fx)[0])
+    def test_dry_run_first_write_repeat_and_reject(self):
+        home = self.home / "tool-git"
+        fx = self.git_fx
+        card = run.card_path(home, fx)
+        for flags, pflags in (("--dry-run",), ""), ((), "--go --dry-run"):
+            dry = self.tool(fx, home, *flags, parts_flags=pflags)
+            line = run.card_state_line(dry.stdout)
+            self.assertEqual(line, "card not written (--dry-run)", dry.stdout)
+            self.assertNotIn(run.state_kind(line), ("new", "format-miss"))
+            self.assertFalse(card.exists())
+        first = self.tool(fx, home)
+        self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
+        self.assertEqual(run.card_state_line(first.stdout), "card new")
+        self.assertEqual(run.state_kind(run.card_state_line(first.stdout)), "new")
+        self.assertTrue(run.stamp_check(card, fx)[0], card.read_text(encoding="utf-8"))
+        # the same card again: the tool replaces it (a cache) and says "card new" again; the
+        # PROTOCOL reports an unchanged fresh card as "card Nd, stamps fresh" without calling it
+        again = self.tool(fx, home)
+        self.assertEqual(run.card_state_line(again.stdout), "card new")
+        before = run.file_digest(card)
+        rej = self.tool(fx, home, user_level="C:/Users/someone/.claude")
+        self.assertEqual(rej.returncode, 2, rej.stdout)
+        self.assertIsNone(run.card_state_line(rej.stdout))
+        self.assertIn("CARD NOT WRITTEN", rej.stdout)
+        self.assertEqual(run.file_digest(card), before)
+
+    def test_no_git_stamps_honest(self):
+        home = self.home / "tool-nogit"
+        out = self.tool(self.nogit_fx, home)
+        self.assertEqual(out.returncode, 0, out.stdout + out.stderr)
+        self.assertEqual(run.card_state_line(out.stdout), "card new")
+        ok, det = run.stamp_check(run.card_path(home, self.nogit_fx), self.nogit_fx)
+        self.assertTrue(ok, det)
+        self.assertIn("honest no-git", det)
 
 
 class CardProvenanceTest(unittest.TestCase):
@@ -330,22 +351,22 @@ class BudgetTest(unittest.TestCase):
 
 
 class SmokeTest(unittest.TestCase):
-    """P-5: offline, no model. Before P-1 it must FAIL (no card-writing parts), never PASS."""
+    """P-5: offline, no model. On this tree (card-by-tool merged) both fixtures pass."""
 
-    def test_smoke_fails_until_card_by_tool(self):
+    def test_smoke_passes_on_this_tree(self):
+        import argparse
         import io
         from contextlib import redirect_stdout
-        if run.card_parts(Path(".")) is not None:
-            self.skipTest("card_parts() filled (P-1): smoke is run for real at the freeze")
-        import argparse
         buf = io.StringIO()
         with tempfile.TemporaryDirectory() as tmp:
             with redirect_stdout(buf):
                 code = run.smoke(argparse.Namespace(cand="HEAD", workroot=tmp))
         out = buf.getvalue()
-        self.assertEqual(code, 1, out)
-        self.assertIn("pending P-1", out)
-        self.assertIn("P-5 smoke: FAIL", out)
+        self.assertEqual(code, 0, out)
+        self.assertIn("P-5 smoke: PASS", out)
+        self.assertIn("git: PASS", out)
+        self.assertIn("nogit: PASS", out)
+        self.assertIn("honest no-git", out)
         for kind in run.FIXTURES:
             self.assertIn(f"{kind}: --where exit codes", out)
 
