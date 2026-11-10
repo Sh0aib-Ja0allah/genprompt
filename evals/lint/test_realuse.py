@@ -687,8 +687,10 @@ class WriteModeTest(unittest.TestCase):
 
     def test_claims_new_card(self):
         new = ["- Stack: Node commonjs, node >=18 · role senior Node engineer · card 0d, fresh (new)",
-               "Stack       Node, CommonJS · role CLI · card new (dry run writes none)",
-               "Stack       Node >=18 · role CLI engineer · card new, not written (--dry-run)"]
+               "Stack       Node, CommonJS · role CLI · card new (dry run writes none)"]
+        # CP8 C1 amendment: "card new" + "not written" in one row is a format miss, not a claim
+        self.assertFalse(run.claims_new_card(
+            ["Stack       Node >=18 · role CLI engineer · card new, not written (--dry-run)"]))
         not_new = ["Stack       Node · role engineer · card 0d, stamps fresh (package.json@9c672ba)",
                    "Stack       Node.js · role engineer · card none (not derived this run)",
                    "The card is new to me",          # not a Stack line
@@ -955,6 +957,72 @@ class FindRuleTest(unittest.TestCase):
                 run.HOME = real
         self.assertEqual(a["find_passes"], [cmd])
         self.assertEqual(a["outside"], [])
+
+
+class CardClaimAmendmentTest(unittest.TestCase):
+    """CP8 C1 amendment (the last): "card new" + "not written" in one Stack row = format miss
+    (counted); "card new" alone with no card written = FAIL; "card new" with a card on disk = pass;
+    a saved claim on a non-writing run = FAIL."""
+
+    def test_card_claim_kinds(self):
+        # the two L1 rows (aa96986, 012950 fix r1 / r3), verbatim
+        miss = ["Stack       Node.js, CommonJS, engines node >=18, no runtime dependencies "
+                "(package.json:9-10) \u00b7 role senior Node engineer \u00b7 card new, not written "
+                "(--dry-run)",
+                "Stack       Node.js (commonjs), node --test, no lockfile, no runtime deps "
+                "(package.json) \u00b7 role senior Node.js engineer \u00b7 card new (not written: --dry-run)"]
+        for r in miss:
+            self.assertEqual(run.card_claim([r]), "format-miss", r)
+            self.assertFalse(run.claims_new_card([r]))
+        wrapped = ("Stack       Node \u00b7 role x\n"
+                   "            \u00b7 card new (written this run; stamps package.json@9c672ba)")
+        self.assertEqual(run.card_claim([wrapped]), "new")
+        self.assertEqual(run.card_claim(["Stack   Node \u00b7 card 0d, stamps fresh"]), None)
+        # a real "new" anywhere wins over a format miss elsewhere
+        self.assertEqual(run.card_claim([miss[0], wrapped]), "new")
+
+    def _regrade(self, final: str, card: bool, saved: bool, write: bool):
+        import argparse
+        import io
+        import json
+        import tempfile
+        from contextlib import redirect_stdout
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp).resolve() / "genprompt-probe" / "run-1"
+            home = work / "homes" / "gp-cand-plan-r1"
+            (home / "tmp").mkdir(parents=True)
+            (work / "fixture").mkdir()
+            if card:
+                p = run.card_path(home, work / "fixture")
+                p.parent.mkdir(parents=True, exist_ok=True)
+                p.write_text("card", encoding="utf-8")
+            if saved:
+                d = home / "generated-prompts" / "fixture"
+                d.mkdir(parents=True)
+                (d / "x.md").write_text("p", encoding="utf-8")
+            (work / "gp-cand-plan-haiku-r1.jsonl").write_text(
+                json.dumps({"type": "result", "result": final, "total_cost_usd": 0.01}),
+                encoding="utf-8")
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                code = run.regrade(argparse.Namespace(workdir=str(work), write=write))
+            return code, buf.getvalue()
+
+    def test_regrade_amendment(self):
+        miss = "Stack   Node \u00b7 card new, not written (--dry-run)"
+        code, out = self._regrade(miss, card=False, saved=False, write=False)
+        self.assertIn("false \"card new\" / saved claims: 0", out)
+        self.assertIn("counted): 1", out)
+        self.assertEqual(code, 0)
+        code, out = self._regrade("Stack   Node \u00b7 card new", card=False, saved=False, write=False)
+        self.assertIn("false \"card new\" / saved claims: 1", out)
+        self.assertEqual(code, 1)
+        code, out = self._regrade("Stack   Node \u00b7 card new", card=True, saved=True, write=True)
+        self.assertIn("false \"card new\" / saved claims: 0", out)
+        code, out = self._regrade("Stack   Node \u00b7 card 0d\n\nSaved: C:/genprompt-probe/x.md",
+                                  card=False, saved=False, write=False)
+        self.assertIn("false \"card new\" / saved claims: 1", out)
+        self.assertEqual(code, 1)
 
 
 class SavedClaimTest(unittest.TestCase):

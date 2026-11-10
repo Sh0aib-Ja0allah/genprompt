@@ -139,9 +139,26 @@ def claims_saved(text: str) -> bool:
     return False
 
 
+NOT_WRITTEN_RE = re.compile(r"\bnot\s+(?:written|saved)\b", re.I)
+
+
+def card_claim(texts: list[str]) -> str | None:
+    """The card state a run's Stack rows claim (CP8 C1 amendment, the last one):
+    "new"         "card new" with no "not written" in the same row: a claim that the card was written
+    "format-miss" "card new" AND "not written" in the same row: self-contradicting wording, counted
+    None          no "card new" at all"""
+    kinds = []
+    for t in texts:
+        for row in stack_rows(t):
+            if CARD_NEW_RE.search(row):
+                kinds.append("format-miss" if NOT_WRITTEN_RE.search(row) else "new")
+    return "new" if "new" in kinds else ("format-miss" if kinds else None)
+
+
 def claims_new_card(texts: list[str]) -> bool:
-    """True if any Stack row the run printed (continuation lines included) reports the card as new."""
-    return any(CARD_NEW_RE.search(row) for t in texts for row in stack_rows(t))
+    """True if a Stack row (continuation lines included) claims a newly written card: "card new"
+    without "not written" in the same row. A "card new … not written" row is a format miss."""
+    return card_claim(texts) == "new"
 TOOLS_OFF = ["Bash", "PowerShell", "Write", "Edit", "NotebookEdit", "WebFetch", "WebSearch",
              "SendMessage", "ListAgents", "Artifact", "ArtifactComments", "ArtifactData",
              "Workflow", "PushNotification", "RemoteTrigger", "CronCreate", "CronDelete",
@@ -973,6 +990,7 @@ def analyze(path: Path, plugin: Path, work: Path, write: bool = False) -> dict:
     return {"first": first, "reads": reads, "outside": outside, "result": result,
             "bash": bash, "writes": writes, "card_seen": card_seen,
             "claims_new": claims_new_card(texts + [str(result.get("result") or "")]),
+            "card_claim": card_claim(texts + [str(result.get("result") or "")]),
             "archive_attempts": attempts, "find_passes": finds}
 
 
@@ -1304,7 +1322,7 @@ def regrade(args) -> int:
     work = Path(args.workdir).resolve()
     traces = sorted(work.glob("gp-*-haiku*.jsonl")) + sorted(
         t for t in work.glob("gp-*.jsonl") if "-haiku" not in t.name)
-    flagged, attempts, qd, finds, false_claims = 0, [], [], [], []
+    flagged, attempts, qd, finds, false_claims, format_miss = 0, [], [], [], [], []
     write = getattr(args, "write", False)
     for t in traces:
         m = re.match(r"(gp-(?:cand|base|b-[0-9a-f]+))-([a-z]+)-.*?(?:-r(\d+))?$", t.stem)
@@ -1332,7 +1350,11 @@ def regrade(args) -> int:
             der = any(p == DERIVE for p, _ in a["reads"])
             new_claim, saved_claim = a["claims_new"], claims_saved(final)
             qd.append((t.stem, der, wrote, new_claim))
-            if new_claim != wrote or (saved_claim and not saved):
+            if a.get("card_claim") == "format-miss":
+                format_miss.append(f"{t.stem}: \"card new\" and \"not written\" in one Stack row")
+            # CP8 C1 amendment: "card new" with no card on disk, or a saved claim with nothing
+            # saved, is FALSE; a card written without "new" shows up in the Q-d line instead
+            if (new_claim and not wrote) or (saved_claim and not saved):
                 false_claims.append(f"{t.stem}: \"card new\" {'Y' if new_claim else 'n'} vs written "
                                     f"{'Y' if wrote else 'n'}; saved claim "
                                     f"{'Y' if saved_claim else 'n'} vs saved {'Y' if saved else 'n'}")
@@ -1348,6 +1370,8 @@ def regrade(args) -> int:
           + "".join(f"\n    {x}" for x in finds))
     print(f"false \"card new\" / saved claims: {len(false_claims)}"
           + "".join(f"\n    {x}" for x in false_claims))
+    print(f"format misses (\"card new\" + \"not written\" in one Stack row, counted): "
+          f"{len(format_miss)}" + "".join(f"\n    {x}" for x in format_miss))
     if qd and write:
         n = len(qd)
         print(f"Q-d (--write): derive {sum(d for _, d, _, _ in qd)}/{n} · card written "
@@ -1355,7 +1379,7 @@ def regrade(args) -> int:
               f"{sum(w == c for _, _, w, c in qd)}/{n} (H1: no \"new\" without a write "
               f"{sum(not (c and not w) for _, _, w, c in qd)}/{n}; every write says \"new\" "
               f"{sum(not (w and not c) for _, _, w, c in qd)}/{n})")
-    return 1 if flagged or len(attempts) > 1 else 0
+    return 1 if flagged or len(attempts) > 1 or false_claims else 0
 
 
 def isolation(args) -> int:

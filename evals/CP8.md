@@ -193,3 +193,19 @@ Quality was not run.
 **C1 ruling check:** L3 is 15/15 honest, but **L1 has 2 false "card new"**: two dry-run runs on aa96986
 printed "card new" while also saying "not written". Under the ruling, **"any of L1–L3 has a false
 'card new' → the ruling lapses and CP8 stops."** **STOPPED. Quality was not run.**
+
+### C1 amendment (Planner; the LAST CP8 amendment), pinned, and the re-grade: clean → GO quality
+
+- **Matcher** (`card_claim`, tested):
+  - "card new" plus "not written" in the same Stack row = **format miss** (counted, reported);
+  - "card new" alone with no card written = **FAIL**;
+  - "card new" with the card on disk = pass;
+  - a saved or written claim in the final message on a non-writing run = **FAIL**.
+- **Re-grade:**
+  - L1 (012950): 0 false claims, **2 format misses** (fix r1, fix r3);
+  - L2 (021833): 0 false, 0 misses;
+  - L3 (030136): 0 false, 0 misses, Q-d "card new" ⇔ written 15/15.
+
+  As expected.
+- **Standing:** any further gate failure, quality included, means **hold 1.4.0** (no new ruling).
+- **Eval freeze:** this commit.
